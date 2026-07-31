@@ -68,8 +68,8 @@ type PermissionService interface {
 
 ```go
 type ConfigService interface {
-    GetAll(ctx context.Context) (map[string]string, error)
-    Get(ctx context.Context, key string) (string, error)
+    GetAll(ctx context.Context) ([]domain.SystemConfig, error)
+    Get(ctx context.Context, key string) (*domain.SystemConfig, error)
     Set(ctx context.Context, key, value string) error
     Delete(ctx context.Context, key string) error
 }

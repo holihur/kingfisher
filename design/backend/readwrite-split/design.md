@@ -14,7 +14,7 @@ GORM 内置了 `DBResolver` 插件，基于 `*gorm.DB` 的方法自动路由。
 
 ```go
 // core/database/gorm.go
-func NewGormWithRW(cfg MySQLConfig, logger *zap.Logger) *gorm.DB {
+func NewDatabaseWithRW(cfg DatabaseConfig, logger *zap.Logger) *gorm.DB {
     masterDSN := buildDSN(cfg.Master)
     db, _ := gorm.Open(mysql.Open(masterDSN), &gorm.Config{Logger: gormLogger})
 

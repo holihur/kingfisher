@@ -62,8 +62,8 @@ type ConfigService struct {
     cache coreCache.Cache
 }
 
-func (s *ConfigService) GetAll(ctx context.Context) (map[string]string, error)
-func (s *ConfigService) Get(ctx context.Context, key string) (string, error)
+func (s *ConfigService) GetAll(ctx context.Context) ([]domain.SystemConfig, error)
+func (s *ConfigService) Get(ctx context.Context, key string) (*domain.SystemConfig, error)
 func (s *ConfigService) Set(ctx context.Context, key, value string) error
 func (s *ConfigService) Delete(ctx context.Context, key string) error
 ```
@@ -73,7 +73,7 @@ func (s *ConfigService) Delete(ctx context.Context, key string) error
 ```
 1. cache.Get("config:all")
 2. miss → repo.GetAll() → 转成 map[string]string
-3. cache.Set("config:all", data, 5*time.Minute)
+3. data,_:=json.Marshal(configs); cache.Set("config:all", string(data), 5*time.Minute)
 4. 返回
 ```
 

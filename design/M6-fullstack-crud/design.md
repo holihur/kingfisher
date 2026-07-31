@@ -12,6 +12,7 @@
 | 菜单管理 | [menu](../frontend/menu/design.md) | 树形 Table + TreeSelect 父级 |
 | 角色权限 | [rbac](../frontend/rbac/design.md) | Tabs 权限分配 + Tree 菜单分配 |
 | 系统配置 | [config](../frontend/config/design.md) | 键值对编辑 + 动态控件 |
+| 审计日志 | [audit](../../design/backend/extends/audit/design.md) | 操作记录查询按资源/操作筛选 |
 | 类型共享 | [shared-types](../../shared-types/design.md) | Swagger → TS 类型自动生成 |
 
 ## 验证
@@ -60,6 +61,7 @@
 | `kingfisher-web/src/pages/config/ConfigManage.tsx` | 配置列表 |
 | `kingfisher-web/src/pages/config/ConfigEditModal.tsx` | 配置编辑 |
 | `kingfisher-web/src/pages/dashboard/index.tsx` | Dashboard |
+| `kingfisher-web/src/pages/audit/AuditLogList.tsx` | 审计日志 |
 ## 验收
 
 → [acceptance 验收清单](../acceptance/design.md)

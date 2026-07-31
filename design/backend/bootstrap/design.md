@@ -70,30 +70,22 @@ make run
 # MySQL/PG 模式：运维先执行 make migrate-up
 ```
 
-### 2.3 验证迁移结果
+### 2.3 验证（SQLite 开发模式）
 
 ```bash
-mysql -u root -p kingfisher -e "SHOW TABLES;"
-# users, roles, permissions, role_permissions, menus, role_menus, system_configs
+sqlite3 kingfisher.db ".tables"
+# users, roles, permissions, role_permissions, menus, role_menus, system_configs, audit_logs
 
-mysql -u root -p kingfisher -e "SELECT id, username, email FROM users;"
-# 1 | admin | admin@example.com
+sqlite3 kingfisher.db "SELECT id, username, email FROM users;"
+# 1|admin|admin@example.com
+
+# MySQL 生产模式验证：
+# mysql -u root -p kingfisher -e "SHOW TABLES;"
 ```
 
-### 2.4 启动应用
 
-```bash
-# 开发模式
-make run
-# 输出：
-# [INFO] config loaded from config/config.yaml
-# [INFO] mysql connected (127.0.0.1:3306/kingfisher)
-# [INFO] redis connected (127.0.0.1:6379)
-# [INFO] server starting on :8080
-# [INFO] visit http://localhost:8080/swagger/index.html
-```
 
-### 2.5 验证启动
+### 2.4 验证启动
 
 ```bash
 # 健康检查
@@ -217,10 +209,8 @@ config/config.yaml   默认值（基础配置）               ← 提交 git
 ```bash
 # 第一次
 make setup          # 装依赖 + 生成 swagger + wire
-make docker-dev     # 启动 MySQL + Redis
-# 开发环境(SQLite): GORM AutoMigrate 自动执行，无需手动迁移
-# 生产环境(MySQL/PG): 运维手动执行
-make migrate-up     # 建表 + 种子数据
+# SQLite 模式：无需迁移，make run 自动建表+种子
+# 如果需要 Redis：brew install redis && redis-server --daemonize yes
 make run            # 启动 Go
 
 # 之后每天

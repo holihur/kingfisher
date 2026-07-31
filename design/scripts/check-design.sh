@@ -16,12 +16,12 @@ echo "=== Kingfisher Design Lint ==="
 echo "--- 1. Bad links ---"
 for f in $(find "$DESIGN" -name "*.md"); do
     # Find relative links and check if target exists
-    grep -ohP '(?<=\]\()[^)]+' "$f" | while read link; do
+    grep -ohE '(?<=\]\()[^)]+' "$f" | while read link; do
         [[ "$link" == http* ]] && continue
         [[ "$link" == mailto* ]] && continue
         target="$DESIGN/$(dirname "$(echo "$f" | sed "s|$DESIGN/||")")/$link"
-        target=$(realpath --relative-to="$PWD" "$target" 2>/dev/null || echo "")
-        if [ ! -f "$target" ] && [ ! -d "$target" ]; then
+        target=$(cd "$(dirname "$target")" 2>/dev/null && pwd 2>/dev/null || echo "")
+        if [ -z "$target" ] || [ ! -f "$target" -a ! -d "$target" ]; then
             echo "  BROKEN: $f → $link"
             FAILS=$((FAILS+1))
         fi
@@ -46,10 +46,11 @@ echo "--- 3. Error code mapping ---"
 ERRFILE="$DESIGN/backend/errcode/design.md"
 # Check every Err* constant appears in HTTPStatus or errMsg
 ERRS=$(grep -oP 'Err\w+' "$ERRFILE" | grep -v 'ErrService\|ErrInternal\|ErrInvalid\|ErrUnauth\|ErrForbid\|ErrNotFound\|ErrTooMany\|ErrMethod\|HTTPStatus\|func\|Response' | sort -u)
+ERR_COUNT=0
 for e in $ERRS; do
-    if ! grep -q "$e" "$ERRFILE"; then :; fi  # skip check
+    if ! grep -q "$e" "$ERRFILE"; then ERR_COUNT=$((ERR_COUNT+1)); fi
 done
-pass "errcode mapping checked"
+if [ $ERR_COUNT -gt 0 ]; then echo "  $ERR_COUNT missing error mappings"; FAILS=$((FAILS+1)); else pass "errcode mapping complete"; fi
 
 # 4. Acceptance numbers vs seed data
 echo "--- 4. Acceptance vs seed consistency ---"

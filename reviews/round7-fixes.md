@@ -11,4 +11,4 @@
 | P1-5 | 🟡 | 迁移策略 | ✅ | compose dev/boot prod |
 | P2-2 | 🔵 | lint 脚本 | ✅ | check-design.sh |
 | P2-4 | 🔵 | CHANGELOG | ✅ | 已创建 |
-| P2-5 | 🔵 | Git | ✅ | 8 commits |
+| P2-5 | 🔵 | Git | ✅ | 9 commits |

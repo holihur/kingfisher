@@ -105,6 +105,19 @@
 
 ---
 
+
+### SQLite 开发模式验收
+
+- [ ] `config.yaml` 中 `database.driver: sqlite` → `make run` 零依赖启动（无需 Docker、MySQL）
+- [ ] 启动后自动创建 `kingfisher.db`（项目根目录）
+- [ ] GORM AutoMigrate 自动建表（8 张表）
+- [ ] 种子数据自动写入（admin 用户 / 3 角色 / 15 权限 / 15 菜单 / 5 配置）
+- [ ] `sqlite3 kingfisher.db "SELECT * FROM users;"` 可读到 admin 记录
+- [ ] 切换 `database.driver: mysql` → 连接 MySQL → golang-migrate 执行 migrations/*.sql
+- [ ] 切换 `database.driver: postgres` → 连接 PG → golang-migrate 执行 migrations/*.sql
+- [ ] 三驱动切换时 extends 模块代码零改动
+- [ ] `kingfisher.db` 在 `.gitignore` 中，不会提交
+
 ## M2 — 用户注册登录
 
 ### 功能验收
