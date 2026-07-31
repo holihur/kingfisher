@@ -79,7 +79,8 @@ const RoleList: React.FC = () => {
 
     return (
         <>
-            <ProTable<Role> columns={columns} request={loadRoles} rowKey="id" />
+            <ProTable<Role> columns={columns} request={loadRoles} rowKey="id"
+                search={{ syncToUrl: true }} pagination={{ syncToUrl: true }} />
             <PermissionModal {...permModal} onClose={() => setPermModal({ open: false, role: null })} />
             <MenuAssignModal {...menuModal} onClose={() => setMenuModal({ open: false, role: null })} />
         </>

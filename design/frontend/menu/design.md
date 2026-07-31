@@ -96,7 +96,7 @@ const MenuManage: React.FC = () => {
                 columns={columns}
                 dataSource={flattenForTable(tree)}
                 rowKey="id"
-                search={false}
+                search={false, syncToUrl: false}  // 菜单不分页不搜索，URL 仅 expanded 参数同步
                 pagination={false}           // 菜单通常不多，不分页
                 defaultExpandAllRows
                 toolBarRender={() => [

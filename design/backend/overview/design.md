@@ -119,10 +119,10 @@ func main() {
     // 1. 初始化 Core
     cfg := coreConfig.Load("config/config.yaml")
     logger := coreLogger.New(cfg.Log)
-    db := coreDB.New(cfg.MySQL, logger)
-    rdb := coreCache.New(cfg.Redis)
-    jwtMgr := coreJWT.New(cfg.JWT, rdb)
-    ginEngine := coreRouter.NewEngine(cfg, logger, jwtMgr)
+    db := coreDB.NewDatabase(cfg.Database, logger)
+    rdb := coreCache.NewRedisClient(cfg.Redis)
+    jwtMgr := coreJWT.NewJWTManager(cfg.JWT, coreCache.NewRedisCache(rdb))
+    ginEngine := coreRouter.NewEngine(cfg, logger)
 
     // 2. 构建 Core 中间件
     jwtMw := coreMiddleware.Auth(jwtMgr)
@@ -214,3 +214,5 @@ extends/{module}/
 | Backend | 性能基准 | [perf-bench](../perf-bench/design.md) |
 | Frontend | 本地联调 | [local-dev](../../frontend/local-dev/design.md) |
 | Shared | 类型共享 | [shared-types](../../shared-types/design.md) |
+| Meta | 依赖清单 | [dependencies](../../dependencies.md) |
+| Meta | 变更日志 | [CHANGELOG](../../CHANGELOG.md) |

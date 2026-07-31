@@ -91,7 +91,7 @@ const ConfigManage: React.FC = () => {
                     return { data: items, success: true };
                 }}
                 rowKey="key"
-                search={false}
+                search={false}  // 配置项少，不分页不搜索，无需 URL 同步
             />
             <ConfigEditModal {...editModal}
                 onClose={() => setEditModal({ open: false, config: null })}
