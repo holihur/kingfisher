@@ -1,3 +1,12 @@
+// @title           Kingfisher Admin API
+// @version         1.0
+// @description     后台管理系统 API 文档
+// @host            localhost:8080
+// @BasePath        /api/v1
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+
 package main
 
 import (
@@ -74,13 +83,17 @@ func main() {
 		}
 	}
 
-	// 4. Initialize Redis
+	// 4. Initialize Redis (graceful degradation if unavailable)
 	rdb, err := cache.NewRedisClient(cfg.Redis)
+	var redisCache cache.Cache
 	if err != nil {
-		zapLog.Fatal("redis init failed", zap.Error(err))
+		zapLog.Warn("redis unavailable — rate limiting, token blacklist, and caching disabled",
+			zap.Error(err))
+		redisCache = nil
+	} else {
+		defer rdb.Close()
+		redisCache = cache.NewRedisCache(rdb)
 	}
-	defer rdb.Close()
-	redisCache := cache.NewRedisCache(rdb)
 
 	// 5. Initialize JWT
 	jwtMgr := jwt.NewJWTManager(cfg.JWT, redisCache)
@@ -160,7 +173,7 @@ func readyHandler(db *gorm.DB, rdb *redis.Client) gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(c.Request.Context(), 3*time.Second)
 		defer cancel()
 		dbOK := db.WithContext(ctx).Raw("SELECT 1").Error == nil
-		redisOK := rdb.Ping(ctx).Err() == nil
+		redisOK := rdb != nil && rdb.Ping(ctx).Err() == nil
 		s := gin.H{"status": "ready"}
 		if dbOK { s["mysql"] = "ok" } else { s["mysql"] = "down" }
 		if redisOK { s["redis"] = "ok" } else { s["redis"] = "down" }
