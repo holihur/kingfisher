@@ -93,7 +93,7 @@ func HTTPStatus(code int) int {
 		return 404
 	case code == 10008:
 		return 405
-	case code == 10001 || code >= 10100:
+	case code == 10001 || (code >= 10100 && code < 10500):
 		return 400
 	default:
 		return 500

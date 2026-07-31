@@ -7,6 +7,8 @@ type RoleRepository interface {
     AssignPermissions(ctx context.Context, roleID uint, permIDs []uint) error
     AssignMenus(ctx context.Context, roleID uint, menuIDs []uint) error
     GetUserPermissions(ctx context.Context, userID uint) ([]string, error)
+	GetRolePermissions(ctx context.Context, roleID uint) ([]domain.Permission, error)
+	GetRoleMenus(ctx context.Context, roleID uint) ([]domain.Menu, error)
 }
 type PermissionRepository interface {
     FindAll(ctx context.Context) ([]domain.Permission, error)

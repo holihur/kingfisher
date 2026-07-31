@@ -51,6 +51,26 @@ func (r *RoleRepo) GetUserPermissions(ctx context.Context, userID uint) ([]strin
 }
 type PermRepo struct{ db *gorm.DB }
 func NewPermRepo(db *gorm.DB) *PermRepo { return &PermRepo{db: db} }
+
+func (r *RoleRepo) GetRolePermissions(ctx context.Context, roleID uint) ([]domain.Permission, error) {
+	var pos []permissionPO
+	err := r.db.WithContext(ctx).Joins("JOIN role_permissions rp ON rp.permission_id = permissions.id").Where("rp.role_id = ?", roleID).Find(&pos).Error
+	if err != nil { return nil, err }
+	perms := make([]domain.Permission, len(pos))
+	for i, p := range pos { perms[i] = domain.Permission{ID: p.ID, Name: p.Name, Code: p.Code, Resource: p.Resource, Action: p.Action} }
+	return perms, nil
+}
+
+func (r *RoleRepo) GetRoleMenus(ctx context.Context, roleID uint) ([]domain.Menu, error) {
+	type menuPO struct { ID uint; ParentID uint; Name string; Path string; Component string; Icon string; Sort int; Type int; Permission string; Status int }
+	var pos []menuPO
+	err := r.db.WithContext(ctx).Joins("JOIN role_menus rm ON rm.menu_id = menus.id").Where("rm.role_id = ?", roleID).Order("sort ASC").Find(&pos).Error
+	if err != nil { return nil, err }
+	menus := make([]domain.Menu, len(pos))
+	for i, p := range pos { menus[i] = domain.Menu{ID: p.ID, ParentID: p.ParentID, Name: p.Name, Path: p.Path, Component: p.Component, Icon: p.Icon, Sort: p.Sort, Type: p.Type, Permission: p.Permission} }
+	return menus, nil
+}
+
 func (r *PermRepo) FindAll(ctx context.Context) ([]domain.Permission, error) {
     var pos []permissionPO; err := r.db.WithContext(ctx).Find(&pos).Error; if err != nil { return nil, err }
     perms := make([]domain.Permission, len(pos))

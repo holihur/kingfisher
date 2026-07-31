@@ -97,8 +97,8 @@ func main() {
 
 	// 8. Build auth/rbac middleware
 	authMw := rbacTransport.AuthMiddleware(jwtMgr)
-	// RBAC middleware uses a nil role service initially — extends/rbac module handles permission checks internally
-	var rbacMw gin.HandlerFunc = func(c *gin.Context) { c.Next() }
+	// RBAC middleware — permission checks via the RBAC module's RoleService
+	rbacMw := rbacTransport.RBACMiddlewareSvc(db, redisCache)
 
 	// 9. Register all extends modules
 	mods := []router.Module{

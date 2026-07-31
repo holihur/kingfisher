@@ -29,8 +29,16 @@ func (s *RoleService) GetUserPermissions(ctx context.Context, userID uint) ([]st
     if s.cache != nil { _ = s.cache.Set(ctx, key, codes, 30*60*1e9) } // 30min in ns
     return codes, nil
 }
-func (s *RoleService) GetRolePermissions(ctx context.Context, roleID uint) ([]domain.Permission, error) { return nil, nil }
-func (s *RoleService) GetRoleMenus(ctx context.Context, roleID uint) (interface{}, error) { return nil, nil }
+func (s *RoleService) GetRolePermissions(ctx context.Context, roleID uint) ([]domain.Permission, error) {
+	rp, err := s.repo.GetRolePermissions(ctx, roleID)
+	if err != nil { return nil, err }
+	return rp, nil
+}
+func (s *RoleService) GetRoleMenus(ctx context.Context, roleID uint) ([]domain.Menu, error) {
+	rm, err := s.repo.GetRoleMenus(ctx, roleID)
+	if err != nil { return nil, err }
+	return rm, nil
+}
 func strSlice(s string) []string { return nil } // placeholder
 type PermService struct { repo port.PermissionRepository }
 func NewPermService(repo port.PermissionRepository) *PermService { return &PermService{repo: repo} }

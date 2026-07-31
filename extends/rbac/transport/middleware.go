@@ -1,5 +1,5 @@
 package transport
-import ("github.com/gin-gonic/gin"; "kingfisher/core/errcode"; "kingfisher/core/jwt"; "kingfisher/core/response"; "kingfisher/extends/rbac/app"; "strings")
+import ("github.com/gin-gonic/gin"; "gorm.io/gorm"; "kingfisher/core/cache"; "kingfisher/core/errcode"; "kingfisher/core/jwt"; "kingfisher/core/response"; "kingfisher/extends/rbac/adapter/mysql"; "kingfisher/extends/rbac/app"; "strings")
 func AuthMiddleware(jwtMgr *jwt.JWTManager) gin.HandlerFunc {
     return func(c *gin.Context) {
         h := c.GetHeader("Authorization")
@@ -15,6 +15,12 @@ func RBACMiddleware(roleSvc *app.RoleService) gin.HandlerFunc {
         ps := make(map[string]bool, len(perms)); for _, p := range perms { ps[p] = true }; c.Set("permissions", ps); c.Next()
     }
 }
+func RBACMiddlewareSvc(db *gorm.DB, c cache.Cache) gin.HandlerFunc {
+	roleRepo := adapter.NewRoleRepo(db)
+	roleSvc := app.NewRoleService(roleRepo, c)
+	return RBACMiddleware(roleSvc)
+}
+
 func RequirePerm(code string) gin.HandlerFunc {
     return func(c *gin.Context) {
         ps, _ := c.Get("permissions"); psMap, _ := ps.(map[string]bool); if psMap == nil { psMap = map[string]bool{} }
