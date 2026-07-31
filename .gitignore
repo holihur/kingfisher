@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+vendor/
+
+# Build output
+bin/
+tmp/
+dist/
+*.exe
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Environment
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Coverage
+coverage.out
+coverage.html
+
+# Wire generated
+internal/wire/wire_gen.go
+
+# Swagger generated
+docs/
+
+# Air
+tmp/
