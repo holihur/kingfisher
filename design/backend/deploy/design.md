@@ -40,7 +40,7 @@ services:
     ports: ["3306:3306"]
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./migrations:/docker-entrypoint-initdb.d  # 首次启动自动迁移
+      - ./migrations:/docker-entrypoint-initdb.d  # 开发环境首次启动自动迁移（生产用 make migrate-up 手动执行）
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
@@ -154,6 +154,8 @@ cover: ## 测试覆盖率
 
 ## CI/CD (GitHub Actions)
 
+> 部署用精简版。完整 8 层 CI + 前端 + Playwright E2E 规范见 [guardrails](../guardrails/design.md)。
+
 ```yaml
 # .github/workflows/ci.yaml
 name: CI
@@ -199,3 +201,4 @@ jobs:
 - `docker-compose` 用 `depends_on: condition: service_healthy` 确保启动顺序
 - 版本号编译时注入（`-ldflags -X main.version=...`）
 - CI 并行跑 lint / test，最后 build
+- 前端 nginx 配置见 `deploy/nginx.conf`：反代 API + gzip 压缩 + SPA fallback + 安全头

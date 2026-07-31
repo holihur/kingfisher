@@ -238,7 +238,7 @@
 - [ ] 给角色分配菜单时 menu_id 对应一个 type=3（按钮）→ 允许（菜单分配不区分 type）
 - [ ] 创建角色的 code 重复 → 返回 `code:10301`
 - [ ] 删除角色时该角色仍有用户 → 返回 `code:10303`（或允许但用户失去角色）
-- [ ] RBAC 中间件中 Redis 不可用 → 拒绝所有需要权限检查的请求，返回 503 `{"code":10006,"message":"service temporarily unavailable"}`。缓存 miss 的回源DB是正常行为（Redis GET 成功但 key 不存在），不是降级。Redis 连接失败（不可达/超时）→ 拒绝，。 `{"code":10006,"message":"service temporarily unavailable"}`。——安全优先于可用性。登录接口和公开接口不受影响。
+- [ ] RBAC 中间件中 Redis 不可用 → 拒绝所有需要权限检查的请求，返回 503 `{"code":10009,"message":"service unavailable"}`（安全优先于可用性）。缓存 miss（Redis GET 成功但 key 不存在）→ 正常回源 DB，不是降级。Redis 连接失败（不可达/超时）→ 拒绝。登录接口和公开接口不受影响。
 - [ ] RBAC 中间件中 Redis 超时（>3s） → 有 timeout 保护，不阻塞请求
 - [ ] 权限缓存键被意外删除 → miss 回源 DB，透明恢复
 - [ ] 用户 ID 不存在但 token 有效 → RBAC 查不到权限，返回空列表

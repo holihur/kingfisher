@@ -65,7 +65,9 @@ kingfisher-web/
 │   └── utils/
 │       ├── token.ts               # Token 存取（localStorage）
 │       └── permission.ts          # 前端权限判断
-├── .env                           # 环境变量（VITE_API_TARGET）
+├── .env                           # 环境变量
+# VITE_API_TARGET — Vite proxy target（开发）
+# VITE_API_BASE_URL — axios baseURL（生产直连）
 ├── .env.development
 ├── .env.production
 ├── vite.config.ts

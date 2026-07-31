@@ -120,6 +120,8 @@ func (s *RoleService) Delete(ctx context.Context, id uint) error
 // 低 role_level 的用户不能修改高 role_level 的用户的角色
 func (s *RoleService) AssignPermissions(ctx context.Context, roleID uint, permIDs []uint) error
 func (s *RoleService) AssignMenus(ctx context.Context, roleID uint, menuIDs []uint) error
+func (s *RoleService) GetRolePermissions(ctx context.Context, roleID uint) ([]domain.Permission, error)
+func (s *RoleService) GetRoleMenus(ctx context.Context, roleID uint) ([]domain.Menu, error)
 func (s *RoleService) GetUserPermissions(ctx context.Context, userID uint) ([]string, error)
 ```
 
@@ -153,7 +155,9 @@ func (h *RoleHandler) GetByID(c *gin.Context)           // GET  /api/v1/roles/:i
 func (h *RoleHandler) Create(c *gin.Context)            // POST /api/v1/roles
 func (h *RoleHandler) Update(c *gin.Context)            // PUT  /api/v1/roles/:id
 func (h *RoleHandler) Delete(c *gin.Context)            // DELETE /api/v1/roles/:id
+func (h *RoleHandler) GetPermissions(c *gin.Context)    // GET  /api/v1/roles/:id/permissions
 func (h *RoleHandler) AssignPerms(c *gin.Context)       // PUT  /api/v1/roles/:id/permissions
+func (h *RoleHandler) GetMenus(c *gin.Context)          // GET  /api/v1/roles/:id/menus
 func (h *RoleHandler) AssignMenus(c *gin.Context)       // PUT  /api/v1/roles/:id/menus
 
 type PermissionHandler struct { svc *PermissionService }
@@ -171,7 +175,9 @@ func (m *Module) RegisterProtected(r *gin.RouterGroup) {
     roles.POST("", RequirePerm("role:create"), m.roleHandler.Create)
     roles.PUT("/:id", RequirePerm("role:update"), m.roleHandler.Update)
     roles.DELETE("/:id", RequirePerm("role:delete"), m.roleHandler.Delete)
+    roles.GET("/:id/permissions", RequirePerm("role:list"), m.roleHandler.GetPermissions)
     roles.PUT("/:id/permissions", RequirePerm("role:update"), m.roleHandler.AssignPerms)
+    roles.GET("/:id/menus", RequirePerm("role:list"), m.roleHandler.GetMenus)
     roles.PUT("/:id/menus", RequirePerm("role:update"), m.roleHandler.AssignMenus)
 
     perms := r.Group("/permissions", RequirePerm("role:list"))

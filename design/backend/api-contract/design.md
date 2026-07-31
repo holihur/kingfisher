@@ -69,6 +69,7 @@ GET    /api/v1/users/:id          用户详情
 PUT    /api/v1/users/:id          更新用户
 DELETE /api/v1/users/:id          删除用户
 GET    /api/v1/users/me           当前用户信息
+GET    /api/v1/users/me/permissions  当前用户权限列表
 PUT    /api/v1/users/me/password  修改密码
 ```
 
@@ -90,7 +91,9 @@ GET    /api/v1/roles/:id          角色详情
 POST   /api/v1/roles              创建角色
 PUT    /api/v1/roles/:id          更新角色
 DELETE /api/v1/roles/:id          删除角色
+GET    /api/v1/roles/:id/permissions   获取角色权限
 PUT    /api/v1/roles/:id/permissions   分配权限
+GET    /api/v1/roles/:id/menus         获取角色菜单
 GET    /api/v1/roles/:id/permissions   获取角色权限
 PUT    /api/v1/roles/:id/menus         分配菜单
 GET    /api/v1/roles/:id/menus         获取角色菜单
@@ -103,6 +106,7 @@ GET    /api/v1/permissions             全部权限列表
 GET    /api/v1/configs            全部配置
 GET    /api/v1/configs/:key       单个配置
 PUT    /api/v1/configs/:key       更新配置
+DELETE /api/v1/configs/:key       删除配置
 ```
 
 ## 典型接口详细契约

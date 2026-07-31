@@ -191,7 +191,7 @@ func NewModule(db *gorm.DB) core.Module {
 ## 迁移 SQL
 
 ```sql
--- migrations/000009_create_audit_logs.up.sql
+-- migrations/000010_create_audit_logs.up.sql
 CREATE TABLE audit_logs (
     id          BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     user_id     BIGINT UNSIGNED NOT NULL,
@@ -210,7 +210,7 @@ CREATE TABLE audit_logs (
 ```
 
 ```sql
--- migrations/000009_create_audit_logs.down.sql
+-- migrations/000010_create_audit_logs.down.sql
 DROP TABLE IF EXISTS audit_logs;
 ```
 

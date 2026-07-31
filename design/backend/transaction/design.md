@@ -55,18 +55,18 @@ func (r *UserRepo) Create(ctx context.Context, user *domain.User) error {
 // extends/user/app/service.go
 type UserService struct {
     userRepo port.UserRepository
-    userRepo port.UserRepository  // 同模块事务示例
     uow      coreDB.UnitOfWork
 }
 
-func (s *UserService) CreateUserWithRole(ctx context.Context, username, email string, roleID uint) error {
+// 同模块事务：两个操作（创建用户 + 创建用户档案）在同一个事务中
+func (s *UserService) CreateUserWithProfile(ctx context.Context, username, email string) error {
     return s.uow.Transaction(ctx, func(txCtx context.Context) error {
         user := &domain.User{Username: username, Email: email}
         if err := s.userRepo.Create(txCtx, user); err != nil {
             return err  // 回滚
         }
-        // 跨模块操作
-        if err := s.roleRepo.AssignUser(txCtx, user.ID, roleID); err != nil {
+        // 同模块第二个操作——共享同一事务
+        if err := s.userRepo.Update(txCtx, user.ID, map[string]any{"status": 1}); err != nil {
             return err  // 回滚
         }
         return nil  // 提交

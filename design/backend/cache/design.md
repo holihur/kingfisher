@@ -78,6 +78,7 @@ if errors.Is(err, gorm.ErrRecordNotFound) {
   config:site_name          # 单个配置
   blacklist:token:{jti}     # JWT 黑名单
   ratelimit:{ip}:{path}     # 限流
+  user:sv:{user_id}         # 用户 session 版本号
   user:perms:5              # 用户 5 的权限列表
 ```
 
