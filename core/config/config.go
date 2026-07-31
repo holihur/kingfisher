@@ -1,3 +1,5 @@
+// Package config implements config logic.
+
 package config
 
 import (

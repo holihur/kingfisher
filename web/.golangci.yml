@@ -1,0 +1,44 @@
+version: "2"
+
+formatters:
+  enable:
+    - goimports
+
+linters:
+  enable:
+    - govet
+    - errcheck
+    - staticcheck
+    - gosec
+    - revive
+    - unconvert
+    - misspell
+    - nilerr
+    - noctx
+    - errorlint
+    - gocritic
+
+linters-settings:
+  revive:
+    rules:
+      - name: exported
+        severity: error
+      - name: context-as-argument
+        severity: error
+      - name: error-return
+        severity: error
+      - name: error-strings
+        severity: error
+  gosec:
+    excludes:
+      - G104
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck
+        - gosec
+    - path: cmd/server/main.go
+      linters:
+        - revive

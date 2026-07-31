@@ -1,3 +1,5 @@
+// Package router implements router logic.
+
 package router
 
 import (

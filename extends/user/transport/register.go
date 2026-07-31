@@ -1,3 +1,5 @@
+// Package user implements user logic.
+
 package transport
 
 import (
@@ -31,8 +33,8 @@ func NewUserModule(db *gorm.DB, c cache.Cache, jwtMgr *jwt.JWTManager) *UserModu
 	}
 }
 
-func (m *UserModule) Name() string                    { return "user" }
-func (m *UserModule) Init(ctx context.Context) error  { return nil }
+func (m *UserModule) Name() string                       { return "user" }
+func (m *UserModule) Init(ctx context.Context) error     { return nil }
 func (m *UserModule) Shutdown(ctx context.Context) error { return nil }
 
 func (m *UserModule) RegisterPublic(r *gin.RouterGroup) {

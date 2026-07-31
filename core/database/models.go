@@ -1,3 +1,5 @@
+// Package database implements database logic.
+
 package database
 
 import (
@@ -8,14 +10,14 @@ import (
 // Production MySQL/PG uses migrations/*.sql instead.
 
 type UserPO struct {
-	ID             uint       `gorm:"primaryKey"`
-	Username       string     `gorm:"size:32;uniqueIndex;not null"`
-	Password       string     `gorm:"size:128;not null"`
-	Email          string     `gorm:"size:128"`
-	Avatar         string     `gorm:"size:255"`
-	Status         int        `gorm:"default:1"`
-	RoleID         uint       `gorm:"default:0"`
-	SessionVersion int        `gorm:"default:1"`
+	ID             uint   `gorm:"primaryKey"`
+	Username       string `gorm:"size:32;uniqueIndex;not null"`
+	Password       string `gorm:"size:128;not null"`
+	Email          string `gorm:"size:128"`
+	Avatar         string `gorm:"size:255"`
+	Status         int    `gorm:"default:1"`
+	RoleID         uint   `gorm:"default:0"`
+	SessionVersion int    `gorm:"default:1"`
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
 }
@@ -75,15 +77,15 @@ type SystemConfigPO struct {
 func (SystemConfigPO) TableName() string { return "system_configs" }
 
 type AuditLogPO struct {
-	ID         uint   `gorm:"primaryKey"`
-	UserID     uint   `gorm:"index;not null"`
-	Username   string `gorm:"size:32;not null"`
-	Action     string `gorm:"size:16;not null"`
-	Resource   string `gorm:"size:32;not null;index:idx_resource"`
-	ResourceID uint   `gorm:"default:0;index:idx_resource"`
-	Detail     string `gorm:"type:text"`
-	IP         string `gorm:"size:45"`
-	UserAgent  string `gorm:"size:512"`
+	ID         uint      `gorm:"primaryKey"`
+	UserID     uint      `gorm:"index;not null"`
+	Username   string    `gorm:"size:32;not null"`
+	Action     string    `gorm:"size:16;not null"`
+	Resource   string    `gorm:"size:32;not null;index:idx_resource"`
+	ResourceID uint      `gorm:"default:0;index:idx_resource"`
+	Detail     string    `gorm:"type:text"`
+	IP         string    `gorm:"size:45"`
+	UserAgent  string    `gorm:"size:512"`
 	CreatedAt  time.Time `gorm:"index"`
 }
 

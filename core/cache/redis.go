@@ -1,3 +1,5 @@
+// Package cache implements cache logic.
+
 package cache
 
 import (

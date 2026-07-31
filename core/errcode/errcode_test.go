@@ -16,7 +16,13 @@ func TestHTTPStatus(t *testing.T) {
 }
 
 func TestMsg(t *testing.T) {
-	if Msg(0) != "success" { t.Error("Msg(0) should be success") }
-	if Msg(10101) != "用户已存在" { t.Error("Msg(10101) wrong") }
-	if Msg(99999) != "未知错误" { t.Error("Msg(99999) should be unknown") }
+	if Msg(0) != "success" {
+		t.Error("Msg(0) should be success")
+	}
+	if Msg(10101) != "用户已存在" {
+		t.Error("Msg(10101) wrong")
+	}
+	if Msg(99999) != "未知错误" {
+		t.Error("Msg(99999) should be unknown")
+	}
 }

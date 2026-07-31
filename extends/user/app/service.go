@@ -14,8 +14,8 @@ import (
 )
 
 type AuthService struct {
-	repo  port.UserRepository
-	cache cache.Cache
+	repo   port.UserRepository
+	cache  cache.Cache
 	jwtMgr *jwt.JWTManager
 }
 
@@ -30,7 +30,9 @@ func (s *AuthService) Register(ctx context.Context, username, password, email st
 		return nil, fmt.Errorf("user exists")
 	}
 	hashed, err := bcrypt.GenerateFromPassword([]byte(password), 12)
-	if err != nil { return nil, fmt.Errorf("hash password: %w", err) }
+	if err != nil {
+		return nil, fmt.Errorf("hash password: %w", err)
+	}
 
 	user := &domain.User{Username: username, Password: string(hashed), Email: email, Status: 1, RoleID: 4} // default viewer
 	if err := s.repo.Create(ctx, user); err != nil {
@@ -52,19 +54,31 @@ func (s *AuthService) Login(ctx context.Context, username, password string) (str
 		// Check rate limit
 		if s.cache != nil {
 			count, _ := s.cache.Incr(ctx, "login_fail:"+username)
-			if count == 1 { _ = s.cache.Expire(ctx, "login_fail:"+username, 15*time.Minute) }
-			if count > 5 { return "", "", nil, fmt.Errorf("too many attempts") }
+			if count == 1 {
+				_ = s.cache.Expire(ctx, "login_fail:"+username, 15*time.Minute)
+			}
+			if count > 5 {
+				return "", "", nil, fmt.Errorf("too many attempts")
+			}
 		}
 		return "", "", nil, fmt.Errorf("wrong password")
 	}
-	if err != nil { return "", "", nil, fmt.Errorf("wrong password") }
-	if user.Status != 1 { return "", "", nil, fmt.Errorf("user disabled") }
+	if err != nil {
+		return "", "", nil, fmt.Errorf("wrong password")
+	}
+	if user.Status != 1 {
+		return "", "", nil, fmt.Errorf("user disabled")
+	}
 
 	// Clear fail count
-	if s.cache != nil { _ = s.cache.Delete(ctx, "login_fail:"+username) }
+	if s.cache != nil {
+		_ = s.cache.Delete(ctx, "login_fail:"+username)
+	}
 
 	access, refresh, err := s.jwtMgr.GenerateToken(ctx, user.ID, "viewer", user.SessionVersion)
-	if err != nil { return "", "", nil, err }
+	if err != nil {
+		return "", "", nil, err
+	}
 	user.Password = ""
 	return access, refresh, user, nil
 }
@@ -103,13 +117,19 @@ func (s *UserService) GetUserPermissions(ctx context.Context, userID uint) ([]st
 
 func (s *UserService) ChangePassword(ctx context.Context, userID uint, oldPwd, newPwd string) error {
 	user, err := s.repo.FindByID(ctx, userID)
-	if err != nil { return fmt.Errorf("user not found: %w", err) }
+	if err != nil {
+		return fmt.Errorf("user not found: %w", err)
+	}
 	if bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(oldPwd)) != nil {
 		return fmt.Errorf("wrong password")
 	}
-	if len(newPwd) < 8 || len(newPwd) > 64 { return fmt.Errorf("password length invalid") }
+	if len(newPwd) < 8 || len(newPwd) > 64 {
+		return fmt.Errorf("password length invalid")
+	}
 	hashed, err := bcrypt.GenerateFromPassword([]byte(newPwd), 12)
-	if err != nil { return fmt.Errorf("hash password: %w", err) }
+	if err != nil {
+		return fmt.Errorf("hash password: %w", err)
+	}
 	if err := s.repo.Update(ctx, userID, map[string]any{"password": string(hashed)}); err != nil {
 		return err
 	}

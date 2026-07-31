@@ -17,12 +17,12 @@ type mockUserRepo struct {
 }
 
 type mockUserData struct {
-	id            uint
-	username      string
-	password      string
-	email         string
-	status        int
-	sessionVer    int
+	id         uint
+	username   string
+	password   string
+	email      string
+	status     int
+	sessionVer int
 }
 
 func (m *mockUserRepo) FindByID(ctx context.Context, id uint) (*domain.User, error) {

@@ -7,6 +7,8 @@
 // @in header
 // @name Authorization
 
+// Package server implements server logic.
+
 package main
 
 import (
@@ -62,7 +64,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "logger init failed: %v\n", err)
 		os.Exit(1)
 	}
-	defer zapLog.Sync()
+	defer func() { _ = zapLog.Sync() }()
 	logger.ReplaceGlobals(zapLog)
 	zapLog.Info("config loaded", zap.String("mode", cfg.Server.Mode))
 
@@ -91,7 +93,7 @@ func main() {
 			zap.Error(err))
 		redisCache = nil
 	} else {
-		defer rdb.Close()
+		defer func() { _ = rdb.Close() }()
 		redisCache = cache.NewRedisCache(rdb)
 	}
 
@@ -175,13 +177,22 @@ func readyHandler(db *gorm.DB, rdb *redis.Client) gin.HandlerFunc {
 		dbOK := db.WithContext(ctx).Raw("SELECT 1").Error == nil
 		redisOK := rdb != nil && rdb.Ping(ctx).Err() == nil
 		s := gin.H{"status": "ready"}
-		if dbOK { s["mysql"] = "ok" } else { s["mysql"] = "down" }
-		if redisOK { s["redis"] = "ok" } else { s["redis"] = "down" }
+		if dbOK {
+			s["mysql"] = "ok"
+		} else {
+			s["mysql"] = "down"
+		}
+		if redisOK {
+			s["redis"] = "ok"
+		} else {
+			s["redis"] = "down"
+		}
 		c.JSON(200, s)
 	}
 }
 
 func closeDB(db *gorm.DB) {
-	if sqlDB, err := db.DB(); err == nil { sqlDB.Close() }
+	if sqlDB, err := db.DB(); err == nil {
+		_ = sqlDB.Close()
+	}
 }
-

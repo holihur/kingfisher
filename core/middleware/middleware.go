@@ -1,3 +1,5 @@
+// Package middleware implements middleware logic.
+
 package middleware
 
 import (

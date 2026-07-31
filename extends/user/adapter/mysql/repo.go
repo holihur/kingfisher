@@ -21,14 +21,18 @@ func NewUserRepo(db *gorm.DB) *UserRepo { return &UserRepo{db: db} }
 func (r *UserRepo) FindByID(ctx context.Context, id uint) (*domain.User, error) {
 	var po userPO
 	err := r.db.WithContext(ctx).First(&po, id).Error
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	return po.toDomain(), nil
 }
 
 func (r *UserRepo) FindByUsername(ctx context.Context, username string) (*domain.User, error) {
 	var po userPO
 	err := r.db.WithContext(ctx).Where("username = ?", username).First(&po).Error
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	return po.toDomain(), nil
 }
 
@@ -41,18 +45,28 @@ func (r *UserRepo) FindAll(ctx context.Context, page, pageSize int, keyword stri
 	}
 	q.Count(&total)
 	offset := (page - 1) * pageSize
-	if offset < 0 { offset = 0 }
+	if offset < 0 {
+		offset = 0
+	}
 	err := q.Offset(offset).Limit(pageSize).Order("id DESC").Find(&pos).Error
-	if err != nil { return nil, 0, err }
+	if err != nil {
+		return nil, 0, err
+	}
 	users := make([]domain.User, len(pos))
-	for i, p := range pos { users[i] = *p.toDomain() }
+	for i, p := range pos {
+		users[i] = *p.toDomain()
+	}
 	return users, total, nil
 }
 
 func (r *UserRepo) Create(ctx context.Context, u *domain.User) error {
 	po := userPO{Username: u.Username, Password: u.Password, Email: u.Email, Status: u.Status, RoleID: u.RoleID}
 	err := r.db.WithContext(ctx).Create(&po).Error
-	if err == nil { u.ID = po.ID; u.CreatedAt = po.CreatedAt; u.UpdatedAt = po.UpdatedAt }
+	if err == nil {
+		u.ID = po.ID
+		u.CreatedAt = po.CreatedAt
+		u.UpdatedAt = po.UpdatedAt
+	}
 	return err
 }
 

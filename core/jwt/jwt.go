@@ -1,3 +1,5 @@
+// Package jwt implements jwt logic.
+
 package jwt
 
 import (
@@ -129,7 +131,7 @@ func (m *JWTManager) RefreshToken(ctx context.Context, refreshToken string) (str
 func (m *JWTManager) RevokeToken(ctx context.Context, tokenStr string) error {
 	claims, err := m.ParseToken(ctx, tokenStr)
 	if err != nil {
-		return nil // Token invalid anyway
+		return nil //nolint:nilerr // token already invalid
 	}
 	remainingTTL := time.Until(claims.ExpiresAt.Time)
 	if remainingTTL <= 0 {

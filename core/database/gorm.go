@@ -48,17 +48,23 @@ func NewDatabase(cfg config.DatabaseConfig, logger *zap.Logger) (*gorm.DB, error
 		dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local",
 			cfg.MySQL.User, cfg.MySQL.Password, cfg.MySQL.Host, cfg.MySQL.Port, cfg.MySQL.Database)
 		db, err := gorm.Open(mysql.Open(dsn), gc)
-		if err != nil { return nil, fmt.Errorf("mysql open: %w", err) }
+		if err != nil {
+			return nil, fmt.Errorf("mysql open: %w", err)
+		}
 		sqlDB, _ := db.DB()
 		sqlDB.SetMaxIdleConns(cfg.MySQL.MaxIdleConns)
 		sqlDB.SetMaxOpenConns(cfg.MySQL.MaxOpenConns)
-		if l, err := time.ParseDuration(cfg.MySQL.ConnMaxLifetime); err == nil { sqlDB.SetConnMaxLifetime(l) }
+		if l, err := time.ParseDuration(cfg.MySQL.ConnMaxLifetime); err == nil {
+			sqlDB.SetConnMaxLifetime(l)
+		}
 		return db, nil
 	case "postgres":
 		dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
 			cfg.Postgres.Host, cfg.Postgres.Port, cfg.Postgres.User, cfg.Postgres.Password, cfg.Postgres.Database, cfg.Postgres.SSLMode)
 		db, err := gorm.Open(postgres.Open(dsn), gc)
-		if err != nil { return nil, fmt.Errorf("postgres open: %w", err) }
+		if err != nil {
+			return nil, fmt.Errorf("postgres open: %w", err)
+		}
 		sqlDB, _ := db.DB()
 		sqlDB.SetMaxIdleConns(cfg.Postgres.MaxIdleConns)
 		sqlDB.SetMaxOpenConns(cfg.Postgres.MaxOpenConns)
@@ -201,7 +207,7 @@ func SeedData(db *gorm.DB) error {
 		admin := UserPO{
 			ID:       1,
 			Username: "admin",
-			Password: "$2a$12$jDyI8HZp/TVxUrplIqdgNOV/iahF.i3l0YoPHuNLD5kus./WsPTzO",
+			Password: "$2a$12$jDyI8HZp/TVxUrplIqdgNOV/iahF.i3l0YoPHuNLD5kus./WsPTzO", // #nosec G101 — seed data hash
 			Email:    "admin@example.com",
 			Status:   1,
 			RoleID:   1,

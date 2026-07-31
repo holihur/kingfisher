@@ -1,0 +1,31 @@
+version: "2"
+
+formatters:
+  enable:
+    - goimports
+
+linters:
+  default: none
+  enable:
+    - govet
+    - errcheck
+    - staticcheck
+    - gosec
+    - unconvert
+    - misspell
+    - nilerr
+    - noctx
+    - errorlint
+    - gocritic
+
+linters-settings:
+  gosec:
+    excludes:
+      - G104
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck
+        - gosec

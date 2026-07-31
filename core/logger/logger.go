@@ -1,3 +1,5 @@
+// Package logger implements logger logic.
+
 package logger
 
 import (

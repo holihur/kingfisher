@@ -1,3 +1,5 @@
+// Package response implements response logic.
+
 package response
 
 import (
