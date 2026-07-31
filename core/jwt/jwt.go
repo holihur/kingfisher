@@ -135,5 +135,8 @@ func (m *JWTManager) RevokeToken(ctx context.Context, tokenStr string) error {
 	if remainingTTL <= 0 {
 		return nil
 	}
-	return m.cache.Set(ctx, "blacklist:token:"+claims.JTI, "1", remainingTTL)
+	if m.cache != nil {
+		return m.cache.Set(ctx, "blacklist:token:"+claims.JTI, "1", remainingTTL)
+	}
+	return nil
 }
