@@ -1,4 +1,4 @@
-.PHONY: run build test lint clean
+.PHONY: run build test lint fmt clean lint-fe fmt-fe
 
 APP = server
 
@@ -18,8 +18,17 @@ cover: ## 测试覆盖率
 	go test -coverprofile=coverage.out ./...
 	go tool cover -func=coverage.out
 
-lint: ## 代码检查
+lint: ## Go 代码检查
 	golangci-lint run ./...
+
+fmt: ## Go 代码格式化
+	goimports -w -local kingfisher .
+
+lint-fe: ## 前端代码检查
+	cd web && npx eslint src/ && npx prettier --check src/
+
+fmt-fe: ## 前端代码格式化
+	cd web && npx prettier --write src/
 
 clean: ## 清理
 	rm -f kingfisher.db bin/$(APP)

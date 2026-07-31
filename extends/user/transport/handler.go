@@ -11,11 +11,11 @@ import (
 	"kingfisher/extends/user/domain"
 )
 
-type AuthHandler struct {
-	svc *app.AuthService
-}
+type AuthHandler struct{ svc *app.AuthService }
+type UserHandler struct{ svc *app.UserService }
 
 func NewAuthHandler(svc *app.AuthService) *AuthHandler { return &AuthHandler{svc: svc} }
+func NewUserHandler(svc *app.UserService) *UserHandler { return &UserHandler{svc: svc} }
 
 type RegisterReq struct {
 	Username string `json:"username" binding:"required,min=3,max=32"`
@@ -65,12 +65,6 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 	response.OKJSON(c, gin.H{"access_token": access})
 }
 
-type UserHandler struct {
-	svc *app.UserService
-}
-
-func NewUserHandler(svc *app.UserService) *UserHandler { return &UserHandler{svc: svc} }
-
 func (h *UserHandler) GetByID(c *gin.Context) {
 	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
 	user, err := h.svc.GetByID(c.Request.Context(), uint(id))
@@ -111,10 +105,7 @@ type UpdateUserReq struct {
 
 func (h *UserHandler) Update(c *gin.Context) {
 	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
-	if uint(id) == c.GetUint("user_id") {
-		response.BadRequest(c, "不能修改自己")
-		return
-	}
+	if uint(id) == c.GetUint("user_id") { response.BadRequest(c, "不能修改自己"); return }
 	var req UpdateUserReq
 	if err := c.ShouldBindJSON(&req); err != nil { response.BadRequest(c, err.Error()); return }
 	updates := map[string]any{}

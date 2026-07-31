@@ -28,7 +28,7 @@ func NewEngine(cfg *config.Config, logger *zap.Logger) *gin.Engine {
 
 	// Set trusted proxies for correct IP resolution
 	if len(cfg.Server.TrustedProxies) > 0 {
-		r.SetTrustedProxies(cfg.Server.TrustedProxies)
+		_ = r.SetTrustedProxies(cfg.Server.TrustedProxies)
 	}
 
 	// 1. RequestID — outermost, so even panic logs have request_id

@@ -15,8 +15,8 @@ func (s *AuditService) worker() {
     batch := make([]domain.AuditLog, 0, 50); ticker := time.NewTicker(2 * time.Second)
     for {
         select {
-        case l := <-s.buffer: batch = append(batch, *l); if len(batch) >= 50 { s.repo.InsertBatch(context.Background(), batch); batch = batch[:0] }
-        case <-ticker.C: if len(batch) > 0 { s.repo.InsertBatch(context.Background(), batch); batch = batch[:0] }
+        case l := <-s.buffer: batch = append(batch, *l); if len(batch) >= 50 { _ = s.repo.InsertBatch(context.Background(), batch); batch = batch[:0] }
+        case <-ticker.C: if len(batch) > 0 { _ = s.repo.InsertBatch(context.Background(), batch); batch = batch[:0] }
         }
     }
 }
