@@ -58,10 +58,14 @@ for i := len(app.Modules) - 1; i >= 0; i-- {
 
 ```go
 // core/database/gorm.go
-func NewDatabase(cfg DatabaseConfig, logger *zap.Logger) *gorm.DB
+func NewDatabase(cfg DatabaseConfig, logger *zap.Logger) (*gorm.DB, error)   // 底层：建立连接
+func InitDatabase(cfg DatabaseConfig, logger *zap.Logger) (*gorm.DB, error)  // 上层入口：连接 + 自动迁移(SQLite) + 种子(SQLite)
+// startup/main.go 调用 InitDatabase，非 NewDatabase
 ```
 
-返回 `*gorm.DB`，各 extends 的 adapter 接收它。
+返回 `*gorm.DB`，各 extends 的 adapter 接收它。InitDatabase 内部：
+- SQLite 模式：`NewDatabase → AutoMigrate → seed.Seed`
+- MySQL/PG 模式：`NewDatabase → return db`（迁移和种子由运维通过 migrations/*.sql 执行）
 
 ### 3. Cache 接口
 

@@ -130,7 +130,7 @@ curl -X POST http://localhost:8080/api/v1/auth/login \
 │     ├── Debug 模式 → console 编码 + 颜色          │
 │     └── Release 模式 → JSON + 文件 + 滚动         │
 │                                                  │
-│  3. database.NewDatabase(cfg.Database, logger)          │
+│  3. database.InitDatabase(cfg.Database, logger)  // NewDatabase + AutoMigrate(SQLite) + Seed(SQLite)          │
 │     ├── 拼接 DSN                                 │
 │     ├── gorm.Open + 设置连接池                     │
 │     ├── db.Ping() 验证连接                        │

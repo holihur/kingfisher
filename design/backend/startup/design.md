@@ -17,8 +17,8 @@ func main() {
     defer logger.Sync()
 
     // 3. 初始化数据库
-    db, err := coreDB.NewDatabase(cfg.Database, logger)
-    if err != nil { logger.Fatal("mysql init failed", zap.Error(err)) }
+    db, err := coreDB.InitDatabase(cfg.Database, logger)  // SQLite: 自动建表+种子 | MySQL/PG: 仅连接
+    if err != nil { logger.Fatal("database init failed", zap.Error(err)) }
     defer closeDB(db)
 
     // 4. 执行迁移（开发环境自动，生产环境手动）
