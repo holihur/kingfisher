@@ -324,7 +324,7 @@ jobs:
     steps:
       - run: docker build -f deploy/Dockerfile -t kingfisher:ci .
       - run: |
-          SIZE=$(docker images kingfisher:ci --format '{{.Size}}' | grep -oP '[\d.]+')
+          SIZE=$(docker images kingfisher:ci --format '{{.Size}}' | grep -oE '[0-9.]+')
           if [ "$(echo "$SIZE > 15" | bc)" = "1" ]; then exit 1; fi
       - run: docker scout quickview kingfisher:ci --exit-code
 ```
