@@ -119,7 +119,7 @@ func main() {
     // 1. 初始化 Core
     cfg := coreConfig.Load("config/config.yaml")
     logger := coreLogger.New(cfg.Log)
-    db := coreDB.NewDatabase(cfg.Database, logger)
+    db := coreDB.InitDatabase(cfg.Database, logger)  // 内含 NewDatabase + SQLite AutoMigrate + Seed
     rdb := coreCache.NewRedisClient(cfg.Redis)
     jwtMgr := coreJWT.NewJWTManager(cfg.JWT, coreCache.NewRedisCache(rdb))
     ginEngine := coreRouter.NewEngine(cfg, logger)
