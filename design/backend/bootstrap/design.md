@@ -66,6 +66,8 @@ until docker-compose -f deploy/docker-compose.dev.yaml exec mysql mysqladmin pin
 
 开发环境默认用 SQLite（database.driver: sqlite），数据文件 kingfisher.db 自动创建，无需 Docker。生产环境切换到 MySQL 或 PostgreSQL 只需改配置。
 ```bash
+# 开发环境(SQLite): GORM AutoMigrate 自动执行，无需手动迁移
+# 生产环境(MySQL/PG): 运维手动执行
 make migrate-up
 # 等价于：go run ./cmd/migrate up
 # 输出：applied 8 migrations
@@ -131,7 +133,7 @@ curl -X POST http://localhost:8080/api/v1/auth/login \
 │     ├── Debug 模式 → console 编码 + 颜色          │
 │     └── Release 模式 → JSON + 文件 + 滚动         │
 │                                                  │
-│  3. database.NewGorm(cfg.MySQL, logger)          │
+│  3. database.NewDatabase(cfg.Database, logger)          │
 │     ├── 拼接 DSN                                 │
 │     ├── gorm.Open + 设置连接池                     │
 │     ├── db.Ping() 验证连接                        │
@@ -203,8 +205,8 @@ config/config.yaml   默认值（基础配置）               ← 提交 git
 |------|------|------|
 | Config Load | 文件不存在 / 格式错误 | `log.Fatal` 立即退出 |
 | Config Validate | 必填项为空 | `log.Fatal` 立即退出 |
-| MySQL 连接 | 第一次失败 | 重试 3 次（间隔 2s） |
-| MySQL 连接 | 3 次后仍失败 | `log.Fatal` 退出 |
+| 数据库连接（GORM） | 第一次失败 | 重试 3 次（间隔 2s） |
+| 数据库连接（GORM） | 3 次后仍失败 | `log.Fatal` 退出 |
 | Redis 连接 | 失败 | `log.Fatal` 退出（Redis 是核心依赖） |
 | Migration | 失败 | `log.Fatal` 退出 |
 | HTTP Server | 端口被占用 | `log.Fatal` 退出 |
@@ -219,6 +221,8 @@ config/config.yaml   默认值（基础配置）               ← 提交 git
 # 第一次
 make setup          # 装依赖 + 生成 swagger + wire
 make docker-dev     # 启动 MySQL + Redis
+# 开发环境(SQLite): GORM AutoMigrate 自动执行，无需手动迁移
+# 生产环境(MySQL/PG): 运维手动执行
 make migrate-up     # 建表 + 种子数据
 make run            # 启动 Go
 

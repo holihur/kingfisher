@@ -38,7 +38,7 @@ var CoreSet = wire.NewSet(
     coreLogger.New,
 
     // Database
-    coreDB.NewGorm,
+    coreDB.NewDatabase,
     coreDB.NewUnitOfWork,
 
     // Cache (接口绑定实现)

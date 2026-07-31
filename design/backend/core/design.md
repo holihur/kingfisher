@@ -58,7 +58,7 @@ for i := len(app.Modules) - 1; i >= 0; i-- {
 
 ```go
 // core/database/gorm.go
-func NewGorm(cfg MySQLConfig, logger *zap.Logger) *gorm.DB
+func NewDatabase(cfg DatabaseConfig, logger *zap.Logger) *gorm.DB
 ```
 
 返回 `*gorm.DB`，各 extends 的 adapter 接收它。

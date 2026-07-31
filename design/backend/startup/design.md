@@ -17,7 +17,7 @@ func main() {
     defer logger.Sync()
 
     // 3. 初始化数据库
-    db, err := coreDB.NewGorm(cfg.MySQL, logger)
+    db, err := coreDB.NewDatabase(cfg.Database, logger)
     if err != nil { logger.Fatal("mysql init failed", zap.Error(err)) }
     defer closeDB(db)
 
@@ -119,7 +119,7 @@ func (c *Config) Validate() error {
     if c.JWT.Secret == "" || c.JWT.Secret == "change-me-in-production" {
         return fmt.Errorf("JWT secret must be set via environment variable")
     }
-    if c.MySQL.Password == "" {
+    if c.Database.Driver != "sqlite" && c.Database.MySQL.Password == "" {
         return fmt.Errorf("MySQL password must be set via environment variable")
     }
     return nil

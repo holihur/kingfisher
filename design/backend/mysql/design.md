@@ -61,8 +61,9 @@ import (
 ```
 $ make run
 # → database.driver=sqlite
-# → 自动创建 kingfisher.db（文件在项目根目录）
-# → 执行迁移（SQLite 兼容的 DDL）
+# → 自动创建 kingfisher.db（项目根目录）
+# → GORM AutoMigrate 自动建表（非 migrations/*.sql）
+# → 种子数据通过 Go 代码写入
 # → 无需 Docker、无需安装 MySQL
 # → kingfisher.db 加入 .gitignore
 

@@ -39,3 +39,6 @@ docs/
 
 # Air
 tmp/
+
+# SQLite dev
+kingfisher.db

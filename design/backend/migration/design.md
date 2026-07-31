@@ -256,6 +256,43 @@ ALTER TABLE permissions AUTO_INCREMENT = 1;
 ALTER TABLE menus       AUTO_INCREMENT = 1;
 ```
 
+## SQLite 开发模式——自动迁移
+
+开发环境默认 SQLite。SQLite 不执行 MySQL 方言的 DDL（DATETIME(3)、ENGINE=InnoDB 等无法在 SQLite 运行），采用 **GORM AutoMigrate** 替代 golang-migrate SQL 文件。
+
+```go
+// core/database/gorm.go
+func InitDatabase(cfg DatabaseConfig, logger *zap.Logger) (*gorm.DB, error) {
+    db, err := NewDatabase(cfg, logger)
+    if err != nil { return nil, err }
+    
+    if cfg.Driver == "sqlite" {
+        // SQLite 开发模式：GORM AutoMigrate（不执行 migrations/*.sql）
+        db.Exec("PRAGMA journal_mode=WAL")
+        db.Exec("PRAGMA foreign_keys=ON")
+        db.AutoMigrate(&userPO{}, &rolePO{}, &permissionPO{}, 
+            &rolePermissionPO{}, &menuPO{}, &roleMenuPO{}, 
+            &systemConfigPO{}, &auditLogPO{})
+        // 种子数据用 Go 代码（internal/infra/seed.go）而非 SQL
+        Seed(db)
+    } else {
+        // MySQL/PG 生产模式：golang-migrate 纯 SQL
+        RunMigrations(db, "migrations")
+    }
+    return db, nil
+}
+```
+
+**迁移策略对比**：
+
+| 环境 | Driver | 迁移方式 | 种子数据 |
+|------|--------|----------|----------|
+| 开发 | SQLite | GORM AutoMigrate（Go 代码） | Go 函数 `Seed(db)` |
+| 预发 | MySQL | golang-migrate（migrations/*.sql） | seed SQL |
+| 生产 | MySQL/PG | golang-migrate（migrations/*.sql） | 无种子（初始 admin 由运维手动创建或首次部署脚本写入） |
+
+本文件后续的建表 SQL 均为**生产 MySQL 方言**。开发 SQLite 模式以 GORM model 定义（`extends/*/adapter/mysql/model.go`）为准。
+
 ## 设计要点
 
 - 迁移 ID 自增序号，不跳号，方便追踪
