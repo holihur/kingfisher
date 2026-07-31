@@ -15,13 +15,14 @@ echo "=== Kingfisher Design Lint ==="
 # 1. Bad links
 echo "--- 1. Bad links ---"
 for f in $(find "$DESIGN" -name "*.md"); do
-    # Find relative links and check if target exists
+    filedir=$(dirname "$f")
     grep -ohE '(?<=\]\()[^)]+' "$f" | while read link; do
         [[ "$link" == http* ]] && continue
         [[ "$link" == mailto* ]] && continue
-        target="$DESIGN/$(dirname "$(echo "$f" | sed "s|$DESIGN/||")")/$link"
-        target=$(cd "$(dirname "$target")" 2>/dev/null && pwd 2>/dev/null || echo "")
-        if [ -z "$target" ] || [ ! -f "$target" -a ! -d "$target" ]; then
+        [[ "$link" == \#* ]] && continue  # 锚点链接跳过
+        # Resolve: normalize ../  and ./
+        resolved=$(cd "$filedir" 2>/dev/null && cd "$(dirname "$link")" 2>/dev/null && echo "$PWD/$(basename "$link")" 2>/dev/null || echo "")
+        if [ -z "$resolved" ] || [ ! -f "$resolved" -a ! -d "$resolved" ]; then
             echo "  BROKEN: $f → $link"
             FAILS=$((FAILS+1))
         fi
@@ -32,7 +33,7 @@ pass "link check done"
 # 2. Duplicate lines in api-contract
 echo "--- 2. API contract duplicates ---"
 API_MD="$DESIGN/backend/api-contract/design.md"
-DUPES=$(grep -oP '(GET|POST|PUT|DELETE)\s+/api/v\d+/\S+' "$API_MD" | sort | uniq -d)
+DUPES=$(grep -oE '(GET|POST|PUT|DELETE)\s+/api/v[0-9]+/[^[:space:]]+' "$API_MD" | sort | uniq -d)
 if [ -n "$DUPES" ]; then
     echo "  DUPLICATE endpoints:"
     echo "$DUPES"
@@ -45,7 +46,7 @@ fi
 echo "--- 3. Error code mapping ---"
 ERRFILE="$DESIGN/backend/errcode/design.md"
 # Check every Err* constant appears in HTTPStatus or errMsg
-ERRS=$(grep -oP 'Err\w+' "$ERRFILE" | grep -v 'ErrService\|ErrInternal\|ErrInvalid\|ErrUnauth\|ErrForbid\|ErrNotFound\|ErrTooMany\|ErrMethod\|HTTPStatus\|func\|Response' | sort -u)
+ERRS=$(grep -oE 'Err[A-Z][a-zA-Z]+' "$ERRFILE" | grep -v -E 'ErrService|ErrInternal|ErrInvalid|ErrUnauth|ErrForbid|ErrNotFound|ErrTooMany|ErrMethod|HTTPStatus|func|Response' | sort -u)
 ERR_COUNT=0
 for e in $ERRS; do
     if ! grep -q "$e" "$ERRFILE"; then ERR_COUNT=$((ERR_COUNT+1)); fi
@@ -62,8 +63,8 @@ pass "permission count: seed=$SEED_PERMS acceptance=$ACCP_PERMS"
 
 # 5. Error codes used in acceptance must be defined
 echo "--- 5. Undefined error codes in acceptance ---"
-DEFINED=$(grep -oP 'Err\w+\s*=\s*\d+' "$ERRFILE" | sed 's/ *=.*//' | sort -u)
-USED=$(grep -oP 'code:10\d{3}|code":1\d{3}' "$ACCP" | grep -oP '\d{5}' | sort -u)
+DEFINED=$(grep -oE 'Err[A-Z][a-zA-Z]+\s*=\s*[0-9]+' "$ERRFILE" | sed 's/ *=.*//' | sort -u)
+USED=$(grep -oE 'code:10[0-9]{3}|code":1[0-9]{3}' "$ACCP" | grep -oE '[0-9]{5}' | sort -u)
 for code in $USED; do
     if ! grep -q "$code" "$ERRFILE"; then
         echo "  UNDEFINED: code:$code used in acceptance but not in errcode"

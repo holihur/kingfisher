@@ -72,8 +72,8 @@ func (s *ConfigService) Delete(ctx context.Context, key string) error
 
 ```
 1. cache.Get("config:all")
-2. miss → repo.GetAll() → 转成 map[string]string
-3. data,_:=json.Marshal(configs); cache.Set("config:all", string(data), 5*time.Minute)
+2. miss → configs,_ := repo.GetAll()  // []domain.SystemConfig（含 Key/Value/Remark）
+3. data,_ := json.Marshal(configs); cache.Set("config:all", string(data), 5*time.Minute)
 4. 返回
 ```
 

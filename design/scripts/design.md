@@ -104,7 +104,7 @@ SIZE=$(docker images "$IMAGE" --format '{{.Size}}' 2>/dev/null | head -1)
 if [ -z "$SIZE" ]; then
     warn "image $IMAGE not found, skipping"
 else
-    MB=$(echo "$SIZE" | grep -oP '[\d.]+' | head -1)
+    MB=$(echo "$SIZE" | grep -oE '[0-9.]+' | head -1)
     if [ "$(echo "$MB < 15" | bc 2>/dev/null || echo 0)" = "1" ]; then
         pass "image size: ${MB}MB (< 15MB)"
     else
