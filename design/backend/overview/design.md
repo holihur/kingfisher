@@ -175,7 +175,7 @@ extends/{module}/
 | config 加载 | User domain |
 | Zap logger | Menu domain |
 | JWT 生成/解析 | 用户注册登录逻辑 |
-| GORM 连接池 | 菜单树形查询 |
+| GORM 连接池（SQLite/MySQL/PG 三驱动） | 菜单树形查询 |
 | Redis 连接池 | 角色权限分配 |
 | 通用中间件 | 各模块的 handler |
 | 错误码框架 | 各模块的 service |

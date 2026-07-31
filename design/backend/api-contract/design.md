@@ -94,9 +94,7 @@ DELETE /api/v1/roles/:id          删除角色
 GET    /api/v1/roles/:id/permissions   获取角色权限
 PUT    /api/v1/roles/:id/permissions   分配权限
 GET    /api/v1/roles/:id/menus         获取角色菜单
-GET    /api/v1/roles/:id/permissions   获取角色权限
 PUT    /api/v1/roles/:id/menus         分配菜单
-GET    /api/v1/roles/:id/menus         获取角色菜单
 GET    /api/v1/permissions             全部权限列表
 ```
 

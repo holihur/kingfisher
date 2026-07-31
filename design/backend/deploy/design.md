@@ -10,7 +10,10 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build \
+# SQLite 需 CGO，cross-compile 用 CGO_ENABLED=1 + musl-gcc
+# 生产 MySQ/PG 用 CGO_ENABLED=0 即可  
+ARG CGO_ENABLED=0
+RUN CGO_ENABLED=${CGO_ENABLED} GOOS=linux go build \
     -ldflags="-s -w -X main.version=$(git describe --tags --always) -X main.buildTime=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
     -o /app/server ./cmd/server
 
@@ -152,9 +155,10 @@ cover: ## 测试覆盖率
 	go tool cover -func=coverage.out
 ```
 
-## CI/CD (GitHub Actions)
+## CI/CD
 
-> 部署用精简版。完整 8 层 CI + 前端 + Playwright E2E 规范见 [guardrails](../guardrails/design.md)。
+> **权威 CI 以 [guardrails](../guardrails/design.md) 为准**（8 层 backend + frontend + Playwright E2E）。以下为部署相关的核心 CI 片段。
+
 
 ```yaml
 # .github/workflows/ci.yaml

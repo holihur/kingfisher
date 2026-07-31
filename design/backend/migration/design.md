@@ -26,7 +26,7 @@ migrations/
 ├── 000008_seed_data.down.sql        # 种子回滚（DELETE + 重置自增）
 ├── 000009_alter_users_add_session_version.up.sql    # 用户表加 session_version
 ├── 000009_alter_users_add_session_version.down.sql
-├── 000010_create_audit_logs.up.sql                   # 审计日志表
+├── 000010_create_audit_logs.up.sql                   # 审计日志表（SQL 详见 extends/audit/design.md）
 └── 000010_create_audit_logs.down.sql
 ```
 
@@ -247,7 +247,7 @@ DELETE FROM users             WHERE id = 1;
 DELETE FROM menus             WHERE id BETWEEN 1 AND 15;
 DELETE FROM permissions       WHERE id BETWEEN 1 AND 15;
 DELETE FROM roles             WHERE id IN (1,3,4);
-DELETE FROM system_configs    WHERE `key` IN ('site_name','site_logo','max_login_attempts','lockout_duration');
+DELETE FROM system_configs    WHERE `key` IN ('site_name','site_logo','max_login_attempts','lockout_duration','session_timeout');
 
 -- 重置自增（可选，方便重新执行 seed 时 ID 一致）
 ALTER TABLE users       AUTO_INCREMENT = 1;

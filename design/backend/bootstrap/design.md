@@ -64,6 +64,7 @@ until docker-compose -f deploy/docker-compose.dev.yaml exec mysql mysqladmin pin
 
 ### 2.2 执行数据库迁移
 
+开发环境默认用 SQLite（database.driver: sqlite），数据文件 kingfisher.db 自动创建，无需 Docker。生产环境切换到 MySQL 或 PostgreSQL 只需改配置。
 ```bash
 make migrate-up
 # 等价于：go run ./cmd/migrate up

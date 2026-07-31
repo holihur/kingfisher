@@ -247,7 +247,7 @@
 ### Chaos
 
 - [ ] Redis 不可用时 Admin 调用 `PUT /roles/:id/permissions` → 分配成功（DB 写成功），缓存失效 `cache.Delete` 失败 → 日志 warn → 权限缓存过期（30min）后自动刷新，此窗口内旧权限仍生效
-- [ ] Redis 不可用时用户请求受保护接口 → RBAC 中间件 `GetUserPermissions` 的缓存 `Get` 失败 → 回源 DB 查询权限成功 → 请求正常（性能下降但不 500）
+- [ ] Redis 不可用时用户请求受保护接口 → RBAC 中间件 `GetUserPermissions` 的缓存连接失败 → 拒绝请求返回 503。缓存 key 不存在（miss）→ 正常回源 DB 查询权限（非降级，是 Cache-Aside 标准行为）
 - [ ] Redis 和 DB 同时不可用 → RBAC 中间件返回 503 → 登录接口仍可用（登录只依赖 DB + JWT）
 - [ ] 权限缓存 key 被手动删除后用户请求 → cache miss → 回源 DB 重建缓存 → 延迟 +5ms 但功能正常
 - [ ] 分配权限时传入空数组 `[]` → 清空该角色所有权限（有意行为，非 bug）→ 该角色用户下次请求返回空权限列表
@@ -449,6 +449,10 @@
 - [ ] `<img>` 标签有 `alt` 属性
 
 ---
+
+- [ ] `GET /api/v1/audit-logs?page=1&page_size=20` → 返回审计日志分页列表
+- [ ] `GET /api/v1/audit-logs?resource=user&action=DELETE` → 筛选生效
+- [ ] 审计日志不可修改、不可删除（合规）：PUT/DELETE /audit-logs/:id → 405
 
 ## M6 — 全栈 CRUD 闭环
 

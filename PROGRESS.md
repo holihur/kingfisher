@@ -106,6 +106,16 @@
 - [ ] extends/config/transport/register.go
 - [ ] extends/config/wire.go
 - [ ] internal/wire/wire.go + wire_gen.go
+
+- [ ] extends/audit/domain/audit.go
+- [ ] extends/audit/port/repository.go
+- [ ] extends/audit/adapter/mysql/model.go
+- [ ] extends/audit/adapter/mysql/repo.go
+- [ ] extends/audit/app/service.go
+- [ ] extends/audit/transport/handler.go
+- [ ] extends/audit/transport/middleware.go
+- [ ] extends/audit/transport/register.go
+- [ ] extends/audit/wire.go
 - [ ] migrations/ (10 个 SQL 文件：8 建表 + 1 种子 + 1 ALTER)
 
 > 依赖 M3 完成
@@ -150,6 +160,7 @@
 - [ ] src/pages/config/ConfigManage.tsx
 - [ ] src/pages/config/ConfigEditModal.tsx
 - [ ] src/pages/dashboard/index.tsx
+- [ ] src/pages/audit/AuditLogList.tsx
 
 > 依赖 M5 完成
 
