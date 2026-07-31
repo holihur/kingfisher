@@ -53,24 +53,21 @@ cp .env.example .env
 ### 2.1 启动依赖服务
 
 ```bash
-# 方式 A：Docker（推荐）
-docker-compose -f deploy/docker-compose.dev.yaml up -d mysql redis
-# 等待 MySQL 就绪
-until docker-compose -f deploy/docker-compose.dev.yaml exec mysql mysqladmin ping -h localhost; do sleep 2; done
+# 开发环境（零 Docker）——推荐
+# 数据库: database.driver: sqlite → 自动创建 kingfisher.db
+# 缓存:   需要 Redis（限流/JWT 黑名单/缓存）
+brew install redis && redis-server --daemonize yes
 
-# 方式 B：本地安装
-# MySQL 8.0 + Redis 7，手动启动
+# 如有 Docker，也可用 compose 启动 Redis：
+# docker-compose -f deploy/docker-compose.dev.yaml up -d redis
 ```
 
-### 2.2 执行数据库迁移
+### 2.2 启动应用（SQLite 模式无需迁移）
 
-开发环境默认用 SQLite（database.driver: sqlite），数据文件 kingfisher.db 自动创建，无需 Docker。生产环境切换到 MySQL 或 PostgreSQL 只需改配置。
 ```bash
-# 开发环境(SQLite): GORM AutoMigrate 自动执行，无需手动迁移
-# 生产环境(MySQL/PG): 运维手动执行
-make migrate-up
-# 等价于：go run ./cmd/migrate up
-# 输出：applied 8 migrations
+make run
+# SQLite 模式：GORM AutoMigrate 自动建表 + Go 代码写种子数据
+# MySQL/PG 模式：运维先执行 make migrate-up
 ```
 
 ### 2.3 验证迁移结果

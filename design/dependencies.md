@@ -82,15 +82,32 @@
 
 ---
 
-## 基础设施 (Docker)
+## 基础设施 (Docker) — M7 才需要，M1–M6 无需
 
-| Image | 版本 | 用途 |
-|------|------|------|
-| `mysql` | 8.0 | 生产数据库 |
-| `redis` | 7-alpine | 缓存/限流/黑名单 |
-| `jaegertracing/all-in-one` | 1.58 | 本地 trace 可视化 |
-| `prom/prometheus` | v2.52 | 指标采集 |
-| `grafana/grafana` | 11.0 | 仪表盘 |
+开发期（M1–M6）只需要 Go 1.23+ + Node 20+。SQLite 替代 MySQL，无需 Docker。
+
+| Image | 版本 | 用途 | 何时需要 |
+|------|------|------|----------|
+| `mysql` | 8.0 | 生产数据库 | M7 部署 |
+| `redis` | 7 | 缓存/限流/黑名单 | **M1 就需要**（限流/缓存/JWT 黑名单依赖 Redis） |
+| `jaegertracing/all-in-one` | 1.58 | trace 可视化 | M7 |
+| `prom/prometheus` | v2.52 | 指标采集 | M7 |
+| `grafana/grafana` | 11.0 | 仪表盘 | M7 |
+
+### 无 Docker 开发方案
+
+| 依赖 | 无 Docker 替代 | 安装 |
+|------|---------------|------|
+| MySQL | SQLite（`database.driver: sqlite`） | 零安装，自动创建 `kingfisher.db` |
+| Redis | 本地 `redis-server` 或 `memurai`（Windows） | `brew install redis && redis-server` |
+
+```bash
+# 无 Docker 开发——两条命令就绪
+brew install redis && redis-server &    # Redis 后台启动
+make run                                 # Go 启动（SQLite 自动创建）
+```
+
+Redis 是 M1 硬依赖（限流计数器、JWT 黑名单、缓存都需要）。如果本地也无法安装 Redis，可以在 M1 暂时将限流和黑名单改为内存实现，M2 再切 Redis。
 
 ---
 
