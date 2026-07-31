@@ -483,6 +483,18 @@
 - [ ] 编辑 site_name → 保存 → 登录页/页头标题变化
 - [ ] 编辑 max_login_attempts → 保存 → 登录失败上限变化
 
+### URL 状态同步验收
+
+- [ ] 用户列表搜索"admin"→ 分页第 2 页 → URL 出现 `?keyword=admin&page=2`
+- [ ] 刷新浏览器 → 列表保持搜索词"admin"、第 2 页（URL 参数复原）
+- [ ] 浏览器后退 → 回到上一页——不是回到上一组搜索参数（`replaceState` 而非 `pushState`）
+- [ ] 复制 URL 粘贴到新 Tab → 打开同一页面、同一搜索词、同一页码
+- [ ] 清除搜索词 → URL 中 `keyword` 参数消失
+- [ ] 切换 page_size 20→50 → URL `page_size=50`，且回到 `page=1`
+- [ ] 菜单管理展开/折叠节点 → URL `expanded` 参数同步
+- [ ] 弹窗打开/关闭 → URL 不变（弹窗状态不进 URL）
+- [ ] 表单输入未保存 → URL 不变（表单草稿不进 URL）
+
 ### 全链路验收
 
 - [ ] 浏览器创建用户 → `mysql -e "SELECT * FROM users"` 看到新记录

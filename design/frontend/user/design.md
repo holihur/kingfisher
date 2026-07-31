@@ -80,8 +80,8 @@ const UserList: React.FC = () => {
             columns={columns}
             request={request}
             rowKey="id"
-            search={{ labelWidth: 'auto' }}
-            pagination={{ pageSize: 20, showSizeChanger: true }}
+            search={{ labelWidth: 'auto', syncToUrl: true }}    // 搜索条件同步到 URL
+            pagination={{ pageSize: 20, showSizeChanger: true, syncToUrl: true }}  // 分页同步到 URL
             toolbar={{
                 actions: [
                     <PermissionBtn key="add" code="user:create">

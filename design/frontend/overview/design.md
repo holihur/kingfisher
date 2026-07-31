@@ -101,7 +101,42 @@ Page → API (axios) → Backend
     /system/configs     → ConfigManage       （系统配置）
 ```
 
-## 5. 权限控制
+## 5. URL 状态同步
+
+列表页的**数据视图状态**通过 URL query 持久化——刷新、前进后退、分享链接均保持一致的筛选结果。
+
+### 进 URL（数据视图——"我在看什么数据"）
+
+| 页面 | URL 参数 | 示例 |
+|------|----------|------|
+| 用户列表 | page, page_size, keyword, sort, order | `?page=2&page_size=50&keyword=admin&sort=created_at&order=desc` |
+| 菜单管理 | expanded | `?expanded=1,2,3` |
+| 角色列表 | page, page_size | `?page=1&page_size=20` |
+| 审计日志 | resource, action, date, page | `?resource=user&action=DELETE&date=2026-07-31` |
+| 系统配置 | —（无需，数据量小） | — |
+
+### 不进 URL（交互状态——"我在做什么操作"）
+
+| 状态 | 原因 |
+|------|------|
+| 弹窗打开/关闭 | 分享给他人无意义 |
+| 表单未提交的值 | 可能含敏感字段 |
+| 当前选中行 | 刷新后丢失符合预期 |
+
+### 实现
+
+ProTable 内置 `syncToUrl`，配置即生效（~300ms debounce）：
+
+```tsx
+<ProTable
+    search={{ syncToUrl: true, labelWidth: 'auto' }}
+    pagination={{ syncToUrl: true }}
+/>
+```
+
+URL 更新通过 `window.history.replaceState`（非 pushState）——不产生额外历史记录，后退一步回到上一页而非上一组参数。
+
+## 6. 权限控制（原 #5）
 
 | 层级 | 机制 |
 |------|------|
@@ -109,7 +144,7 @@ Page → API (axios) → Backend
 | 菜单级 | 侧边栏从后端菜单树动态渲染 |
 | 按钮级 | `<PermissionBtn code="user:delete">` 控制按钮显隐 |
 
-## 6. 模块索引
+## 7. 模块索引
 
 | 模块 | 文档 | 说明 |
 |------|------|------|
