@@ -86,17 +86,18 @@ func main() {
 		}
 	}
 
-	// 4. Initialize Redis (graceful degradation if unavailable)
+	// 4. Initialize Redis
 	rdb, err := cache.NewRedisClient(cfg.Redis)
-	var redisCache cache.Cache
 	if err != nil {
-		zapLog.Warn("redis unavailable — rate limiting, token blacklist, and caching disabled",
-			zap.Error(err))
-		redisCache = nil
-	} else {
-		defer func() { _ = rdb.Close() }()
-		redisCache = cache.NewRedisCache(rdb)
+		// Retry once more then Fatal — Redis is required per design
+		time.Sleep(2 * time.Second)
+		rdb, err = cache.NewRedisClient(cfg.Redis)
+		if err != nil {
+			zapLog.Fatal("redis init failed", zap.Error(err))
+		}
 	}
+	defer func() { _ = rdb.Close() }()
+	redisCache := cache.NewRedisCache(rdb)
 
 	// 5. Initialize JWT
 	jwtMgr := jwt.NewJWTManager(cfg.JWT, redisCache)

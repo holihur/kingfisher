@@ -2,6 +2,7 @@ package adapter
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -41,7 +42,8 @@ func (r *UserRepo) FindAll(ctx context.Context, page, pageSize int, keyword stri
 	var total int64
 	q := r.db.WithContext(ctx).Model(&userPO{})
 	if keyword != "" {
-		q = q.Where("username LIKE ? OR email LIKE ?", "%"+keyword+"%", "%"+keyword+"%")
+		escaped := strings.ReplaceAll(strings.ReplaceAll(keyword, "%", "\\%"), "_", "\\_")
+		q = q.Where("username LIKE ? OR email LIKE ?", "%"+escaped+"%", "%"+escaped+"%")
 	}
 	q.Count(&total)
 	offset := (page - 1) * pageSize

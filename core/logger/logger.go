@@ -6,6 +6,8 @@ import (
 	"os"
 	"strings"
 
+	"context"
+
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -114,6 +116,18 @@ func withMask(core zapcore.Core) zapcore.Core {
 
 // Global singleton for convenience
 var globalLogger *zap.Logger
+
+// WithContext extracts trace_id from context
+func WithContext(ctx context.Context) *zap.Logger {
+	l := Get()
+	if l == nil {
+		return zap.NewNop()
+	}
+	if traceID, ok := ctx.Value("trace_id").(string); ok {
+		return l.With(zap.String("trace_id", traceID))
+	}
+	return l
+}
 
 // ReplaceGlobals sets the global zap logger
 func ReplaceGlobals(logger *zap.Logger) {

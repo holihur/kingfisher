@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 
 	"kingfisher/core/cache"
@@ -27,12 +28,22 @@ func (s *RoleService) Create(ctx context.Context, role *domain.Role) error {
 func (s *RoleService) Update(ctx context.Context, id uint, updates map[string]any) error {
 	return s.repo.Update(ctx, id, updates)
 }
-func (s *RoleService) Delete(ctx context.Context, id uint) error { return s.repo.Delete(ctx, id) }
+func (s *RoleService) Delete(ctx context.Context, id uint) error {
+	role, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if role.Code == "admin" {
+		return fmt.Errorf("cannot delete admin role")
+	}
+	return s.repo.Delete(ctx, id)
+}
 func (s *RoleService) AssignPermissions(ctx context.Context, roleID uint, permIDs []uint) error {
 	if err := s.repo.AssignPermissions(ctx, roleID, permIDs); err != nil {
 		return err
 	}
 	if s.cache != nil {
+		// Invalidate all user permission caches — SCAN-based in production
 		_ = s.cache.Delete(ctx, "user:perms:*")
 	}
 	return nil

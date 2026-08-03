@@ -6,7 +6,7 @@ run: ## 启动服务
 	go run ./cmd/server
 
 build: ## 编译
-	go build -ldflags="-s -w" -o bin/$(APP) ./cmd/server
+	go build -ldflags="-s -w -X main.version=$(git describe --tags --always 2>/dev/null || echo dev) -X main.commit=$(git rev-parse --short HEAD 2>/dev/null || echo unknown) -X main.buildTime=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -o bin/$(APP) ./cmd/server
 
 test: ## 运行测试
 	go test -v -race -count=1 ./...
@@ -35,3 +35,6 @@ clean: ## 清理
 
 wire: ## 生成依赖注入
 	cd internal/wire && wire
+
+swagger: ## 生成 API 文档
+	swag init -g cmd/server/main.go -o docs --parseDependency --parseInternal

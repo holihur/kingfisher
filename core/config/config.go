@@ -4,6 +4,7 @@ package config
 
 import (
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/spf13/viper"
@@ -16,6 +17,7 @@ type Config struct {
 	JWT       JWTConfig       `mapstructure:"jwt"`
 	Log       LogConfig       `mapstructure:"log"`
 	RateLimit RateLimitConfig `mapstructure:"rate_limit"`
+	Telemetry TelemetryConfig `mapstructure:"telemetry"`
 	CORS      CORSConfig      `mapstructure:"cors"`
 }
 
@@ -89,6 +91,11 @@ type LogConfig struct {
 	MaxAge     int    `mapstructure:"max_age"`
 }
 
+type TelemetryConfig struct {
+	Enabled  bool   `mapstructure:"enabled"`
+	Endpoint string `mapstructure:"endpoint"`
+}
+
 type RateLimitConfig struct {
 	Enabled           bool `mapstructure:"enabled"`
 	RequestsPerMinute int  `mapstructure:"requests_per_minute"`
@@ -108,6 +115,14 @@ func Load(configPath string) (*Config, error) {
 	v.SetConfigFile(configPath)
 	v.SetConfigType("yaml")
 	v.AutomaticEnv()
+
+	// Load env-specific override (config.{APP_ENV}.yaml)
+	if env := os.Getenv("APP_ENV"); env != "" {
+		v.SetConfigName("config." + env)
+		if err := v.MergeInConfig(); err != nil {
+			// Optional — dev/prod override file may not exist
+		}
+	}
 
 	if err := v.ReadInConfig(); err != nil {
 		return nil, fmt.Errorf("failed to read config file: %w", err)

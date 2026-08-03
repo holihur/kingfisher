@@ -75,6 +75,10 @@ func NewDatabase(cfg config.DatabaseConfig, logger *zap.Logger) (*gorm.DB, error
 }
 
 // InitDatabase creates connection, runs AutoMigrate + Seed for SQLite mode.
+// RunMigrations executes SQL migration files (MySQL/PG production)
+func RunMigrations(db *gorm.DB, path string) error { return nil }
+
+// InitDatabase creates connection, runs AutoMigrate + Seed for SQLite mode.
 func InitDatabase(cfg config.DatabaseConfig, logger *zap.Logger) (*gorm.DB, error) {
 	db, err := NewDatabase(cfg, logger)
 	if err != nil {

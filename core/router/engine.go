@@ -4,7 +4,9 @@ package router
 
 import (
 	"context"
+	"time"
 
+	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 
@@ -28,25 +30,20 @@ func NewEngine(cfg *config.Config, logger *zap.Logger) *gin.Engine {
 	}
 	r := gin.New()
 
-	// Set trusted proxies for correct IP resolution
 	if len(cfg.Server.TrustedProxies) > 0 {
 		_ = r.SetTrustedProxies(cfg.Server.TrustedProxies)
 	}
 
-	// 1. RequestID — outermost, so even panic logs have request_id
 	r.Use(middleware.RequestID())
-	// 2. Recovery — must be outermost to catch all downstream panics
 	r.Use(middleware.Recovery())
-	// 3. Trace — after Recovery, so panic won't lose trace
 	r.Use(middleware.Trace())
-	// 4. Logger — after Trace, can log trace_id
 	r.Use(middleware.Logger(logger))
-	// 5. Gzip — compress JSON responses > 1KB
-	r.Use(gzipMiddleware())
-	// 6. SecurityHeaders — all responses get security headers
+	r.Use(gzip.Gzip(gzip.DefaultCompression, gzip.WithExcludedPaths([]string{"/metrics", "/health", "/ready"})))
 	r.Use(middleware.SecurityHeaders())
-	// 7. CORS — before Auth, so OPTIONS preflight doesn't need auth
 	r.Use(middleware.CORS(cfg.CORS.AllowedOrigins))
+	if cfg.RateLimit.Enabled {
+		r.Use(middleware.RateLimit(nil, cfg.RateLimit.RequestsPerMinute, 1*time.Minute))
+	}
 
 	return r
 }
@@ -60,11 +57,3 @@ func Register(r *gin.Engine, mod Module, authMw gin.HandlerFunc, rbacMw gin.Hand
 	protected.Use(authMw, rbacMw)
 	mod.RegisterProtected(protected)
 }
-
-func gzipMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.Next()
-	}
-}
-
-var _ = context.Background // use context

@@ -40,7 +40,7 @@ func (m *UserModule) Shutdown(ctx context.Context) error { return nil }
 
 func (m *UserModule) RegisterPublic(r *gin.RouterGroup) {
 	auth := r.Group("/auth")
-	auth.POST("/register", middleware.RateLimit(m.cache, 2, 5*time.Minute), m.authHandler.Register)
+	auth.POST("/register", middleware.RateLimit(m.cache, 1, 5*time.Minute), m.authHandler.Register) // design: 1 reg/5min per IP
 	auth.POST("/login", middleware.RateLimit(m.cache, 5, time.Minute), m.authHandler.Login)
 	auth.POST("/refresh", m.authHandler.Refresh)
 	auth.POST("/logout", m.authHandler.Logout)

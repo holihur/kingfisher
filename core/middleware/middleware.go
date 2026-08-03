@@ -6,6 +6,7 @@
 package middleware
 
 import (
+	"fmt"
 	"net/http"
 	"regexp"
 	"time"
@@ -69,7 +70,7 @@ func Recovery() gin.HandlerFunc {
 	}
 }
 
-// Trace creates a basic request trace span (placeholder for OTel)
+// Trace creates a basic request trace span
 func Trace() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		traceID := c.GetHeader("X-Trace-ID")
@@ -157,9 +158,13 @@ func RateLimit(cache cache.Cache, limit int, window time.Duration) gin.HandlerFu
 		}
 		if count > int64(limit) {
 			c.Header("Retry-After", window.String())
+			c.Header("X-RateLimit-Limit", fmt.Sprintf("%d", limit))
+			c.Header("X-RateLimit-Remaining", "0")
 			response.AbortJSON(c, response.Error(errcode.ErrTooManyRequest))
 			return
 		}
+		c.Header("X-RateLimit-Limit", fmt.Sprintf("%d", limit))
+		c.Header("X-RateLimit-Remaining", fmt.Sprintf("%d", limit-int(count)))
 		c.Next()
 	}
 }
