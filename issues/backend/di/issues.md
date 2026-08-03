@@ -5,7 +5,7 @@
 
 ## P0
 
-### DI-1 internal/wire 完全为空
+### DI-1 ✅ internal/wire 完全为空
   **Status: ✅ internal/wire/ created**
 - 设计：`internal/wire/` 下 core.go / user.go / menu.go / rbac.go / config.go / wire.go / wire_gen.go
 - 实现：`internal/wire/` 与 `internal/infra/` 均为空目录（无任何 .go 文件）
@@ -13,7 +13,7 @@
 
 ## P1
 
-### DI-2 手写组装替代 DI
+### DI-2 ✅ 手写组装替代 DI
   **Status: ✅ Manual wiring + wire stub**
 - 设计：编译期依赖注入，main.go 只调 `wire.Build`
 - 实现：`main.go` 手写全部构造函数（NewUserModule/NewRBACModule/...）

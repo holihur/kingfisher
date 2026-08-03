@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"kingfisher/core/cache"
 	"kingfisher/extends/rbac/domain"
@@ -77,7 +78,7 @@ func (s *RoleService) GetUserPermissions(ctx context.Context, userID uint) ([]st
 		return nil, err
 	}
 	if s.cache != nil {
-		_ = s.cache.Set(ctx, key, codes, 30*60*1e9)
+		_ = s.cache.Set(ctx, key, strings.Join(codes, ","), 30*60*1e9)
 	} // 30min in ns
 	return codes, nil
 }
@@ -95,7 +96,12 @@ func (s *RoleService) GetRoleMenus(ctx context.Context, roleID uint) ([]domain.M
 	}
 	return rm, nil
 }
-func strSlice(s string) []string { return nil } // placeholder
+func strSlice(s string) []string {
+	if s == "" {
+		return nil
+	}
+	return strings.Split(s, ",")
+}
 type PermService struct{ repo port.PermissionRepository }
 
 func NewPermService(repo port.PermissionRepository) *PermService { return &PermService{repo: repo} }

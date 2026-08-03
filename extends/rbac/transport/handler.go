@@ -50,7 +50,10 @@ func (h *RoleHandler) Create(c *gin.Context) {
 		response.BadRequest(c, err.Error())
 		return
 	}
-	_ = h.svc.Create(c.Request.Context(), &r)
+	if err := h.svc.Create(c.Request.Context(), &r); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
 	response.OKJSON(c, r)
 }
 
@@ -61,13 +64,19 @@ func (h *RoleHandler) Update(c *gin.Context) {
 		response.BadRequest(c, err.Error())
 		return
 	}
-	_ = h.svc.Update(c.Request.Context(), uint(id), m)
+	if err := h.svc.Update(c.Request.Context(), uint(id), m); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
 	response.OKJSON(c, nil)
 }
 
 func (h *RoleHandler) Delete(c *gin.Context) {
 	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
-	_ = h.svc.Delete(c.Request.Context(), uint(id))
+	if err := h.svc.Delete(c.Request.Context(), uint(id)); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
 	response.OKJSON(c, nil)
 }
 
@@ -84,7 +93,10 @@ func (h *RoleHandler) AssignPerms(c *gin.Context) {
 		response.BadRequest(c, err.Error())
 		return
 	}
-	_ = h.svc.AssignPermissions(c.Request.Context(), uint(id), req.PermissionIDs)
+	if err := h.svc.AssignPermissions(c.Request.Context(), uint(id), req.PermissionIDs); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
 	response.OKJSON(c, nil)
 }
 
@@ -101,7 +113,10 @@ func (h *RoleHandler) AssignMenus(c *gin.Context) {
 		response.BadRequest(c, err.Error())
 		return
 	}
-	_ = h.svc.AssignMenus(c.Request.Context(), uint(id), req.MenuIDs)
+	if err := h.svc.AssignMenus(c.Request.Context(), uint(id), req.MenuIDs); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
 	response.OKJSON(c, nil)
 }
 

@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"context"
 	"strconv"
 	"strings"
 
@@ -13,10 +14,17 @@ import (
 )
 
 type AuthHandler struct{ svc *app.AuthService }
-type UserHandler struct{ svc *app.UserService }
+
+// PermProvider resolves permission codes for a user. Injected by the RBAC module.
+type PermProvider func(ctx context.Context, userID uint) ([]string, error)
+
+type UserHandler struct {
+	svc        *app.UserService
+	getUserPerms PermProvider // optional; when nil, falls back to svc.GetUserPermissions
+}
 
 func NewAuthHandler(svc *app.AuthService) *AuthHandler { return &AuthHandler{svc: svc} }
-func NewUserHandler(svc *app.UserService) *UserHandler { return &UserHandler{svc: svc} }
+func NewUserHandler(svc *app.UserService) *UserHandler  { return &UserHandler{svc: svc} }
 
 type RegisterReq struct {
 	Username string `json:"username" binding:"required,min=3,max=32"`
@@ -146,6 +154,13 @@ func (h *UserHandler) GetMe(c *gin.Context) {
 
 func (h *UserHandler) GetMyPermissions(c *gin.Context) {
 	userID := c.GetUint("user_id")
+	if h.getUserPerms != nil {
+		perms, err := h.getUserPerms(c.Request.Context(), userID)
+		if err == nil {
+			response.OKJSON(c, perms)
+			return
+		}
+	}
 	perms, err := h.svc.GetUserPermissions(c.Request.Context(), userID)
 	if err != nil {
 		response.InternalError(c)

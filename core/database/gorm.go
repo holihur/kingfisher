@@ -207,16 +207,14 @@ func SeedData(db *gorm.DB) error {
 			return fmt.Errorf("seed configs: %w", err)
 		}
 
-		// Admin user
-		admin := UserPO{
-			ID:       1,
-			Username: "admin",
-			Password: "$2a$12$jDyI8HZp/TVxUrplIqdgNOV/iahF.i3l0YoPHuNLD5kus./WsPTzO", // #nosec G101 — seed data hash
-			Email:    "admin@example.com",
-			Status:   1,
-			RoleID:   1,
+		// Users
+		pwHash := "$2a$12$jDyI8HZp/TVxUrplIqdgNOV/iahF.i3l0YoPHuNLD5kus./WsPTzO" // #nosec G101 — seed data hash (Abcd1234)
+		users := []UserPO{
+			{ID: 1, Username: "admin", Password: pwHash, Email: "admin@example.com", Status: 1, RoleID: 1},
+			{ID: 2, Username: "editor", Password: pwHash, Email: "editor@example.com", Status: 1, RoleID: 3},
+			{ID: 3, Username: "viewer", Password: pwHash, Email: "viewer@example.com", Status: 1, RoleID: 4},
 		}
-		return tx.Create(&admin).Error
+		return tx.Create(&users).Error
 	})
 }
 

@@ -6,16 +6,16 @@ import (
 	"time"
 
 	coreCache "kingfisher/core/cache"
-	adapter "kingfisher/extends/config/adapter/mysql"
 	"kingfisher/extends/config/domain"
+	"kingfisher/extends/config/port"
 )
 
 type ConfigService struct {
-	repo  *adapter.ConfigRepo
+	repo  port.ConfigRepository
 	cache coreCache.Cache
 }
 
-func NewConfigService(repo *adapter.ConfigRepo, cache coreCache.Cache) *ConfigService {
+func NewConfigService(repo port.ConfigRepository, cache coreCache.Cache) *ConfigService {
 	return &ConfigService{repo: repo, cache: cache}
 }
 

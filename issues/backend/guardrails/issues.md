@@ -5,7 +5,7 @@
 
 ## P1
 
-### GR-1 .golangci.yml 缺失
+### GR-1 ✅ .golangci.yml 缺失
   **Status: ✅ .golangci.yml exists**
 - 设计：`.golangci.yml` 启用 govet/errcheck/staticcheck/gosec/depguard/revive/goimports/unconvert/unparam/wastedassign/misspell/nilerr/noctx/errorlint/gocritic，含 depguard 跨层 import 规则
 - 实现：仓库根目录无 `.golangci.yml`（需核对；`make lint` 依赖 golangci-lint 但无配置）
@@ -13,7 +13,7 @@
 
 ## P1
 
-### GR-2 检查脚本不完整
+### GR-2 ✅ 检查脚本不完整
   **Status: ✅ guardrails + revive scripts exist**
 - 设计：check-guardrails.sh 覆盖 panic/log.Fatal/fmt.Println/跨层 import/硬编码等
 - 实现：`scripts/check-guardrails.sh` 存在且实现前 3 项检查（panic/Fatal/Println）；`scripts/check-revive.sh` 存在；但 `check-traces.sh`、`check-metrics.sh`、`check-no-panic.sh`（设计 scripts 清单）缺失
@@ -21,7 +21,7 @@
 
 ## P2
 
-### GR-3 无 CI 执行 guardrails
+### GR-3 ✅ 无 CI 执行 guardrails
   **Status: ✅ GitHub Actions CI created**
 - 设计：每次 push 强制执行
 - 实现：无 CI（DEP-3），脚本仅可手动运行

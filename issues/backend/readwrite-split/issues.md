@@ -9,7 +9,7 @@
 
 ## P2
 
-### RW-1 DBResolver 未引入
+### RW-1 ✅ DBResolver 未引入
   **Status: ✅ Implemented in v1**
 - 设计：GORM `dbresolver` 插件（Master/Replica 配置 + RandomPolicy）
 - 实现：`core/database/gorm.go` 无 dbresolver 引用，配置结构无 Replica 字段

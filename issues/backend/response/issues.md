@@ -14,7 +14,7 @@
 
 ## P2
 
-### RSP-1 PageData 分页结构未在设计文档定义
+### RSP-1 ✅ PageData 分页结构未在设计文档定义
   **Status: ✅ Migrations SQL + Swagger created**
 - 设计：分页响应仅提及「分页」，未定义字段
 - 实现：`PageData{items,total,page,page_size}`

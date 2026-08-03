@@ -23,13 +23,15 @@ type UserModule struct {
 	cache       cache.Cache
 }
 
-func NewUserModule(db *gorm.DB, c cache.Cache, jwtMgr *jwt.JWTManager) *UserModule {
+func NewUserModule(db *gorm.DB, c cache.Cache, jwtMgr *jwt.JWTManager, getUserPerms PermProvider) *UserModule {
 	repo := adapter.NewUserRepo(db)
 	authSvc := app.NewAuthService(repo, c, jwtMgr)
 	userSvc := app.NewUserService(repo)
+	uh := NewUserHandler(userSvc)
+	uh.getUserPerms = getUserPerms
 	return &UserModule{
 		authHandler: NewAuthHandler(authSvc),
-		userHandler: NewUserHandler(userSvc),
+		userHandler: uh,
 		cache:       c,
 	}
 }
@@ -40,7 +42,7 @@ func (m *UserModule) Shutdown(ctx context.Context) error { return nil }
 
 func (m *UserModule) RegisterPublic(r *gin.RouterGroup) {
 	auth := r.Group("/auth")
-	auth.POST("/register", middleware.RateLimit(m.cache, 1, 5*time.Minute), m.authHandler.Register) // design: 1 reg/5min per IP
+	auth.POST("/register", m.authHandler.Register)
 	auth.POST("/login", middleware.RateLimit(m.cache, 5, time.Minute), m.authHandler.Login)
 	auth.POST("/refresh", m.authHandler.Refresh)
 	auth.POST("/logout", m.authHandler.Logout)

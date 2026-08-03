@@ -4,6 +4,7 @@ package router
 
 import (
 	"context"
+	"strconv"
 	"time"
 
 	"github.com/gin-contrib/gzip"
@@ -35,7 +36,13 @@ func NewEngine(cfg *config.Config, logger *zap.Logger) *gin.Engine {
 	}
 
 	r.Use(middleware.RequestID())
-	r.Use(middleware.Recovery())
+	maxBody := int64(10 << 20) // default 10MB
+	if cfg.Server.MaxRequestBody != "" {
+		if parsed, err := strconv.ParseInt(cfg.Server.MaxRequestBody, 10, 64); err == nil && parsed > 0 {
+			maxBody = parsed
+		}
+	}
+	r.Use(middleware.RecoveryWithLimit(maxBody))
 	r.Use(middleware.Trace())
 	r.Use(middleware.Logger(logger))
 	r.Use(gzip.Gzip(gzip.DefaultCompression, gzip.WithExcludedPaths([]string{"/metrics", "/health", "/ready"})))

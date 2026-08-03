@@ -23,7 +23,29 @@ func (h *MenuHandler) GetTree(c *gin.Context) {
 		response.InternalError(c)
 		return
 	}
+	// Filter by user permissions injected by RBAC middleware
+	perms, _ := c.Get("permissions")
+	psMap, _ := perms.(map[string]bool)
+	if psMap != nil {
+		tree = filterTreeByPerms(tree, psMap)
+	}
 	response.OKJSON(c, tree)
+}
+
+// filterTreeByPerms removes menu items the user doesn't have permission for.
+// Items with no permission requirement (empty string) are visible to all.
+func filterTreeByPerms(menus []domain.Menu, perms map[string]bool) []domain.Menu {
+	filtered := make([]domain.Menu, 0, len(menus))
+	for _, m := range menus {
+		if m.Permission != "" && !perms[m.Permission] {
+			continue // user doesn't have this permission, skip
+		}
+		if len(m.Children) > 0 {
+			m.Children = filterTreeByPerms(m.Children, perms)
+		}
+		filtered = append(filtered, m)
+	}
+	return filtered
 }
 
 func (h *MenuHandler) GetByID(c *gin.Context) {
@@ -45,7 +67,10 @@ func (h *MenuHandler) Create(c *gin.Context) {
 		response.BadRequest(c, err.Error())
 		return
 	}
-	_ = h.svc.Create(c.Request.Context(), &m)
+	if err := h.svc.Create(c.Request.Context(), &m); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
 	response.OKJSON(c, m)
 }
 
@@ -56,12 +81,18 @@ func (h *MenuHandler) Update(c *gin.Context) {
 		response.BadRequest(c, err.Error())
 		return
 	}
-	_ = h.svc.Update(c.Request.Context(), uint(id), m)
+	if err := h.svc.Update(c.Request.Context(), uint(id), m); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
 	response.OKJSON(c, nil)
 }
 
 func (h *MenuHandler) Delete(c *gin.Context) {
 	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
-	_ = h.svc.Delete(c.Request.Context(), uint(id))
+	if err := h.svc.Delete(c.Request.Context(), uint(id)); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
 	response.OKJSON(c, nil)
 }

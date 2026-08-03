@@ -5,19 +5,19 @@
 
 ## P1
 
-### FRQ-1 baseURL 未走环境变量
+### FRQ-1 ✅ baseURL 未走环境变量
 - 设计：`baseURL: import.meta.env.VITE_API_BASE_URL`（如 http://localhost:8080/api/v1）
 - 实现：`baseURL: '/api/v1'` 硬编码（依赖 Vite proxy）
 - 影响：生产环境若不走同一 proxy 需改代码；.env 分层（development/production）未落地（见 FLD-2）
 
-### FRQ-2 token 来源用 localStorage 而非 Zustand
+### FRQ-2 ✅ token 来源用 localStorage 而非 Zustand
 - 设计：`useAuthStore.getState().token`（单一状态源）
 - 实现：直接 `localStorage.getItem('kingfisher_token')`
 - 影响：状态与存储双份，登出/刷新不同步时拦截器可能读到脏 token（轻微）
 
 ## P2
 
-### FRQ-3 刷新后重放队列实现简化
+### FRQ-3 ✅ 刷新后重放队列实现简化
 - 设计：pendingRequests 队列中等待的请求用新 token 重放
 - 实现：`handleTokenRefresh` 有队列机制，但刷新失败时 pendingRequests 未统一 reject（需核对）
 - 影响：并发请求在刷新失败场景可能悬挂

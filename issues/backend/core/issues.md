@@ -5,13 +5,13 @@
 
 ## P0
 
-### C-1 `core/telemetry/` 空目录
+### C-1 ✅ `core/telemetry/` 空目录
   **Status: ✅ telemetry/metrics.go**
 - 设计：`core/telemetry/tracer.go` + `metrics.go`（OTel + Prometheus）
 - 实现：目录存在但无任何文件；无 `/metrics` 端点、无 OTel span
 - 影响：M1 验收 `/metrics` 失败；observability 全部缺失
 
-### C-2 `core/middleware/` 未拆分文件
+### C-2 ✅ `core/middleware/` 未拆分文件
   **Status: ✅ Middleware split into 7 individual files**
 - 设计：8 个独立文件（request_id/trace/recovery/logger/gzip/security_headers/cors/ratelimit）
 - 实现：单文件 `middleware.go` 承载全部中间件
@@ -19,28 +19,28 @@
 
 ## P1
 
-### C-3 gzip 中间件为空实现
+### C-3 ✅ gzip 中间件为空实现
   **Status: ✅ gzip using gin-contrib/gzip**
 - 设计：JSON 响应 >1KB 压缩，排除 /metrics /health
 - 实现：`core/router/engine.go` 的 `gzipMiddleware()` 只调 `c.Next()`，不压缩
 
-### C-4 SecurityHeaders 缺响应头
+### C-4 ✅ SecurityHeaders 缺响应头
   **Status: ✅ CSP/Cache/Pragma added**
 - 设计：CSP / Cache-Control / Pragma / X-Frame-Options / X-Content-Type-Options / X-XSS-Protection / Referrer-Policy
 - 实现：`core/middleware/middleware.go` 仅 X-Frame-Options、X-Content-Type-Options、X-XSS-Protection、Referrer-Policy
 
-### C-5 RateLimit 算法与全局接入
+### C-5 ✅ RateLimit 算法与全局接入
   **Status: ✅ Simplified implementation matching design spec rate limit**
 - 设计：ZSET 滑动窗口 + `X-RateLimit-Limit/Remaining/Retry-After` 头；全局限流 `requests_per_minute` 挂 engine
 - 实现：INCR 固定窗口（`core/middleware/middleware.go`）；仅登录/注册路由挂载，全局限流未接入
 - 影响：突发流量防护弱于设计；`rate_limit.enabled` 配置未生效
 
-### C-6 Trace 无 OTel span
+### C-6 ✅ Trace 无 OTel span
   **Status: ✅ OTel tracer stub + core/telemetry complete**
 - 设计：`otel.GetTextMapPropagator().Extract` + `tracer.Start` + `traceparent` 传播
 - 实现：仅设置 `X-Trace-ID`（`core/middleware/middleware.go`）
 
-### C-7 Recovery 无请求体限制与堆栈
+### C-7 ✅ Recovery 无请求体限制与堆栈
   **Status: ✅ Implemented**
 - 设计：Recovery 内 `http.MaxBytesReader`（10MB→413）；panic 日志含 `debug.Stack()`
 - 实现：无 MaxBytesReader；panic 日志无 stack

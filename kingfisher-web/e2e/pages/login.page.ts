@@ -1,0 +1,50 @@
+import type { Page, Locator } from '@playwright/test';
+
+/**
+ * Page Object Model for the Login page.
+ */
+export class LoginPage {
+  constructor(readonly page: Page) {}
+
+  async goto(): Promise<void> {
+    await this.page.goto('/login');
+  }
+
+  usernameInput(): Locator {
+    return this.page.getByPlaceholder('用户名');
+  }
+
+  passwordInput(): Locator {
+    return this.page.getByPlaceholder('密码');
+  }
+
+  submitButton(): Locator {
+    return this.page.getByRole('button', { name: '登 录' });
+  }
+
+  registerLink(): Locator {
+    return this.page.getByText('去注册');
+  }
+
+  formErrors(): Locator {
+    return this.page.locator('.ant-form-item-explain-error');
+  }
+
+  title(): Locator {
+    return this.page.locator('h2');
+  }
+
+  subtitle(): Locator {
+    return this.page.locator('p').filter({ hasText: '后台管理系统' });
+  }
+
+  async login(username: string, password: string): Promise<void> {
+    await this.usernameInput().fill(username);
+    await this.passwordInput().fill(password);
+    await this.submitButton().click();
+  }
+
+  async waitForRedirect(): Promise<void> {
+    await this.page.waitForURL('**/dashboard');
+  }
+}

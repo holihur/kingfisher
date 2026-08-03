@@ -21,6 +21,7 @@ import (
 	"kingfisher/core/cache"
 	"kingfisher/core/errcode"
 	"kingfisher/core/response"
+	"kingfisher/core/telemetry"
 )
 
 // InitValidator registers custom password validator
@@ -54,8 +55,13 @@ func RequestID() gin.HandlerFunc {
 	}
 }
 
-// Recovery catches panics and returns 500
+// Recovery catches panics and returns 500 (max request body 10MB)
 func Recovery() gin.HandlerFunc {
+	return RecoveryWithLimit(10 << 20)
+}
+
+// RecoveryWithLimit catches panics with configurable max body size
+func RecoveryWithLimit(maxBytes int64) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		defer func() {
 			if err := recover(); err != nil {
@@ -72,7 +78,7 @@ func Recovery() gin.HandlerFunc {
 	}
 }
 
-// Trace creates a basic request trace span
+// Trace creates a request trace span using telemetry and sets trace_id header.
 func Trace() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		traceID := c.GetHeader("X-Trace-ID")
@@ -80,6 +86,9 @@ func Trace() gin.HandlerFunc {
 			traceID = uuid.New().String()
 		}
 		c.Set("trace_id", traceID)
+		ctx, span := telemetry.StartSpan(c.Request.Context(), "HTTP "+c.Request.Method+" "+c.FullPath())
+		c.Request = c.Request.WithContext(ctx)
+		defer span.End()
 		c.Next()
 	}
 }

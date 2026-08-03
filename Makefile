@@ -8,7 +8,7 @@ run: ## 启动服务
 dev: ## 同时启动前后端（Ctrl+C 一并退出）
 	@trap 'kill 0' INT TERM EXIT; \
 	(go run ./cmd/server) & \
-	(cd web && npm run dev) & \
+	(cd kingfisher-web && npm run dev) & \
 	wait
 
 build: ## 编译
@@ -31,10 +31,20 @@ fmt: ## Go 代码格式化
 	goimports -w -local kingfisher .
 
 lint-fe: ## 前端代码检查
-	cd web && npx eslint src/ && npx prettier --check src/
+	cd kingfisher-web && npx eslint src/ && npx prettier --check src/
 
 fmt-fe: ## 前端代码格式化
-	cd web && npx prettier --write src/
+	cd kingfisher-web && npx prettier --write src/
+
+test-e2e: ## 运行 E2E 测试（需要 Redis 在 localhost:6379）
+	@echo "Starting E2E tests..."
+	cd kingfisher-web && npm run test:e2e
+
+test-e2e-ui: ## Playwright UI 调试模式
+	cd kingfisher-web && npm run test:e2e:ui
+
+test-e2e-report: ## 查看 E2E 报告
+	cd kingfisher-web && npx playwright show-report ../test/e2e/playwright-report
 
 clean: ## 清理
 	rm -f kingfisher.db bin/$(APP)

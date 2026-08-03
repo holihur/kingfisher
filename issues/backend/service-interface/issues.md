@@ -5,7 +5,7 @@
 
 ## P1
 
-### SI-1 Handler 依赖具体 Service
+### SI-1 ✅ Handler 依赖具体 Service
   **Status: ✅ Implemented in v1**
 - 设计：`extends/{module}/port/service.go` 定义 AuthService/UserService/MenuService/RoleService 接口，Handler 依赖接口以便 mock
 - 实现：全部 Handler 持有具体 struct——`*app.AuthService`、`*app.UserService`、`*app.RoleService`、`*app.MenuService`、`*app.ConfigService`、`*app.AuditService`
@@ -13,7 +13,7 @@
 
 ## P1
 
-### SI-2 模块间调用走具体实现而非 port
+### SI-2 ✅ 模块间调用走具体实现而非 port
   **Status: ✅ Acceptable — see issue detail**
 - 设计：extends 之间跨模块调用需走 port 接口
 - 实现：`extends/menu`、`extends/config`、`extends/audit` 内部直接 import `adapter/mysql` 具体仓库

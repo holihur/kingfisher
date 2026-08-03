@@ -7,16 +7,16 @@ import (
 	"time"
 
 	coreCache "kingfisher/core/cache"
-	adapter "kingfisher/extends/menu/adapter/mysql"
 	"kingfisher/extends/menu/domain"
+	"kingfisher/extends/menu/port"
 )
 
 type MenuService struct {
-	repo  *adapter.MenuRepo
+	repo  port.MenuRepository
 	cache coreCache.Cache
 }
 
-func NewMenuService(repo *adapter.MenuRepo, cache coreCache.Cache) *MenuService {
+func NewMenuService(repo port.MenuRepository, cache coreCache.Cache) *MenuService {
 	return &MenuService{repo: repo, cache: cache}
 }
 

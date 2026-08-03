@@ -29,3 +29,4 @@ func (m *AuditModule) RegisterPublic(r *gin.RouterGroup)  {}
 func (m *AuditModule) RegisterProtected(r *gin.RouterGroup) {
 	r.GET("/audit-logs", m.handler.List)
 }
+func (m *AuditModule) Middleware() gin.HandlerFunc { return AuditMiddleware(m.svc) }

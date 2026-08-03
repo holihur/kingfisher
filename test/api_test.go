@@ -32,7 +32,7 @@ func setupTestServer(t *testing.T) (*gin.Engine, *jwt.JWTManager) {
 		Server:   config.ServerConfig{Port: 9999, Mode: "test"},
 		Database: config.DatabaseConfig{Driver: "sqlite", SQLite: config.SQLiteConfig{Path: ":memory:"}},
 		Redis:    config.RedisConfig{Host: "127.0.0.1", Port: 6379},
-		JWT:      config.JWTConfig{Secret: "test-secret-abc123", AccessTTL: 1000000000000, RefreshTTL: 2000000000000, Issuer: "test"},
+		JWT:      config.JWTConfig{Secret: "test-secret-abc123", AccessTTL: 3600000000000000, RefreshTTL: 7200000000000000, Issuer: "test"},
 		Log:      config.LogConfig{Level: "error", Format: "console", Output: "stdout", MaxSize: 10, MaxBackups: 1, MaxAge: 1},
 		CORS:     config.CORSConfig{AllowedOrigins: []string{"*"}, AllowedMethods: []string{"GET", "POST", "PUT", "DELETE"}, AllowedHeaders: []string{"*"}},
 	}
@@ -62,7 +62,7 @@ func setupTestServer(t *testing.T) (*gin.Engine, *jwt.JWTManager) {
 	}
 
 	mods := []router.Module{
-		userTransport.NewUserModule(db, nil, jwtMgr),
+		userTransport.NewUserModule(db, nil, jwtMgr, nil),
 		rbacTransport.NewRBACModule(db, nil),
 		menuTransport.NewMenuModule(db, nil),
 		configTransport.NewConfigModule(db, nil),

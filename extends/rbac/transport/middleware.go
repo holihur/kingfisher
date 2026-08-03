@@ -14,6 +14,16 @@ import (
 	"kingfisher/extends/rbac/app"
 )
 
+// NewRoleService creates a RoleService for permission lookups.
+func NewRoleService(db *gorm.DB, c cache.Cache) *app.RoleService {
+	return app.NewRoleService(adapter.NewRoleRepo(db), c)
+}
+
+// RBACMiddlewareWith creates RBAC middleware from an existing RoleService.
+func RBACMiddlewareWith(roleSvc *app.RoleService) gin.HandlerFunc {
+	return RBACMiddleware(roleSvc)
+}
+
 func AuthMiddleware(jwtMgr *jwt.JWTManager) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		h := c.GetHeader("Authorization")

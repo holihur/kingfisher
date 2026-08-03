@@ -49,7 +49,11 @@ var (
 
 func main() {
 	// 1. Load config
-	cfg, err := config.Load("config/config.yaml")
+	configPath := "config/config.yaml"
+	if p := os.Getenv("CONFIG_PATH"); p != "" {
+		configPath = p
+	}
+	cfg, err := config.Load(configPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "config load failed: %v\n", err)
 		os.Exit(1)
@@ -112,20 +116,25 @@ func main() {
 	r.GET("/health", func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) })
 	r.GET("/ready", readyHandler(db, rdb))
 	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
+	r.StaticFile("/swagger/doc.json", "./docs/swagger.json")
+	r.GET("/swagger/*any", swaggerUI())
 
 	// 8. Build auth/rbac middleware
 	authMw := rbacTransport.AuthMiddleware(jwtMgr)
-	// RBAC middleware — permission checks via the RBAC module's RoleService
-	rbacMw := rbacTransport.RBACMiddlewareSvc(db, redisCache)
+	// Create RBAC service for permission lookups — shared between RBAC middleware and User module
+	rbacSvc := rbacTransport.NewRoleService(db, redisCache)
+	rbacMw := rbacTransport.RBACMiddlewareWith(rbacSvc)
 
 	// 9. Register all extends modules
+	auditMod := auditTransport.NewAuditModule(db)
 	mods := []router.Module{
-		userTransport.NewUserModule(db, redisCache, jwtMgr),
+		userTransport.NewUserModule(db, redisCache, jwtMgr, rbacSvc.GetUserPermissions),
 		rbacTransport.NewRBACModule(db, redisCache),
 		menuTransport.NewMenuModule(db, redisCache),
 		configTransport.NewConfigModule(db, redisCache),
-		auditTransport.NewAuditModule(db),
+		auditMod,
 	}
+	r.Use(auditMod.Middleware()) // audit all write operations
 
 	ctx := context.Background()
 	for _, m := range mods {
@@ -171,6 +180,20 @@ func main() {
 	}
 
 	zapLog.Info("server stopped")
+}
+
+func swaggerUI() gin.HandlerFunc {
+	const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Kingfisher API</title>
+<link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css">
+<script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+<style>html{box-sizing:border-box}*,*:before,*:after{box-sizing:inherit}body{margin:0}</style></head>
+<body><div id="swagger-ui"></div><script>
+SwaggerUIBundle({url:"/swagger/doc.json",dom_id:"#swagger-ui",deepLinking:true,presets:[SwaggerUIBundle.presets.apis]})
+</script></body></html>`
+	return func(c *gin.Context) {
+		c.Header("Content-Type", "text/html; charset=utf-8")
+		c.String(200, html)
+	}
 }
 
 func readyHandler(db *gorm.DB, rdb *redis.Client) gin.HandlerFunc {
