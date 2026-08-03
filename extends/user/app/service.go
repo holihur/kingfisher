@@ -75,12 +75,23 @@ func (s *AuthService) Login(ctx context.Context, username, password string) (str
 		_ = s.cache.Delete(ctx, "login_fail:"+username)
 	}
 
-	access, refresh, err := s.jwtMgr.GenerateToken(ctx, user.ID, "viewer", user.SessionVersion)
+	roleCode := "viewer"
+	if user.RoleID == 1 {
+		roleCode = "admin"
+	}
+	if user.RoleID == 3 {
+		roleCode = "editor"
+	}
+	access, refresh, err := s.jwtMgr.GenerateToken(ctx, user.ID, roleCode, user.SessionVersion)
 	if err != nil {
 		return "", "", nil, err
 	}
 	user.Password = ""
 	return access, refresh, user, nil
+}
+
+func (s *AuthService) RevokeToken(ctx context.Context, tokenStr string) error {
+	return s.jwtMgr.RevokeToken(ctx, tokenStr)
 }
 
 func (s *AuthService) RefreshToken(ctx context.Context, refreshToken string) (string, error) {
@@ -106,10 +117,26 @@ func (s *UserService) Delete(ctx context.Context, id uint) error {
 	return s.repo.Delete(ctx, id)
 }
 
+func (s *UserService) CreateUser(ctx context.Context, username, password, email string) (*domain.User, error) {
+	_, err := s.repo.FindByUsername(ctx, username)
+	if err == nil {
+		return nil, fmt.Errorf("user exists")
+	}
+	hashed, err := bcrypt.GenerateFromPassword([]byte(password), 12)
+	if err != nil {
+		return nil, fmt.Errorf("hash: %w", err)
+	}
+	user := &domain.User{Username: username, Password: string(hashed), Email: email, Status: 1, RoleID: 4}
+	if err := s.repo.Create(ctx, user); err != nil {
+		return nil, err
+	}
+	user.Password = ""
+	return user, nil
+}
+
 func (s *UserService) List(ctx context.Context, page, pageSize int, keyword string) ([]domain.User, int64, error) {
 	return s.repo.FindAll(ctx, page, pageSize, keyword)
 }
-
 func (s *UserService) GetUserPermissions(ctx context.Context, userID uint) ([]string, error) {
 	// Placeholder: returns empty list for now; RBAC module handles real permission lookup
 	return nil, nil

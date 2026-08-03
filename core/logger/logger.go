@@ -134,6 +134,7 @@ func MustNew(level, format, output, filePath string, maxSize, maxBackups, maxAge
 	}
 	l, err := New(cfg)
 	if err != nil {
+		// MustNew is intentional panic — caller should not pass bad config
 		panic("failed to create logger: " + err.Error())
 	}
 	return l

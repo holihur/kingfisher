@@ -2,6 +2,7 @@ package transport
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -70,6 +71,16 @@ type RefreshReq struct {
 	RefreshToken string `json:"refresh_token" binding:"required"`
 }
 
+func (h *AuthHandler) Logout(c *gin.Context) {
+	hdr := c.GetHeader("Authorization")
+	if hdr == "" || !strings.HasPrefix(hdr, "Bearer ") {
+		response.Unauthorized(c)
+		return
+	}
+	_ = h.svc.RevokeToken(c.Request.Context(), hdr[7:])
+	response.OKJSON(c, nil)
+}
+
 func (h *AuthHandler) Refresh(c *gin.Context) {
 	var req RefreshReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -82,6 +93,20 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 		return
 	}
 	response.OKJSON(c, gin.H{"access_token": access})
+}
+
+func (h *UserHandler) Create(c *gin.Context) {
+	var req RegisterReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	user, err := h.svc.CreateUser(c.Request.Context(), req.Username, req.Password, req.Email)
+	if err != nil {
+		response.ErrorJSON(c, errcode.ErrUserExists)
+		return
+	}
+	response.OKJSON(c, user)
 }
 
 func (h *UserHandler) GetByID(c *gin.Context) {

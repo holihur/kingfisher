@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -109,6 +110,7 @@ func main() {
 	})
 	r.GET("/health", func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) })
 	r.GET("/ready", readyHandler(db, rdb))
+	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	// 8. Build auth/rbac middleware
 	authMw := rbacTransport.AuthMiddleware(jwtMgr)

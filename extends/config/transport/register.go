@@ -10,6 +10,7 @@ import (
 
 	adapter "kingfisher/extends/config/adapter/mysql"
 	"kingfisher/extends/config/app"
+	rbacTransport "kingfisher/extends/rbac/transport"
 )
 
 type ConfigModule struct{ handler *ConfigHandler }
@@ -25,8 +26,8 @@ func (m *ConfigModule) Shutdown(ctx context.Context) error { return nil }
 func (m *ConfigModule) RegisterPublic(r *gin.RouterGroup)  {}
 func (m *ConfigModule) RegisterProtected(r *gin.RouterGroup) {
 	configs := r.Group("/configs")
-	configs.GET("", m.handler.GetAll)
-	configs.GET("/:key", m.handler.Get)
-	configs.PUT("/:key", m.handler.Set)
-	configs.DELETE("/:key", m.handler.Delete)
+	configs.GET("", rbacTransport.RequirePerm("config:list"), m.handler.GetAll)
+	configs.GET("/:key", rbacTransport.RequirePerm("config:list"), m.handler.Get)
+	configs.PUT("/:key", rbacTransport.RequirePerm("config:update"), m.handler.Set)
+	configs.DELETE("/:key", rbacTransport.RequirePerm("config:update"), m.handler.Delete)
 }

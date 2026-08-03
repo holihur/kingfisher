@@ -7,7 +7,10 @@ import (
 	"kingfisher/extends/menu/domain"
 )
 
-type MenuService struct{ repo *adapter.MenuRepo }
+type MenuService struct {
+	repo    *adapter.MenuRepo
+	roleSvc interface{}
+}
 
 func NewMenuService(repo *adapter.MenuRepo) *MenuService { return &MenuService{repo: repo} }
 func (s *MenuService) GetTree(ctx context.Context) ([]domain.Menu, error) {

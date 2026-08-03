@@ -39,7 +39,9 @@ func setupTestServer(t *testing.T) (*gin.Engine, *jwt.JWTManager) {
 
 	zapLog, _ := logger.New(logger.Config{Level: "error", Format: "console", Output: "stdout", MaxSize: 10, MaxBackups: 1, MaxAge: 1})
 	db, err := database.InitDatabase(cfg.Database, zapLog)
-	if err != nil { t.Fatalf("db init: %v", err) }
+	if err != nil {
+		t.Fatalf("db init: %v", err)
+	}
 	_ = database.SeedData(db)
 
 	jwtMgr := jwt.NewJWTManager(cfg.JWT, nil)
@@ -48,11 +50,14 @@ func setupTestServer(t *testing.T) (*gin.Engine, *jwt.JWTManager) {
 	r.GET("/version", func(c *gin.Context) { c.JSON(200, gin.H{"version": "dev"}) })
 
 	authMw := rbacTransport.AuthMiddleware(jwtMgr)
+	allPerms := map[string]bool{
+		"user:list": true, "user:create": true, "user:update": true, "user:delete": true,
+		"menu:list": true, "menu:create": true, "menu:update": true, "menu:delete": true,
+		"role:list": true, "role:create": true, "role:update": true, "role:delete": true,
+		"config:list": true, "config:update": true, "audit:list": true,
+	}
 	rbacMw := func(c *gin.Context) {
-		c.Set("permissions", map[string]bool{})
-		if ps, ok := c.Get("permissions"); ok {
-			_ = ps
-		}
+		c.Set("permissions", allPerms)
 		c.Next()
 	}
 
@@ -72,18 +77,28 @@ func setupTestServer(t *testing.T) (*gin.Engine, *jwt.JWTManager) {
 
 func doRequest(method, path, token string, body any) *http.Request {
 	var buf bytes.Buffer
-	if body != nil { _ = json.NewEncoder(&buf).Encode(body) }
+	if body != nil {
+		_ = json.NewEncoder(&buf).Encode(body)
+	}
 	req := httptest.NewRequest(method, path, &buf)
 	req.Header.Set("Content-Type", "application/json")
-	if token != "" { req.Header.Set("Authorization", "Bearer "+token) }
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
 	return req
 }
 
 func login(t *testing.T, s *gin.Engine) string {
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, doRequest("POST", "/api/v1/auth/login", "", map[string]string{"username": "admin", "password": "Abcd1234"}))
-	if w.Code != 200 { t.Fatalf("login failed: %d", w.Code) }
-	var resp struct{ Data struct{ AccessToken string `json:"access_token"` } `json:"data"` }
+	if w.Code != 200 {
+		t.Fatalf("login failed: %d", w.Code)
+	}
+	var resp struct {
+		Data struct {
+			AccessToken string `json:"access_token"`
+		} `json:"data"`
+	}
 	_ = json.Unmarshal(w.Body.Bytes(), &resp)
 	return resp.Data.AccessToken
 }
@@ -104,14 +119,18 @@ func TestHealth(t *testing.T) {
 	s, _ := setupTestServer(t)
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, doRequest("GET", "/health", "", nil))
-	if w.Code != 200 { t.Error("want 200") }
+	if w.Code != 200 {
+		t.Error("want 200")
+	}
 }
 
 func TestVersion(t *testing.T) {
 	s, _ := setupTestServer(t)
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, doRequest("GET", "/version", "", nil))
-	if w.Code != 200 { t.Error("want 200") }
+	if w.Code != 200 {
+		t.Error("want 200")
+	}
 }
 
 func TestRegisterSuccess(t *testing.T) {
@@ -133,13 +152,17 @@ func TestRegisterShortPassword(t *testing.T) {
 	s, _ := setupTestServer(t)
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, doRequest("POST", "/api/v1/auth/register", "", map[string]string{"username": "x", "password": "a"}))
-	if w.Code != 400 { t.Error("want 400") }
+	if w.Code != 400 {
+		t.Error("want 400")
+	}
 }
 
 func TestLoginSuccess(t *testing.T) {
 	s, _ := setupTestServer(t)
 	tok := login(t, s)
-	if tok == "" { t.Error("empty token") }
+	if tok == "" {
+		t.Error("empty token")
+	}
 }
 
 func TestLoginWrongPassword(t *testing.T) {
@@ -162,14 +185,20 @@ func TestLoginBadJSON(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, req)
-	if w.Code != 400 { t.Error("want 400") }
+	if w.Code != 400 {
+		t.Error("want 400")
+	}
 }
 
 func TestRefreshSuccess(t *testing.T) {
 	s, _ := setupTestServer(t)
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, doRequest("POST", "/api/v1/auth/login", "", map[string]string{"username": "admin", "password": "Abcd1234"}))
-	var resp struct{ Data struct{ RefreshToken string `json:"refresh_token"` } `json:"data"` }
+	var resp struct {
+		Data struct {
+			RefreshToken string `json:"refresh_token"`
+		} `json:"data"`
+	}
 	_ = json.Unmarshal(w.Body.Bytes(), &resp)
 
 	w2 := httptest.NewRecorder()
@@ -198,21 +227,27 @@ func TestNoAuthReturns401(t *testing.T) {
 	s, _ := setupTestServer(t)
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, doRequest("GET", "/api/v1/users", "", nil))
-	if w.Code != 401 { t.Errorf("want 401, got %d", w.Code) }
+	if w.Code != 401 {
+		t.Errorf("want 401, got %d", w.Code)
+	}
 }
 
 func TestNoAuthRoles(t *testing.T) {
 	s, _ := setupTestServer(t)
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, doRequest("GET", "/api/v1/roles", "", nil))
-	if w.Code != 401 { t.Error("want 401") }
+	if w.Code != 401 {
+		t.Error("want 401")
+	}
 }
 
 func TestNoAuthConfigs(t *testing.T) {
 	s, _ := setupTestServer(t)
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, doRequest("GET", "/api/v1/configs", "", nil))
-	if w.Code != 401 { t.Error("want 401") }
+	if w.Code != 401 {
+		t.Error("want 401")
+	}
 }
 
 // User CRUD tests
@@ -223,7 +258,9 @@ func TestGetUsers(t *testing.T) {
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, doRequest("GET", "/api/v1/users", tok, nil))
 	m := assertCode(t, w, 0)
-	if m["data"].(map[string]any)["total"].(float64) < 1 { t.Error("should have users") }
+	if m["data"].(map[string]any)["total"].(float64) < 1 {
+		t.Error("should have users")
+	}
 }
 
 func TestGetUserByID(t *testing.T) {
@@ -266,7 +303,8 @@ func TestUpdateUser(t *testing.T) {
 	assertCode(t, w, 0)
 }
 
-func TestDeleteUser(t *testing.T) { return // TODO: fix RBAC middleware wiring
+func TestDeleteUser(t *testing.T) {
+	// skipped: RBAC middleware
 	s, _ := setupTestServer(t)
 	tok := login(t, s)
 	// Register then delete
@@ -274,9 +312,18 @@ func TestDeleteUser(t *testing.T) { return // TODO: fix RBAC middleware wiring
 
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, doRequest("GET", "/api/v1/users?keyword=tod", tok, nil))
-	var resp struct{ Data struct{ Items []struct{ ID float64 `json:"id"` } `json:"items"` } `json:"data"` }
+	var resp struct {
+		Data struct {
+			Items []struct {
+				ID float64 `json:"id"`
+			} `json:"items"`
+		} `json:"data"`
+	}
 	_ = json.Unmarshal(w.Body.Bytes(), &resp)
-	if len(resp.Data.Items) == 0 { t.Skip("user not found"); return }
+	if len(resp.Data.Items) == 0 {
+		t.Skip("user not found")
+		return
+	}
 	id := fmt.Sprintf("%.0f", resp.Data.Items[0].ID)
 
 	w2 := httptest.NewRecorder()
@@ -301,7 +348,7 @@ func TestChangePasswordWrongOld(t *testing.T) {
 	assertCode(t, w, 10103)
 }
 
-// Menu tests 
+// Menu tests
 
 func TestGetMenuTree(t *testing.T) {
 	s, _ := setupTestServer(t)
@@ -309,7 +356,9 @@ func TestGetMenuTree(t *testing.T) {
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, doRequest("GET", "/api/v1/menus/tree", tok, nil))
 	m := assertCode(t, w, 0)
-	if len(m["data"].([]any)) < 2 { t.Error("should have menu roots") }
+	if len(m["data"].([]any)) < 2 {
+		t.Error("should have menu roots")
+	}
 }
 
 func TestCreateMenu(t *testing.T) {
@@ -353,7 +402,9 @@ func TestGetRoles(t *testing.T) {
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, doRequest("GET", "/api/v1/roles", tok, nil))
 	m := assertCode(t, w, 0)
-	if len(m["data"].([]any)) != 3 { t.Error("want 3 roles") }
+	if len(m["data"].([]any)) != 3 {
+		t.Error("want 3 roles")
+	}
 }
 
 func TestGetRoleByID(t *testing.T) {
@@ -364,7 +415,8 @@ func TestGetRoleByID(t *testing.T) {
 	assertCode(t, w, 0)
 }
 
-func TestCreateRole(t *testing.T) { return // TODO: fix RBAC middleware wiring
+func TestCreateRole(t *testing.T) {
+	// skipped: RBAC middleware
 	s, _ := setupTestServer(t)
 	tok := login(t, s)
 	w := httptest.NewRecorder()
@@ -378,10 +430,13 @@ func TestGetPermissions(t *testing.T) {
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, doRequest("GET", "/api/v1/permissions", tok, nil))
 	m := assertCode(t, w, 0)
-	if len(m["data"].([]any)) != 15 { t.Error("want 15 perms") }
+	if len(m["data"].([]any)) != 15 {
+		t.Error("want 15 perms")
+	}
 }
 
-func TestAssignPermissions(t *testing.T) { return // TODO: fix RBAC middleware wiring
+func TestAssignPermissions(t *testing.T) {
+	// skipped: RBAC middleware
 	s, _ := setupTestServer(t)
 	tok := login(t, s)
 	w := httptest.NewRecorder()
@@ -405,7 +460,8 @@ func TestGetRoleMenus(t *testing.T) {
 	assertCode(t, w, 0)
 }
 
-func TestAssignMenus(t *testing.T) { return // TODO: fix RBAC middleware wiring
+func TestAssignMenus(t *testing.T) {
+	// skipped: RBAC middleware
 	s, _ := setupTestServer(t)
 	tok := login(t, s)
 	w := httptest.NewRecorder()
@@ -421,7 +477,9 @@ func TestGetConfigs(t *testing.T) {
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, doRequest("GET", "/api/v1/configs", tok, nil))
 	m := assertCode(t, w, 0)
-	if len(m["data"].([]any)) != 5 { t.Error("want 5 configs") }
+	if len(m["data"].([]any)) != 5 {
+		t.Error("want 5 configs")
+	}
 }
 
 func TestGetSingleConfig(t *testing.T) {
@@ -467,7 +525,9 @@ func TestPagination(t *testing.T) {
 	s.ServeHTTP(w, doRequest("GET", "/api/v1/users", tok, nil))
 	m := assertCode(t, w, 0)
 	d := m["data"].(map[string]any)
-	if d["page"].(float64) != 1 { t.Error("page should be 1") }
+	if d["page"].(float64) != 1 {
+		t.Error("page should be 1")
+	}
 }
 
 func TestPaginationCustomSize(t *testing.T) {
@@ -476,7 +536,9 @@ func TestPaginationCustomSize(t *testing.T) {
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, doRequest("GET", "/api/v1/users?page=1&page_size=5", tok, nil))
 	m := assertCode(t, w, 0)
-	if m["data"].(map[string]any)["page_size"].(float64) != 5 { t.Error("page_size should be 5") }
+	if m["data"].(map[string]any)["page_size"].(float64) != 5 {
+		t.Error("page_size should be 5")
+	}
 }
 
 func TestSearchKeyword(t *testing.T) {
@@ -486,7 +548,9 @@ func TestSearchKeyword(t *testing.T) {
 	s.ServeHTTP(w, doRequest("GET", "/api/v1/users?keyword=admin", tok, nil))
 	m := assertCode(t, w, 0)
 	d := m["data"].(map[string]any)
-	if d["total"].(float64) < 1 { t.Error("should find admin") }
+	if d["total"].(float64) < 1 {
+		t.Error("should find admin")
+	}
 }
 
 // 404 test
@@ -496,5 +560,7 @@ func TestNotFound(t *testing.T) {
 	tok := login(t, s)
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, doRequest("GET", "/api/v1/notexist", tok, nil))
-	if w.Code != 404 { t.Errorf("want 404, got %d", w.Code) }
+	if w.Code != 404 {
+		t.Errorf("want 404, got %d", w.Code)
+	}
 }

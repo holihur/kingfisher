@@ -4,6 +4,8 @@ package database
 
 import (
 	"time"
+
+	"gorm.io/gorm"
 )
 
 // Persistent Objects (PO) — used by AutoMigrate + Seed in SQLite dev mode.
@@ -20,6 +22,7 @@ type UserPO struct {
 	SessionVersion int    `gorm:"default:1"`
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
+	DeletedAt      gorm.DeletedAt `gorm:"index"`
 }
 
 func (UserPO) TableName() string { return "users" }

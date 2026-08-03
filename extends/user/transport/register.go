@@ -12,6 +12,7 @@ import (
 	"kingfisher/core/cache"
 	"kingfisher/core/jwt"
 	"kingfisher/core/middleware"
+	rbacTransport "kingfisher/extends/rbac/transport"
 	adapter "kingfisher/extends/user/adapter/mysql"
 	"kingfisher/extends/user/app"
 )
@@ -42,18 +43,20 @@ func (m *UserModule) RegisterPublic(r *gin.RouterGroup) {
 	auth.POST("/register", middleware.RateLimit(m.cache, 2, 5*time.Minute), m.authHandler.Register)
 	auth.POST("/login", middleware.RateLimit(m.cache, 5, time.Minute), m.authHandler.Login)
 	auth.POST("/refresh", m.authHandler.Refresh)
+	auth.POST("/logout", m.authHandler.Logout)
 }
 
 func (m *UserModule) RegisterProtected(r *gin.RouterGroup) {
 	users := r.Group("/users")
+	users.POST("", rbacTransport.RequirePerm("user:create"), m.userHandler.Create)
 	users.GET("/me", m.userHandler.GetMe)
 	users.GET("/me/permissions", m.userHandler.GetMyPermissions)
 	users.PUT("/me/password", m.userHandler.ChangePassword)
 	users.GET("/:id", m.userHandler.GetByID)
-	users.PUT("/:id", m.userHandler.Update)
-	users.GET("", m.userHandler.List)
-	users.DELETE("/:id", m.userHandler.Delete)
-	users.DELETE("/:id/sessions", m.userHandler.RevokeSessions)
+	users.PUT("/:id", rbacTransport.RequirePerm("user:update"), m.userHandler.Update)
+	users.GET("", rbacTransport.RequirePerm("user:list"), m.userHandler.List)
+	users.DELETE("/:id", rbacTransport.RequirePerm("user:delete"), m.userHandler.Delete)
+	users.DELETE("/:id/sessions", rbacTransport.RequirePerm("user:update"), m.userHandler.RevokeSessions)
 }
 
 var _ = gin.HandlerFunc(nil)

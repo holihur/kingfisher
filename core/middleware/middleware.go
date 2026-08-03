@@ -4,9 +4,12 @@ package middleware
 
 import (
 	"net/http"
+	"regexp"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
+	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
@@ -14,6 +17,24 @@ import (
 	"kingfisher/core/errcode"
 	"kingfisher/core/response"
 )
+
+// InitValidator registers custom password validator
+func InitValidator() {
+	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
+		_ = v.RegisterValidation("password", validatePassword)
+	}
+}
+
+func validatePassword(fl validator.FieldLevel) bool {
+	pwd := fl.Field().String()
+	if len(pwd) < 8 || len(pwd) > 64 {
+		return false
+	}
+	hasUpper := regexp.MustCompile(`[A-Z]`).MatchString(pwd)
+	hasLower := regexp.MustCompile(`[a-z]`).MatchString(pwd)
+	hasDigit := regexp.MustCompile(`[0-9]`).MatchString(pwd)
+	return hasUpper && hasLower && hasDigit
+}
 
 // RequestID generates or passes through X-Request-ID
 func RequestID() gin.HandlerFunc {

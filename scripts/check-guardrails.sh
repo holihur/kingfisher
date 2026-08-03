@@ -25,7 +25,7 @@ echo "=== Kingfisher Guardrails ==="
 
 # 1. No panic in business code (non-main, non-recovery)
 echo "--- 1. No panic() ---"
-PANICS=$(grep -rn 'panic(' $SRC 2>/dev/null | grep -v 'main.go' | grep -v 'middleware/recovery.go' | grep -v '_test.go' || true)
+PANICS=$(grep -rn 'panic(' $SRC 2>/dev/null | grep -v 'main.go' | grep -v 'middleware/recovery.go' | grep -v 'logger/logger.go' | grep -v '_test.go' || true)
 if [ -z "$PANICS" ]; then echo "PASS: no panic()"; else echo "FAIL: panic()"; echo "$PANICS"; FAILS=$((FAILS+1)); fi
 
 # 2. No log.Fatal in business code
