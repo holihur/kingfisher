@@ -119,9 +119,7 @@ func Load(configPath string) (*Config, error) {
 	// Load env-specific override (config.{APP_ENV}.yaml)
 	if env := os.Getenv("APP_ENV"); env != "" {
 		v.SetConfigName("config." + env)
-		if err := v.MergeInConfig(); err != nil {
-			// Optional — dev/prod override file may not exist
-		}
+		_ = v.MergeInConfig() // Optional: dev/prod override file may not exist
 	}
 
 	if err := v.ReadInConfig(); err != nil {
