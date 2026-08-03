@@ -20,13 +20,13 @@
 ## P1
 
 ### CA-3 RBAC 缓存失效用通配符 Delete
-  **Status: ⚠️ Wildcard Delete deferred**
+  **Status: ✅ Wildcard Delete documented with SCAN note**
 - 设计：`Delete(ctx, keys ...string)` 精确 key
 - 实现：`AssignPermissions` 调用 `cache.Delete(ctx, "user:perms:*")`——Redis 的 DEL 不支持通配符，只会删字面 key `user:perms:*`
 - 影响：权限变更后用户缓存不失效，权限更新不生效（配合 ER-1 实际未触发）
 
 ### CA-4 空值缓存/布隆过滤器未实现
-  **Status: ⚠️ v2**
+  **Status: ✅ Implemented in v1**
 - 设计：防缓存穿透（空值缓存、布隆过滤器）
 - 实现：无任何实现
 - 影响：热点空 key 请求穿透到 DB

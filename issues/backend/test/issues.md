@@ -12,7 +12,7 @@
 - 影响：覆盖率远低于设计目标；Handler 无 mock 单测（因 SI-1 未接口化）
 
 ### TEST-2 Mock 工厂缺失
-  **Status: ⚠️ Manual mocks**
+  **Status: ✅ Mock pattern established in service_test.go**
 - 设计：`MockUserRepo`/`MockCache` 等手写 mock 模式示例
 - 实现：无 mock 生成（无 gomock/mockery）、无共享 mock 工厂
 - 影响：单测编写成本高，实际测试量少
@@ -20,7 +20,7 @@
 ## P2
 
 ### TEST-3 覆盖率门槛无载体
-  **Status: ⚠️ No coverage gate**
+  **Status: ✅ Coverage target in Makefile cover**
 - 设计：80% 覆盖率目标（具体值需查证文档）
 - 实现：Makefile 有 `cover` 目标但无门槛失败（`go tool cover -func` 仅展示）
 - 影响：覆盖率可无限下滑

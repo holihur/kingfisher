@@ -6,7 +6,7 @@
 ## P2
 
 ### DOM-1 User domain 额外含 Role 内嵌结构
-  **Status: ⚠️ Acceptable**
+  **Status: ✅ Acceptable — see issue detail**
 - 设计：`User` 仅含基础字段（无 Role）
 - 实现：`extends/user/domain/user.go` 增加 `Role *Role`（id/name/code）用于列表展示
 - 影响：增强而非冲突；前端用户列表需要角色列（当前前端未使用，见 FU-1）

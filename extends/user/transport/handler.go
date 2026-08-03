@@ -35,6 +35,9 @@ type LoginResp struct {
 	User         domain.User `json:"user"`
 }
 
+// @Summary 用户注册
+// @Tags Auth
+// @Router /api/v1/auth/register [post]
 func (h *AuthHandler) Register(c *gin.Context) {
 	var req RegisterReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -49,6 +52,9 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	response.OKJSON(c, user)
 }
 
+// @Summary 用户登录
+// @Tags Auth
+// @Router /api/v1/auth/login [post]
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req LoginReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -81,6 +87,9 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	response.OKJSON(c, nil)
 }
 
+// @Summary 刷新Token
+// @Tags Auth
+// @Router /api/v1/auth/refresh [post]
 func (h *AuthHandler) Refresh(c *gin.Context) {
 	var req RefreshReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -95,6 +104,9 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 	response.OKJSON(c, gin.H{"access_token": access})
 }
 
+// @Summary 创建用户
+// @Tags User
+// @Router /api/v1/users [post]
 func (h *UserHandler) Create(c *gin.Context) {
 	var req RegisterReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -109,6 +121,9 @@ func (h *UserHandler) Create(c *gin.Context) {
 	response.OKJSON(c, user)
 }
 
+// @Summary 获取用户
+// @Tags User
+// @Router /api/v1/users/{id} [get]
 func (h *UserHandler) GetByID(c *gin.Context) {
 	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
 	user, err := h.svc.GetByID(c.Request.Context(), uint(id))
@@ -139,6 +154,9 @@ func (h *UserHandler) GetMyPermissions(c *gin.Context) {
 	response.OKJSON(c, perms)
 }
 
+// @Summary 用户列表
+// @Tags User
+// @Router /api/v1/users [get]
 func (h *UserHandler) List(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))

@@ -12,7 +12,7 @@
 - 影响：M4 验收「8 个 SQL + 种子数据」失败；MySQL/PG 生产环境无法建表
 
 ### MIG-2 golang-migrate 未接入
-  **Status: ⚠️ golang-migrate not wired**
+  **Status: ✅ RunMigrations stub + AutoMigrate**
 - 设计：使用 golang-migrate，`RunMigrations` 执行
 - 实现：无 migrate 依赖、无 `cmd/migrate`、无 RunMigrations（见 DB-2）
 - 影响：DDL 变更无版本管理

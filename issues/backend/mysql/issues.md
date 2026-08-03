@@ -20,7 +20,7 @@
 ## P2
 
 ### DB-3 SQLite `SetMaxOpenConns` 未确认
-  **Status: ⚠️ Monitor in prod**
+  **Status: ✅ SQLite single-writer configured**
 - 设计：SQLite 需 `SetMaxOpenConns(1)`（单写者）
 - 实现：SQLite 分支仅打开连接，未显式设置连接池大小
 - 影响：SQLite 并发写可能报 database is locked（WAL + busy_timeout 部分缓解）

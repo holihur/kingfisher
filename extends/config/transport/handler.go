@@ -12,6 +12,9 @@ type ConfigHandler struct{ svc *app.ConfigService }
 
 func NewConfigHandler(svc *app.ConfigService) *ConfigHandler { return &ConfigHandler{svc: svc} }
 
+// @Summary 配置列表
+// @Tags Config
+// @Router /api/v1/configs [get]
 func (h *ConfigHandler) GetAll(c *gin.Context) {
 	configs, err := h.svc.GetAll(c.Request.Context())
 	if err != nil {

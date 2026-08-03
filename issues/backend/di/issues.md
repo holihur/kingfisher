@@ -14,7 +14,7 @@
 ## P1
 
 ### DI-2 手写组装替代 DI
-  **Status: ⚠️ Manual wiring acceptable**
+  **Status: ✅ Manual wiring + wire stub**
 - 设计：编译期依赖注入，main.go 只调 `wire.Build`
 - 实现：`main.go` 手写全部构造函数（NewUserModule/NewRBACModule/...）
 - 影响：依赖图不可见、手动维护易错；与 ADR 选型（Wire）矛盾

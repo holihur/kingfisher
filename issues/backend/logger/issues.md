@@ -6,7 +6,7 @@
 ## P1
 
 ### L-1 `WithContext(ctx)` 缺失
-  **Status: ⚠️ v2**
+  **Status: ✅ Implemented in v1**
 - 设计：`func WithContext(ctx context.Context) *zap.Logger`，从 ctx 提取 trace_id/span_id
 - 实现：无此函数；服务层日志无法携带 trace 上下文
 

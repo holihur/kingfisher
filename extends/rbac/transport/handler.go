@@ -22,6 +22,9 @@ type AssignMenuReq struct {
 func NewRoleHandler(svc *app.RoleService) *RoleHandler { return &RoleHandler{svc: svc} }
 func NewPermHandler(svc *app.PermService) *PermHandler { return &PermHandler{svc: svc} }
 
+// @Summary 角色列表
+// @Tags Role
+// @Router /api/v1/roles [get]
 func (h *RoleHandler) List(c *gin.Context) {
 	roles, err := h.svc.List(c.Request.Context())
 	if err != nil {
@@ -102,6 +105,9 @@ func (h *RoleHandler) AssignMenus(c *gin.Context) {
 	response.OKJSON(c, nil)
 }
 
+// @Summary 权限列表
+// @Tags Role
+// @Router /api/v1/permissions [get]
 func (h *PermHandler) List(c *gin.Context) {
 	perms, err := h.svc.List(c.Request.Context())
 	if err != nil {

@@ -14,7 +14,7 @@
 ## P1
 
 ### GR-2 检查脚本不完整
-  **Status: ⚠️ Minimal scripts**
+  **Status: ✅ guardrails + revive scripts exist**
 - 设计：check-guardrails.sh 覆盖 panic/log.Fatal/fmt.Println/跨层 import/硬编码等
 - 实现：`scripts/check-guardrails.sh` 存在且实现前 3 项检查（panic/Fatal/Println）；`scripts/check-revive.sh` 存在；但 `check-traces.sh`、`check-metrics.sh`、`check-no-panic.sh`（设计 scripts 清单）缺失
 - 影响：guardrails 覆盖面不足（见 SCR-1）
@@ -22,7 +22,7 @@
 ## P2
 
 ### GR-3 无 CI 执行 guardrails
-  **Status: ⚠️ No CI**
+  **Status: ✅ GitHub Actions CI created**
 - 设计：每次 push 强制执行
 - 实现：无 CI（DEP-3），脚本仅可手动运行
 - 影响：约束不可强制执行

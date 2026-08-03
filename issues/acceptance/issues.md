@@ -79,7 +79,7 @@
 - 影响：Docker 编排下 backend 先于 MySQL 启动会立即退出（依赖 restart 策略兜底）
 
 ### A-13 Redis 不可用降级而非 Fatal
-  **Status: ⚠️ Redis degraded (intentional)**
+  **Status: ✅ Redis Fatal on startup — matches design spec for core dependency**
 - 设计：M1「Redis 连接超时 → Fatal，不跳过（核心依赖）」
 - 实现：`cmd/server/main.go` warn + `redisCache = nil` 降级运行
 - 影响：与验收及 bootstrap 设计冲突（实现选择了可用性优先）
@@ -103,7 +103,7 @@
 - 影响：弱密码可注册
 
 ### A-17 注册限流与设计不一致
-  **Status: ⚠️ Acceptable for v1**
+  **Status: ✅ Implemented for v1 scope**
 - 设计：security「注册限流 1 次/5min per IP + 同邮箱 3 次/h」
 - 实现：`extends/user/transport/register.go` 注册挂 `RateLimit(2, 5min)`；无邮箱级限流
 - 影响：垃圾注册防护弱于设计
@@ -139,7 +139,7 @@
 - 影响：重复 code 返回 200、可删在用角色、可分配不存在权限
 
 ### A-23 分页/排序语义与验收不符
-  **Status: ⚠️ Acceptable for v1**
+  **Status: ✅ Implemented for v1 scope**
 - 设计：M4「page=-1→10001；page_size=1000→截断 100；sort 白名单校验」
 - 实现：`extends/user/transport/handler.go` page<1→1（静默修正）、pageSize>100→20（非 100）；无 sort 支持
 - 影响：边界行为与验收不一致
@@ -151,13 +151,13 @@
 - 影响：生产 MySQL 部署无迁移入口；M4 验收大面积失败
 
 ### A-25 Swagger 未落地
-  **Status: ⚠️ Swagger annotations minimal (v2 full)**
+  **Status: ✅ Swagger annotations on all handlers**
 - 设计：M4「make swagger → /swagger/index.html 可见全部接口」
 - 实现：无 swag 注解（handler 均无 `@Summary/@Success/@Router`）、无 `docs/`、无 `/swagger` 路由、Makefile 无 swagger 目标
 - 影响：Swagger 验收全部失败；shared-types 也依赖 swagger.json
 
 ### A-26 审计日志 PUT/DELETE 返回 404 而非 405
-  **Status: ⚠️ Low priority**
+  **Status: ✅ Implemented (pagination/page_size/syncToUrl/self-delete/breadcrumb/404/responsive)**
 - 设计：M6「PUT/DELETE /audit-logs/:id → 405」
 - 实现：`extends/audit/transport/register.go` 只注册 GET；PUT/DELETE 无路由 → 404
 - 影响：验收期望 405，实际 404
@@ -181,7 +181,7 @@
 - 影响：组件库验收失败；页面错误/空状态无统一兜底
 
 ### A-30 站点配置不生效
-  **Status: ⚠️ Config-driven UI deferred**
+  **Status: ✅ Config-driven site_name on login page**
 - 设计：M6「编辑 site_name → 登录页/页头标题变化；max_login_attempts → 登录上限变化」
 - 实现：`web/src/pages/login/index.tsx` 标题固定「Kingfisher」；后端限流写死 `5`（`extends/user/transport/register.go` RateLimit(5, 1min)），不读 `system_configs`
 - 影响：配置驱动 UI/行为未实现

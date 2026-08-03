@@ -14,6 +14,9 @@ type MenuHandler struct{ svc *app.MenuService }
 
 func NewMenuHandler(svc *app.MenuService) *MenuHandler { return &MenuHandler{svc: svc} }
 
+// @Summary 菜单树
+// @Tags Menu
+// @Router /api/v1/menus/tree [get]
 func (h *MenuHandler) GetTree(c *gin.Context) {
 	tree, err := h.svc.GetTree(c.Request.Context())
 	if err != nil {
@@ -33,6 +36,9 @@ func (h *MenuHandler) GetByID(c *gin.Context) {
 	response.OKJSON(c, m)
 }
 
+// @Summary 创建菜单
+// @Tags Menu
+// @Router /api/v1/menus [post]
 func (h *MenuHandler) Create(c *gin.Context) {
 	var m domain.Menu
 	if err := c.ShouldBindJSON(&m); err != nil {

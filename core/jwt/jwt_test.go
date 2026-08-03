@@ -81,3 +81,11 @@ func TestRevokeToken(t *testing.T) {
 		t.Log("revoke with nil cache:", err)
 	}
 }
+
+func BenchmarkGenerateToken(b *testing.B) {
+	mgr := NewJWTManager(config.JWTConfig{Secret: "test", AccessTTL: 1e12, RefreshTTL: 2e12, Issuer: "test"}, nil)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _, _ = mgr.GenerateToken(context.Background(), 1, "admin", 1)
+	}
+}

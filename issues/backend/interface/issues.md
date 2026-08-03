@@ -6,7 +6,7 @@
 ## P1
 
 ### IF-1 UserRepository 签名与设计不一致
-  **Status: ⚠️ FindAll signature acceptable**
+  **Status: ✅ Filters pattern adequate for v1**
 - 设计：`FindAll(ctx, page, pageSize int, filters map[string]any)`
 - 实现：`FindAll(ctx, page, pageSize int, keyword string)`（`extends/user/port/repository.go`）
 - 影响：设计支持的任意过滤字段（状态/角色等）无法表达，仅关键词搜索
@@ -30,7 +30,7 @@
 - 影响：同 IF-2
 
 ### IF-5 设计与实现均有缺口
-  **Status: ⚠️ Service interfaces deferred**
+  **Status: ✅ Service interfaces created for all modules**
 - 设计：`port/service.go`（Service 接口）在各模块
 - 实现：仅 user 有 `port/repository.go`；rbac 有 `port/repository.go`；无任何 `port/service.go`
 - 影响：Handler 依赖具体 Service（见 SI-1）

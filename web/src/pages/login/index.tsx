@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Form, Input, Button, Card, message } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
@@ -6,10 +6,15 @@ import { useAuthStore } from '../../stores/auth';
 
 const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
+  const [siteName, setSiteName] = useState('Kingfisher');
   const login = useAuthStore((s) => s.login);
   const navigate = useNavigate();
 
   const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    import('../../api/config').then(m => m.configApi.get('site_name').then(r => setSiteName((r.data as any)?.value || 'Kingfisher')).catch(() => {}));
+  }, []);
   const redirectTo = searchParams.get('redirect') || '/dashboard';
 
   const onFinish = async (values: { username: string; password: string }) => {
@@ -37,7 +42,7 @@ const LoginPage: React.FC = () => {
     >
       <Card style={{ width: 400, boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }} bordered={false}>
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <h2 style={{ margin: 0 }}>Kingfisher</h2>
+          <h2 style={{ margin: 0 }}>{siteName}</h2>
           <p style={{ color: '#999', margin: '8px 0 0' }}>后台管理系统</p>
         </div>
         <Form onFinish={onFinish} size="large">

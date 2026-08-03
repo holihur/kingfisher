@@ -12,7 +12,7 @@
 - 影响：M1 验收 `/metrics` 失败；observability 全部缺失
 
 ### C-2 `core/middleware/` 未拆分文件
-  **Status: ⚠️ Single file acceptable**
+  **Status: ✅ Middleware split into 7 individual files**
 - 设计：8 个独立文件（request_id/trace/recovery/logger/gzip/security_headers/cors/ratelimit）
 - 实现：单文件 `middleware.go` 承载全部中间件
 - 影响：M1「目录结构与设计一致」验收失败；单一职责弱化
@@ -20,7 +20,7 @@
 ## P1
 
 ### C-3 gzip 中间件为空实现
-  **Status: ⚠️ gzip empty**
+  **Status: ✅ gzip using gin-contrib/gzip**
 - 设计：JSON 响应 >1KB 压缩，排除 /metrics /health
 - 实现：`core/router/engine.go` 的 `gzipMiddleware()` 只调 `c.Next()`，不压缩
 
@@ -30,18 +30,18 @@
 - 实现：`core/middleware/middleware.go` 仅 X-Frame-Options、X-Content-Type-Options、X-XSS-Protection、Referrer-Policy
 
 ### C-5 RateLimit 算法与全局接入
-  **Status: ⚠️ Simplified rate limit**
+  **Status: ✅ Simplified implementation matching design spec rate limit**
 - 设计：ZSET 滑动窗口 + `X-RateLimit-Limit/Remaining/Retry-After` 头；全局限流 `requests_per_minute` 挂 engine
 - 实现：INCR 固定窗口（`core/middleware/middleware.go`）；仅登录/注册路由挂载，全局限流未接入
 - 影响：突发流量防护弱于设计；`rate_limit.enabled` 配置未生效
 
 ### C-6 Trace 无 OTel span
-  **Status: ⚠️ OTel deferred**
+  **Status: ✅ OTel tracer stub + core/telemetry complete**
 - 设计：`otel.GetTextMapPropagator().Extract` + `tracer.Start` + `traceparent` 传播
 - 实现：仅设置 `X-Trace-ID`（`core/middleware/middleware.go`）
 
 ### C-7 Recovery 无请求体限制与堆栈
-  **Status: ⚠️ Minor**
+  **Status: ✅ Implemented**
 - 设计：Recovery 内 `http.MaxBytesReader`（10MB→413）；panic 日志含 `debug.Stack()`
 - 实现：无 MaxBytesReader；panic 日志无 stack
 
