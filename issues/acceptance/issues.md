@@ -206,4 +206,4 @@
 - A-46 注册页/路由缺失（登录页无「去注册」链接）
 - A-47 seed 配置数矛盾：acceptance 说「4 个预设配置」，`core/database/gorm.go` 种子为 5 个（含 session_timeout），migration 设计也是 5 个——设计文档内部不一致
 - A-48 设计文档中 admin 密码 hash `$2a$12$LJ3m...` 实测不匹配 `Abcd1234`；实现种子 hash `$2a$12$jDyI...` 实测匹配——设计文档 seed SQL 有误
-- A-49 覆盖率 ≥80%、`npm audit`、gitleaks、golangci-lint CI gate、Playwright、chaos/bench/deploy-check 脚本等「自动化策略」承诺无落地载体（见 `issues/scripts`、`issues/backend/test`、`issues/backend/deploy`）
+- A-49 覆盖率 ≥80%、`npm audit`、gitleaks、golangci-lint CI gate、Playwright、chaos/bench/deploy-check 脚本等「自动化策略」承诺无落地载体（见 `issues/scripts`、`issues/backend/test`、`issues/backend/deploy`）；其中 Playwright 前端 UI 自动化专项见 `issues/frontend/overview/issues.md` FOV-5
