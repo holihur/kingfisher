@@ -63,7 +63,7 @@ func buildEncoder(format string) zapcore.Encoder {
 func buildWriter(output, filePath string, maxSize, maxBackups, maxAge int) zapcore.WriteSyncer {
 	if output == "file" && filePath != "" {
 		if dir := filepath.Dir(filePath); dir != "." {
-			_ = os.MkdirAll(dir, 0755)
+			_ = os.MkdirAll(dir, 0750) //nolint:gosec // log directory creation
 		}
 		lumber := &lumberjack.Logger{
 			Filename:   filePath,
