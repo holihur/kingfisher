@@ -1,19 +1,19 @@
-// Package logger implements logger logic.
+// Package logger provides structured logging with Zap.
 
 package logger
 
 import (
+	"context"
 	"os"
+	"path/filepath"
 	"strings"
 
-	"context"
-
-	"github.com/spf13/viper"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
+// Config holds logger configuration.
 type Config struct {
 	Level      string
 	Format     string
@@ -24,6 +24,7 @@ type Config struct {
 	MaxAge     int
 }
 
+// New creates a Zap logger from config.
 func New(cfg Config) (*zap.Logger, error) {
 	level := parseLevel(cfg.Level)
 	encoder := buildEncoder(cfg.Format)
@@ -33,8 +34,7 @@ func New(cfg Config) (*zap.Logger, error) {
 }
 
 func parseLevel(l string) zapcore.Level {
-	l = strings.ToLower(l)
-	switch l {
+	switch strings.ToLower(l) {
 	case "debug":
 		return zapcore.DebugLevel
 	case "info":
@@ -52,8 +52,6 @@ func buildEncoder(format string) zapcore.Encoder {
 	ec := zap.NewProductionEncoderConfig()
 	ec.TimeKey = "time"
 	ec.EncodeTime = zapcore.ISO8601TimeEncoder
-	ec.LevelKey = "level"
-	ec.CallerKey = "caller"
 	if format == "console" {
 		ec.EncodeLevel = zapcore.CapitalColorLevelEncoder
 		return zapcore.NewConsoleEncoder(ec)
@@ -64,6 +62,9 @@ func buildEncoder(format string) zapcore.Encoder {
 
 func buildWriter(output, filePath string, maxSize, maxBackups, maxAge int) zapcore.WriteSyncer {
 	if output == "file" && filePath != "" {
+		if dir := filepath.Dir(filePath); dir != "." {
+			_ = os.MkdirAll(dir, 0755)
+		}
 		lumber := &lumberjack.Logger{
 			Filename:   filePath,
 			MaxSize:    maxSize,
@@ -76,10 +77,8 @@ func buildWriter(output, filePath string, maxSize, maxBackups, maxAge int) zapco
 	return zapcore.AddSync(os.Stdout)
 }
 
-// maskCore wraps a zapcore.Core and masks sensitive fields
-type maskCore struct {
-	zapcore.Core
-}
+// maskCore wraps a zapcore.Core and masks sensitive fields.
+type maskCore struct{ zapcore.Core }
 
 var sensitiveKeys = map[string]bool{
 	"password": true, "token": true, "secret": true, "access_token": true, "refresh_token": true,
@@ -110,14 +109,11 @@ func (c *maskCore) Check(entry zapcore.Entry, ce *zapcore.CheckedEntry) *zapcore
 	return ce
 }
 
-func withMask(core zapcore.Core) zapcore.Core {
-	return &maskCore{Core: core}
-}
+func withMask(core zapcore.Core) zapcore.Core { return &maskCore{Core: core} }
 
-// Global singleton for convenience
 var globalLogger *zap.Logger
 
-// WithContext extracts trace_id from context
+// WithContext extracts trace_id from context for log correlation.
 func WithContext(ctx context.Context) *zap.Logger {
 	l := Get()
 	if l == nil {
@@ -129,31 +125,11 @@ func WithContext(ctx context.Context) *zap.Logger {
 	return l
 }
 
-// ReplaceGlobals sets the global zap logger
+// ReplaceGlobals sets the global zap logger.
 func ReplaceGlobals(logger *zap.Logger) {
 	globalLogger = logger
 	zap.ReplaceGlobals(logger)
 }
 
-// Get returns the global logger
-func Get() *zap.Logger {
-	return globalLogger
-}
-
-// Convenience: Load from viper Config struct
-func MustNew(level, format, output, filePath string, maxSize, maxBackups, maxAge int) *zap.Logger {
-	cfg := Config{
-		Level: level, Format: format, Output: output, FilePath: filePath,
-		MaxSize: maxSize, MaxBackups: maxBackups, MaxAge: maxAge,
-	}
-	l, err := New(cfg)
-	if err != nil {
-		// MustNew is intentional panic — caller should not pass bad config
-		panic("failed to create logger: " + err.Error())
-	}
-	return l
-}
-
-// Ensure viper is not imported in this package; pass primitive values.
-// The caller in cmd/server resolves config values.
-var _ = viper.New // prevent unused import
+// Get returns the global logger.
+func Get() *zap.Logger { return globalLogger }

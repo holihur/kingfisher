@@ -1,9 +1,15 @@
-.PHONY: run build test lint fmt clean lint-fe fmt-fe
+.PHONY: run dev build test lint fmt clean lint-fe fmt-fe wire swagger
 
 APP = server
 
 run: ## 启动服务
 	go run ./cmd/server
+
+dev: ## 同时启动前后端（Ctrl+C 一并退出）
+	@trap 'kill 0' INT TERM EXIT; \
+	(go run ./cmd/server) & \
+	(cd web && npm run dev) & \
+	wait
 
 build: ## 编译
 	go build -ldflags="-s -w -X main.version=$(git describe --tags --always 2>/dev/null || echo dev) -X main.commit=$(git rev-parse --short HEAD 2>/dev/null || echo unknown) -X main.buildTime=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -o bin/$(APP) ./cmd/server
