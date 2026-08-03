@@ -64,8 +64,8 @@ func setupTestServer(t *testing.T) (*gin.Engine, *jwt.JWTManager) {
 	mods := []router.Module{
 		userTransport.NewUserModule(db, nil, jwtMgr),
 		rbacTransport.NewRBACModule(db, nil),
-		menuTransport.NewMenuModule(db),
-		configTransport.NewConfigModule(db),
+		menuTransport.NewMenuModule(db, nil),
+		configTransport.NewConfigModule(db, nil),
 		auditTransport.NewAuditModule(db),
 	}
 	for _, m := range mods {

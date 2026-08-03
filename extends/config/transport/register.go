@@ -1,5 +1,3 @@
-// Package config implements config logic.
-
 package transport
 
 import (
@@ -8,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
+	"kingfisher/core/cache"
 	adapter "kingfisher/extends/config/adapter/mysql"
 	"kingfisher/extends/config/app"
 	rbacTransport "kingfisher/extends/rbac/transport"
@@ -15,9 +14,9 @@ import (
 
 type ConfigModule struct{ handler *ConfigHandler }
 
-func NewConfigModule(db *gorm.DB) *ConfigModule {
+func NewConfigModule(db *gorm.DB, c cache.Cache) *ConfigModule {
 	repo := adapter.NewConfigRepo(db)
-	svc := app.NewConfigService(repo)
+	svc := app.NewConfigService(repo, c)
 	return &ConfigModule{handler: NewConfigHandler(svc)}
 }
 func (m *ConfigModule) Name() string                       { return "config" }

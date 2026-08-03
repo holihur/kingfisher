@@ -121,8 +121,8 @@ func main() {
 	mods := []router.Module{
 		userTransport.NewUserModule(db, redisCache, jwtMgr),
 		rbacTransport.NewRBACModule(db, redisCache),
-		menuTransport.NewMenuModule(db),
-		configTransport.NewConfigModule(db),
+		menuTransport.NewMenuModule(db, redisCache),
+		configTransport.NewConfigModule(db, redisCache),
 		auditTransport.NewAuditModule(db),
 	}
 

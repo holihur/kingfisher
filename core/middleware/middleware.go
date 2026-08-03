@@ -1,3 +1,6 @@
+// Package middleware provides HTTP middleware.
+// Functions are defined here for simplicity; individual .go files reference this canonical source.
+
 // Package middleware implements middleware logic.
 
 package middleware
@@ -129,6 +132,9 @@ func SecurityHeaders() gin.HandlerFunc {
 		c.Header("X-Content-Type-Options", "nosniff")
 		c.Header("X-XSS-Protection", "1; mode=block")
 		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
+		c.Header("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'")
+		c.Header("Cache-Control", "no-store, no-cache, must-revalidate")
+		c.Header("Pragma", "no-cache")
 		c.Next()
 	}
 }

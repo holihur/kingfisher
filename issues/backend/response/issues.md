@@ -15,6 +15,7 @@
 ## P2
 
 ### RSP-1 PageData 分页结构未在设计文档定义
+  **Status: ⚠️ Doc**
 - 设计：分页响应仅提及「分页」，未定义字段
 - 实现：`PageData{items,total,page,page_size}`
 - 影响：无功能差异；建议将分页契约补入 api-contract 文档

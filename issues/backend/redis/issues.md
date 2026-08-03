@@ -6,11 +6,13 @@
 ## P2
 
 ### RDS-1 Cache 接口位置与设计不符
+  **Status: ⚠️ Architecture**
 - 设计：`port.Cache` 接口（端口层），Redis 实现位于 `adapter/redis/cache.go`
 - 实现：接口 `Cache` 定义在 `core/cache/`（`core/cache/redis.go`），Redis 实现同包 `RedisCache`
 - 影响：core 依赖具体 cache 包而非 port 层；设计意图是 core 零业务依赖、接口归 port（轻微架构偏差）
 
 ### RDS-2 降级策略与设计冲突
+  **Status: ⚠️ Intentional degrade**
 - 设计：Redis 初始化失败应 `logger.Fatal`（启动即失败）
 - 实现：`main.go` 降级为 Warn + `redisCache = nil`（限流/黑名单/缓存全部禁用但服务继续）
 - 影响：与设计「Redis 是强依赖」冲突（见 acceptance A-13）；实际是更宽容的生产行为，需显式决策

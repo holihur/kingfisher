@@ -1,0 +1,1 @@
+DELETE FROM role_menus; DELETE FROM role_permissions; DELETE FROM menus; DELETE FROM permissions; DELETE FROM roles; DELETE FROM system_configs; DELETE FROM users;

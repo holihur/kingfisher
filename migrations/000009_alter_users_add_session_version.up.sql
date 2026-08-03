@@ -1,0 +1,1 @@
+ALTER TABLE users ADD COLUMN session_version INT DEFAULT 1;

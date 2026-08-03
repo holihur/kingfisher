@@ -1,5 +1,3 @@
-// Package menu implements menu logic.
-
 package transport
 
 import (
@@ -8,15 +6,16 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
+	"kingfisher/core/cache"
 	adapter "kingfisher/extends/menu/adapter/mysql"
-	"kingfisher/extends/menu/app"
+	app "kingfisher/extends/menu/app"
 )
 
 type MenuModule struct{ handler *MenuHandler }
 
-func NewMenuModule(db *gorm.DB) *MenuModule {
+func NewMenuModule(db *gorm.DB, c cache.Cache) *MenuModule {
 	repo := adapter.NewMenuRepo(db)
-	svc := app.NewMenuService(repo)
+	svc := app.NewMenuService(repo, c)
 	return &MenuModule{handler: NewMenuHandler(svc)}
 }
 func (m *MenuModule) Name() string                       { return "menu" }

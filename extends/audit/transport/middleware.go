@@ -2,8 +2,9 @@ package transport
 
 import (
 	"github.com/gin-gonic/gin"
-	"kingfisher/extends/audit/domain"
+
 	"kingfisher/extends/audit/app"
+	"kingfisher/extends/audit/domain"
 )
 
 func AuditMiddleware(svc *app.AuditService) gin.HandlerFunc {
@@ -17,7 +18,9 @@ func AuditMiddleware(svc *app.AuditService) gin.HandlerFunc {
 		}
 		resource := extractResource(c.FullPath())
 		userID := c.GetUint("user_id")
-		if userID == 0 { return }
+		if userID == 0 {
+			return
+		}
 		svc.Log(c.Request.Context(), &domain.AuditLog{
 			UserID: userID, Username: c.GetString("username"),
 			Action: c.Request.Method, Resource: resource,
@@ -29,9 +32,13 @@ func AuditMiddleware(svc *app.AuditService) gin.HandlerFunc {
 func extractResource(path string) string {
 	parts := []string{}
 	for _, p := range splitPath(path) {
-		if p != "" && p != "api" && p != "v1" { parts = append(parts, p) }
+		if p != "" && p != "api" && p != "v1" {
+			parts = append(parts, p)
+		}
 	}
-	if len(parts) > 0 { return parts[0] }
+	if len(parts) > 0 {
+		return parts[0]
+	}
 	return "unknown"
 }
 

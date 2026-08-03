@@ -10,7 +10,10 @@ import AuditLogList from '../pages/audit/AuditLogList';
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const token = localStorage.getItem('kingfisher_token');
-  if (!token) return <Navigate to="/login" replace />;
+  if (!token) {
+    const path = window.location.pathname + window.location.search;
+    return <Navigate to={`/login?redirect=${encodeURIComponent(path)}`} replace />;
+  }
   return <>{children}</>;
 }
 
@@ -24,16 +27,16 @@ const router = createBrowserRouter([
       </AuthGuard>
     ),
     children: [
-      { path: 'dashboard', element: <Dashboard /> },
-      { path: 'system/users', element: <UserList /> },
-      { path: 'system/menus', element: <MenuManage /> },
-      { path: 'system/roles', element: <RoleList /> },
-      { path: 'system/configs', element: <ConfigManage /> },
-      { path: 'system/audit', element: <AuditLogList /> },
+      { path: 'dashboard', element: <Suspense><Dashboard /></Suspense> },
+      { path: 'system/users', element: <Suspense><UserList /></Suspense> },
+      { path: 'system/menus', element: <Suspense><MenuManage /></Suspense> },
+      { path: 'system/roles', element: <Suspense><RoleList /></Suspense> },
+      { path: 'system/configs', element: <Suspense><ConfigManage /></Suspense> },
+      { path: 'system/audit', element: <Suspense><AuditLogList /></Suspense> },
       { index: true, element: <Navigate to="/dashboard" replace /> },
     ],
   },
-  { path: '*', element: <Navigate to="/login" replace /> },
+  { path: '*', element: <NotFound /> },
 ]);
 
 export default router;
