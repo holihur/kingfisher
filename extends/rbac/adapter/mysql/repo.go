@@ -26,6 +26,13 @@ func (r *RoleRepo) FindAll(ctx context.Context) ([]domain.Role, error) {
 	}
 	return roles, nil
 }
+func (r *RoleRepo) FindByCode(ctx context.Context, code string) (*domain.Role, error) {
+	var po rolePO
+	err := r.db.WithContext(ctx).Where("code = ?", code).First(&po).Error
+	if err != nil { return nil, err }
+	return &domain.Role{ID: po.ID, Name: po.Name, Code: po.Code, Description: po.Description, Status: po.Status, Level: po.Level}, nil
+}
+
 func (r *RoleRepo) FindByID(ctx context.Context, id uint) (*domain.Role, error) {
 	var po rolePO
 	err := r.db.WithContext(ctx).First(&po, id).Error
