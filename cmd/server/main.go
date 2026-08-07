@@ -24,6 +24,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/redis/go-redis/v9"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 
@@ -33,9 +35,11 @@ import (
 	"kingfisher/core/jwt"
 	"kingfisher/core/logger"
 	"kingfisher/core/router"
+	_ "kingfisher/docs"
 
 	auditTransport "kingfisher/extends/audit/transport"
 	configTransport "kingfisher/extends/config/transport"
+	dictTransport "kingfisher/extends/dict/transport"
 	menuTransport "kingfisher/extends/menu/transport"
 	rbacTransport "kingfisher/extends/rbac/transport"
 	userTransport "kingfisher/extends/user/transport"
@@ -116,7 +120,7 @@ func main() {
 	r.GET("/health", func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) })
 	r.GET("/ready", readyHandler(db, rdb))
 	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
-	r.GET("/swagger/*any", swaggerUI())
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// 8. Build auth/rbac middleware
 	authMw := rbacTransport.AuthMiddleware(jwtMgr)
@@ -134,6 +138,7 @@ func main() {
 		rbacTransport.NewRBACModule(db, redisCache),
 		menuTransport.NewMenuModule(db, redisCache),
 		configTransport.NewConfigModule(db, redisCache),
+		dictTransport.NewDictModule(db, redisCache),
 		auditMod,
 	}
 	r.Use(auditMod.Middleware()) // audit all write operations
@@ -182,20 +187,6 @@ func main() {
 	}
 
 	zapLog.Info("server stopped")
-}
-
-func swaggerUI() gin.HandlerFunc {
-	const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Kingfisher API</title>
-<link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css">
-<script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
-<style>html{box-sizing:border-box}*,*:before,*:after{box-sizing:inherit}body{margin:0}</style></head>
-<body><div id="swagger-ui"></div><script>
-SwaggerUIBundle({url:"/swagger/doc.json",dom_id:"#swagger-ui",deepLinking:true,presets:[SwaggerUIBundle.presets.apis]})
-</script></body></html>`
-	return func(c *gin.Context) {
-		c.Header("Content-Type", "text/html; charset=utf-8")
-		c.String(200, html)
-	}
 }
 
 func readyHandler(db *gorm.DB, rdb *redis.Client) gin.HandlerFunc {

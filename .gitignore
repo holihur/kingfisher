@@ -34,9 +34,6 @@ coverage.html
 # Wire generated
 internal/wire/wire_gen.go
 
-# Swagger generated
-docs/
-
 # Air
 tmp/
 

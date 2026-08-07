@@ -1,0 +1,152 @@
+basePath: /api/v1
+host: localhost:8080
+info:
+  contact: {}
+  description: 后台管理系统 API 文档
+  title: Kingfisher Admin API
+  version: "1.0"
+paths:
+  /api/v1/auth/login:
+    post:
+      responses: {}
+      summary: 用户登录
+      tags:
+      - Auth
+  /api/v1/auth/refresh:
+    post:
+      responses: {}
+      summary: 刷新Token
+      tags:
+      - Auth
+  /api/v1/auth/register:
+    post:
+      responses: {}
+      summary: 用户注册
+      tags:
+      - Auth
+  /api/v1/config-groups:
+    get:
+      responses: {}
+      summary: 配置分组列表
+      tags:
+      - Config
+  /api/v1/configs:
+    get:
+      responses: {}
+      summary: 配置列表
+      tags:
+      - Config
+  /api/v1/dict-types:
+    get:
+      responses: {}
+      summary: 字典类型列表
+      tags:
+      - Dict
+    post:
+      responses: {}
+      summary: 创建字典类型
+      tags:
+      - Dict
+  /api/v1/dict-types/:id:
+    delete:
+      responses: {}
+      summary: 删除字典类型
+      tags:
+      - Dict
+    get:
+      responses: {}
+      summary: 字典类型详情
+      tags:
+      - Dict
+    put:
+      responses: {}
+      summary: 更新字典类型
+      tags:
+      - Dict
+  /api/v1/dict-types/:id/entries:
+    get:
+      responses: {}
+      summary: 字典条目列表（按类型）
+      tags:
+      - Dict
+    post:
+      responses: {}
+      summary: 创建字典条目
+      tags:
+      - Dict
+  /api/v1/dict-types/:id/entries/:entryId:
+    delete:
+      responses: {}
+      summary: 删除字典条目
+      tags:
+      - Dict
+    put:
+      responses: {}
+      summary: 更新字典条目
+      tags:
+      - Dict
+  /api/v1/menus:
+    post:
+      responses: {}
+      summary: 创建菜单
+      tags:
+      - Menu
+  /api/v1/menus/tree:
+    get:
+      responses: {}
+      summary: 菜单树（导航结构，权限校验在业务接口层）
+      tags:
+      - Menu
+  /api/v1/permissions:
+    get:
+      responses: {}
+      summary: 权限列表
+      tags:
+      - Role
+  /api/v1/public/configs:
+    get:
+      responses: {}
+      summary: 公开配置列表
+      tags:
+      - Config
+  /api/v1/public/configs/:key:
+    get:
+      responses: {}
+      summary: 公开配置单条
+      tags:
+      - Config
+  /api/v1/public/dicts/:code/entries:
+    get:
+      responses: {}
+      summary: 公开字典条目（无需登录）
+      tags:
+      - Dict
+  /api/v1/roles:
+    get:
+      responses: {}
+      summary: 角色列表
+      tags:
+      - Role
+  /api/v1/users:
+    get:
+      responses: {}
+      summary: 用户列表
+      tags:
+      - User
+    post:
+      responses: {}
+      summary: 创建用户
+      tags:
+      - User
+  /api/v1/users/{id}:
+    get:
+      responses: {}
+      summary: 获取用户
+      tags:
+      - User
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
