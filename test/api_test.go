@@ -77,6 +77,14 @@ func setupTestServer(t *testing.T) (*gin.Engine, *jwt.JWTManager) {
 			return "/dashboard", nil
 		}
 	})
+	// 注入配置查询：注册开关/默认注册角色从 DB 读真实配置
+	userMod.InjectConfigProvider(func(ctx context.Context, key string) (string, error) {
+		var v string
+		if err := db.Table("system_configs").Where("`key` = ?", key).Pluck("value", &v).Error; err != nil {
+			return "", err
+		}
+		return v, nil
+	})
 	mods := []router.Module{
 		userMod,
 		rbacTransport.NewRBACModule(db, nil),
@@ -172,6 +180,49 @@ func TestRegisterShortPassword(t *testing.T) {
 	s.ServeHTTP(w, doRequest("POST", "/api/v1/auth/register", "", map[string]string{"username": "x", "password": "a"}))
 	if w.Code != 400 {
 		t.Error("want 400")
+	}
+}
+
+// 注册关闭时拒绝注册，返回 10111
+func TestRegisterDisabled(t *testing.T) {
+	s, _ := setupTestServer(t)
+	tok := login(t, s)
+	// 关闭注册
+	w := httptest.NewRecorder()
+	s.ServeHTTP(w, doRequest("PUT", "/api/v1/configs/registration_enabled", tok, map[string]string{"value": "false"}))
+	assertCode(t, w, 0)
+
+	// 注册被拒
+	w = httptest.NewRecorder()
+	s.ServeHTTP(w, doRequest("POST", "/api/v1/auth/register", "", map[string]string{"username": "newreg", "password": "Abcd1234"}))
+	assertCode(t, w, 10111)
+
+	// 恢复开放
+	w = httptest.NewRecorder()
+	s.ServeHTTP(w, doRequest("PUT", "/api/v1/configs/registration_enabled", tok, map[string]string{"value": "true"}))
+	assertCode(t, w, 0)
+	w = httptest.NewRecorder()
+	s.ServeHTTP(w, doRequest("POST", "/api/v1/auth/register", "", map[string]string{"username": "newreg2", "password": "Abcd1234"}))
+	assertCode(t, w, 0)
+}
+
+// 新注册用户使用配置的默认角色（default_register_role_id=4 访客）
+func TestRegisterUsesDefaultRole(t *testing.T) {
+	s, _ := setupTestServer(t)
+	w := httptest.NewRecorder()
+	s.ServeHTTP(w, doRequest("POST", "/api/v1/auth/register", "", map[string]string{"username": "rolereg", "password": "Abcd1234"}))
+	assertCode(t, w, 0)
+
+	tok := login(t, s)
+	w = httptest.NewRecorder()
+	s.ServeHTTP(w, doRequest("GET", "/api/v1/users?filter="+url.QueryEscape(`{"username":"rolereg"}`), tok, nil))
+	m := assertCode(t, w, 0)
+	items := m["data"].(map[string]any)["items"].([]any)
+	if len(items) != 1 {
+		t.Fatalf("want 1 user, got %d", len(items))
+	}
+	if int(items[0].(map[string]any)["role_id"].(float64)) != 4 {
+		t.Errorf("want default role 4, got %v", items[0].(map[string]any)["role_id"])
 	}
 }
 
@@ -288,8 +339,8 @@ func TestPublicConfigsNoAuth(t *testing.T) {
 	s.ServeHTTP(w, doRequest("GET", "/api/v1/public/configs", "", nil))
 	m := assertCode(t, w, 0)
 	items := m["data"].([]any)
-	if len(items) != 3 {
-		t.Fatalf("want 3 public configs (site_name/site_logo/site_description), got %d", len(items))
+	if len(items) != 4 {
+		t.Fatalf("want 4 public configs (site_name/site_logo/site_description/registration_enabled), got %d", len(items))
 	}
 	for _, it := range items {
 		cfg := it.(map[string]any)
@@ -688,8 +739,8 @@ func TestGetConfigs(t *testing.T) {
 	s.ServeHTTP(w, doRequest("GET", "/api/v1/configs", tok, nil))
 	m := assertCode(t, w, 0)
 	data := m["data"].(map[string]any)
-	if len(data["items"].([]any)) != 6 {
-		t.Error("want 6 configs")
+	if len(data["items"].([]any)) != 8 {
+		t.Error("want 8 configs")
 	}
 }
 

@@ -26,6 +26,7 @@ const (
 	ErrPasswordTooShort = 10108
 	ErrPasswordTooLong  = 10109
 	ErrPasswordWeak     = 10110
+	ErrRegistrationDisabled = 10111
 
 	// Menu 10200-10299
 	ErrMenuExists      = 10201
@@ -70,6 +71,7 @@ var errMsg = map[int]string{
 	ErrPasswordTooShort:   "密码过短",
 	ErrPasswordTooLong:    "密码过长",
 	ErrPasswordWeak:       "密码强度不足",
+	ErrRegistrationDisabled: "注册未开放",
 	ErrMenuExists:         "菜单已存在",
 	ErrMenuNotFound:       "菜单不存在",
 	ErrMenuHasChildren:    "菜单有子节点，不可删除",

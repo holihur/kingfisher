@@ -131,17 +131,26 @@ func main() {
 
 	// 9. Register all extends modules
 	auditMod := auditTransport.NewAuditModule(db)
+	configMod := configTransport.NewConfigModule(db, redisCache)
 	userMod := userTransport.NewUserModule(db, redisCache, jwtMgr, rbacSvc.GetUserPermissions)
 	// Inject audit logger into auth handler so login/logout are recorded
 	userMod.InjectAuditLogger(userTransport.AuditLogger(auditMod.AuditLogCallback()))
 	userMod.InjectAuditService(auditMod.Service())
 	// Inject role landing page provider so login response carries the role's landing page
 	userMod.InjectLandingPageProvider(rbacSvc.GetRoleLandingPage)
+	// Inject config provider so register reads registration switch + default role
+	userMod.InjectConfigProvider(func(ctx context.Context, key string) (string, error) {
+		c, err := configMod.Service().Get(ctx, key)
+		if err != nil {
+			return "", err
+		}
+		return c.Value, nil
+	})
 	mods := []router.Module{
 		userMod,
 		rbacTransport.NewRBACModule(db, redisCache),
 		menuTransport.NewMenuModule(db, redisCache),
-		configTransport.NewConfigModule(db, redisCache),
+		configMod,
 		dictTransport.NewDictModule(db, redisCache),
 		auditMod,
 	}

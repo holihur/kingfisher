@@ -15,6 +15,7 @@ import (
 type ConfigModule struct {
 	handler      *ConfigHandler
 	groupHandler *ConfigGroupHandler
+	svc          *app.ConfigService
 }
 
 func NewConfigModule(db *gorm.DB, c cache.Cache) *ConfigModule {
@@ -27,8 +28,12 @@ func NewConfigModule(db *gorm.DB, c cache.Cache) *ConfigModule {
 	return &ConfigModule{
 		handler:      NewConfigHandler(svc),
 		groupHandler: NewConfigGroupHandler(groupSvc),
+		svc:          svc,
 	}
 }
+
+// Service 暴露配置服务，供其他模块注入（如注册开关、默认注册角色）。
+func (m *ConfigModule) Service() *app.ConfigService { return m.svc }
 func (m *ConfigModule) Name() string                       { return "config" }
 func (m *ConfigModule) Init(ctx context.Context) error     { return nil }
 func (m *ConfigModule) Shutdown(ctx context.Context) error { return nil }

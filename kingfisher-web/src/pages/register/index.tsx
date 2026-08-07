@@ -1,12 +1,22 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Form, Input, Button, Card, message } from 'antd';
+import { Form, Input, Button, Card, message, Alert } from 'antd';
 import { UserOutlined, LockOutlined, MailOutlined } from '@ant-design/icons';
 import { authApi } from '../../api/auth';
+import { configApi } from '../../api/config';
 
 const RegisterPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
+  const [registrationEnabled, setRegistrationEnabled] = useState<boolean | null>(null);
   const navigate = useNavigate();
+
+  // 读取注册开关（公开配置），未开放时禁用注册并提示
+  useEffect(() => {
+    configApi
+      .getPublic('registration_enabled')
+      .then((r) => setRegistrationEnabled((r.data as { value?: string })?.value !== 'false'))
+      .catch(() => setRegistrationEnabled(true));
+  }, []);
 
   const onFinish = async (values: { username: string; password: string; email?: string }) => {
     setLoading(true);
@@ -32,11 +42,20 @@ const RegisterPage: React.FC = () => {
       }}
     >
       <Card style={{ width: 400, boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }} bordered={false}>
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
           <h2 style={{ margin: 0 }}>Kingfisher</h2>
           <p style={{ color: '#999', margin: '8px 0 0' }}>注册新账号</p>
         </div>
-        <Form onFinish={onFinish} size="large">
+        {registrationEnabled === false && (
+          <Alert
+            type="warning"
+            showIcon
+            message="当前未开放注册"
+            description="系统管理员已关闭公开注册，请联系管理员开通账号。"
+            style={{ marginBottom: 16 }}
+          />
+        )}
+        <Form onFinish={onFinish} size="large" disabled={registrationEnabled === false}>
           <Form.Item name="username" rules={[
             { required: true, message: '请输入用户名' },
             { min: 3, message: '至少 3 个字符' },
@@ -54,7 +73,7 @@ const RegisterPage: React.FC = () => {
             <Input prefix={<MailOutlined />} placeholder="邮箱（选填）" />
           </Form.Item>
           <Form.Item>
-            <Button type="primary" htmlType="submit" loading={loading} block>
+            <Button type="primary" htmlType="submit" loading={loading} block disabled={registrationEnabled === false}>
               注 册
             </Button>
           </Form.Item>

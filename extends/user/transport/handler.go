@@ -77,7 +77,12 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	}
 	user, err := h.svc.Register(c.Request.Context(), req.Username, req.Password, req.Email)
 	if err != nil {
-		response.ErrorJSON(c, errcode.ErrUserExists)
+		switch err.Error() {
+		case "registration disabled":
+			response.ErrorJSON(c, errcode.ErrRegistrationDisabled)
+		default:
+			response.ErrorJSON(c, errcode.ErrUserExists)
+		}
 		return
 	}
 	response.OKJSON(c, user)

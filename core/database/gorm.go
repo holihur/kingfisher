@@ -212,6 +212,8 @@ func SeedData(db *gorm.DB) error {
 			{Key: "max_login_attempts", Value: "5", Remark: "最大登录失败次数", Version: "1.0.0", Render: "number", GroupID: 2},
 			{Key: "lockout_duration", Value: "15m", Remark: "锁定时间", Version: "1.0.0", Render: "text", GroupID: 2},
 			{Key: "session_timeout", Value: "30m", Remark: "会话超时", Version: "1.0.0", Render: "text", GroupID: 2},
+			{Key: "registration_enabled", Value: "true", Remark: "是否开放注册", IsPublic: true, Version: "1.0.0", Render: "switch", GroupID: 2},
+			{Key: "default_register_role_id", Value: "4", Remark: "默认注册用户的角色", Version: "1.0.0", Render: "select", RenderOptions: `[{"label":"访客","value":"4"},{"label":"编辑","value":"3"},{"label":"超级管理员","value":"1"}]`, GroupID: 2},
 		}
 		if err := tx.Create(&configs).Error; err != nil {
 			return fmt.Errorf("seed configs: %w", err)

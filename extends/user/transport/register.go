@@ -44,6 +44,11 @@ func (m *UserModule) InjectLandingPageProvider(fn func(ctx context.Context, role
 	m.authSvc.SetLandingPageProvider(fn)
 }
 
+// InjectConfigProvider 注入系统配置查询函数（注册开关、默认注册角色）。
+func (m *UserModule) InjectConfigProvider(fn func(ctx context.Context, key string) (string, error)) {
+	m.authSvc.SetConfigProvider(fn)
+}
+
 // InjectAuditLogger wires the audit logger callback into the auth handler.
 func (m *UserModule) InjectAuditLogger(fn AuditLogger) { m.authHandler.auditLog = fn }
 

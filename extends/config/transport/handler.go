@@ -98,6 +98,9 @@ func (h *ConfigHandler) Set(c *gin.Context) {
 	isPublic := false
 	if req.IsPublic != nil {
 		isPublic = *req.IsPublic
+	} else if existing, err := h.svc.Get(c.Request.Context(), c.Param("key")); err == nil {
+		// 未传 is_public 时保留原值，避免只更新 value 时误重置公开状态
+		isPublic = existing.IsPublic
 	}
 	_ = h.svc.Set(c.Request.Context(), c.Param("key"), req.Value, isPublic, req.Version, req.Render, req.RenderOptions, req.GroupID)
 	response.OKJSON(c, nil)

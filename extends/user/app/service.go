@@ -21,6 +21,8 @@ type AuthService struct {
 	jwtMgr *jwt.JWTManager
 	// getLandingPage 返回角色落地页（登录后跳转的页面），由 cmd 注入
 	getLandingPage func(ctx context.Context, roleID uint) (string, error)
+	// getConfig 读取系统配置值，由 cmd 注入（注册开关、默认注册角色）
+	getConfig func(ctx context.Context, key string) (string, error)
 }
 
 func NewAuthService(repo port.UserRepository, c cache.Cache, j *jwt.JWTManager) *AuthService {
@@ -32,7 +34,18 @@ func (s *AuthService) SetLandingPageProvider(fn func(ctx context.Context, roleID
 	s.getLandingPage = fn
 }
 
+// SetConfigProvider 注入系统配置查询函数。
+func (s *AuthService) SetConfigProvider(fn func(ctx context.Context, key string) (string, error)) {
+	s.getConfig = fn
+}
+
 func (s *AuthService) Register(ctx context.Context, username, password, email string) (*domain.User, error) {
+	// 注册开关：registration_enabled=false 时拒绝注册
+	if s.getConfig != nil {
+		if v, e := s.getConfig(ctx, "registration_enabled"); e == nil && v != "" && v != "true" {
+			return nil, fmt.Errorf("registration disabled")
+		}
+	}
 	// Check for existing user
 	_, err := s.repo.FindByUsername(ctx, username)
 	if err == nil {
@@ -43,7 +56,16 @@ func (s *AuthService) Register(ctx context.Context, username, password, email st
 		return nil, fmt.Errorf("hash password: %w", err)
 	}
 
-	user := &domain.User{Username: username, Password: string(hashed), Email: email, Status: 1, RoleID: 4} // default viewer
+	// 默认注册角色：从配置读取（default_register_role_id），否则用访客(4)
+	roleID := uint(4)
+	if s.getConfig != nil {
+		if v, e := s.getConfig(ctx, "default_register_role_id"); e == nil && v != "" {
+			if n, err := strconv.ParseUint(v, 10, 64); err == nil && n > 0 {
+				roleID = uint(n)
+			}
+		}
+	}
+	user := &domain.User{Username: username, Password: string(hashed), Email: email, Status: 1, RoleID: roleID}
 	if err := s.repo.Create(ctx, user); err != nil {
 		return nil, fmt.Errorf("create user: %w", err)
 	}
