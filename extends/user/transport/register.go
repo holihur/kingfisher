@@ -78,7 +78,7 @@ func (m *UserModule) RegisterProtected(r *gin.RouterGroup) {
 	users.GET("/me/login-logs", m.userHandler.GetMyLoginLogs)
 	users.POST("/me/avatar", m.userHandler.UploadAvatar)
 	users.PUT("/me/password", m.userHandler.ChangePassword)
-	users.GET("/:id", m.userHandler.GetByID)
+	users.GET("/:id", rbacTransport.RequirePerm("user:list"), m.userHandler.GetByID)
 	users.PUT("/:id", rbacTransport.RequirePerm("user:update"), m.userHandler.Update)
 	users.GET("", rbacTransport.RequirePerm("user:list"), m.userHandler.List)
 	users.DELETE("/:id", rbacTransport.RequirePerm("user:delete"), m.userHandler.Delete)

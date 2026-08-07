@@ -63,14 +63,47 @@ func (h *MenuHandler) Create(c *gin.Context) {
 	response.OKJSON(c, m)
 }
 
+// updateMenuReq 菜单更新请求体（白名单字段，防止 mass assignment）
+type updateMenuReq struct {
+	Name      *string `json:"name"`
+	Icon      *string `json:"icon"`
+	Path      *string `json:"path"`
+	Component *string `json:"component"`
+	Sort      *int    `json:"sort"`
+	ParentID  *uint   `json:"parent_id"`
+}
+
 func (h *MenuHandler) Update(c *gin.Context) {
-	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
-	var m map[string]any
-	if err := c.ShouldBindJSON(&m); err != nil {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "invalid id")
+		return
+	}
+	var req updateMenuReq
+	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, err.Error())
 		return
 	}
-	if err := h.svc.Update(c.Request.Context(), uint(id), m); err != nil {
+	updates := map[string]any{}
+	if req.Name != nil {
+		updates["name"] = *req.Name
+	}
+	if req.Icon != nil {
+		updates["icon"] = *req.Icon
+	}
+	if req.Path != nil {
+		updates["path"] = *req.Path
+	}
+	if req.Component != nil {
+		updates["component"] = *req.Component
+	}
+	if req.Sort != nil {
+		updates["sort"] = *req.Sort
+	}
+	if req.ParentID != nil {
+		updates["parent_id"] = *req.ParentID
+	}
+	if err := h.svc.Update(c.Request.Context(), uint(id), updates); err != nil {
 		response.BadRequest(c, err.Error())
 		return
 	}

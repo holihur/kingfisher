@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -99,15 +100,8 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 	access, refresh, user, landing, err := h.svc.Login(c.Request.Context(), req.Username, req.Password)
 	if err != nil {
-		h.auditLogin(c, req.Username, "FAILURE", err.Error())
-		switch err.Error() {
-		case "too many attempts":
-			response.ErrorJSON(c, errcode.ErrLoginFailed)
-		case "user disabled":
-			response.ErrorJSON(c, errcode.ErrUserDisabled)
-		default:
-			response.ErrorJSON(c, errcode.ErrPasswordWrong)
-		}
+		h.auditLogin(c, req.Username, "FAILURE", "")
+		response.ErrorJSON(c, errcode.ErrPasswordWrong)
 		return
 	}
 	h.auditLogin(c, req.Username, "SUCCESS", "")
@@ -405,7 +399,7 @@ func (h *UserHandler) UploadAvatar(c *gin.Context) {
 	}
 	defer file.Close()
 
-	// 校验文件类型
+	// 校验文件类型（先检查扩展名，再校验真实内容）
 	ext := strings.ToLower(filepath.Ext(header.Filename))
 	switch ext {
 	case ".png", ".jpg", ".jpeg", ".gif", ".webp":
@@ -420,6 +414,16 @@ func (h *UserHandler) UploadAvatar(c *gin.Context) {
 		return
 	}
 
+	// 校验真实内容（magic bytes），防止伪造扩展名上传恶意文件
+	buf := make([]byte, 512)
+	n, _ := file.Read(buf)
+	if n > 0 {
+		detected := http.DetectContentType(buf[:n])
+		if !strings.HasPrefix(detected, "image/") {
+			response.BadRequest(c, "不支持的文件内容，仅支持图片文件")
+			return
+		}
+	}
 	// 确保目录存在
 	uploadDir := "uploads/avatars"
 	if err := os.MkdirAll(uploadDir, 0755); err != nil {
@@ -437,6 +441,11 @@ func (h *UserHandler) UploadAvatar(c *gin.Context) {
 	}
 	defer dst.Close()
 
+	// 写入已验证的 magic bytes + 剩余文件内容
+	if _, err := dst.Write(buf[:n]); err != nil {
+		response.InternalError(c)
+		return
+	}
 	if _, err := io.Copy(dst, file); err != nil {
 		response.InternalError(c)
 		return

@@ -6,6 +6,7 @@ import (
 
 	"gorm.io/gorm"
 
+	"kingfisher/core/jwt"
 	"kingfisher/core/query"
 	"kingfisher/extends/user/domain"
 	"kingfisher/extends/user/port"
@@ -21,7 +22,7 @@ func NewUserRepo(db *gorm.DB) *UserRepo { return &UserRepo{db: db} }
 
 func (r *UserRepo) FindByID(ctx context.Context, id uint) (*domain.User, error) {
 	var po userPO
-	err := r.db.WithContext(ctx).First(&po, id).Error
+	err := r.db.WithContext(ctx).Preload("Role").First(&po, id).Error
 	if err != nil {
 		return nil, err
 	}
@@ -30,7 +31,7 @@ func (r *UserRepo) FindByID(ctx context.Context, id uint) (*domain.User, error) 
 
 func (r *UserRepo) FindByUsername(ctx context.Context, username string) (*domain.User, error) {
 	var po userPO
-	err := r.db.WithContext(ctx).Where("username = ?", username).First(&po).Error
+	err := r.db.WithContext(ctx).Preload("Role").Where("username = ?", username).First(&po).Error
 	if err != nil {
 		return nil, err
 	}
@@ -39,7 +40,7 @@ func (r *UserRepo) FindByUsername(ctx context.Context, username string) (*domain
 
 func (r *UserRepo) FindAll(ctx context.Context, q *query.Query) ([]domain.User, int64, error) {
 	var pos []userPO
-	total, err := q.Find(r.db.WithContext(ctx).Model(&userPO{}), &pos)
+	total, err := q.Find(r.db.WithContext(ctx).Model(&userPO{}).Preload("Role"), &pos)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -73,6 +74,12 @@ func (r *UserRepo) Delete(ctx context.Context, id uint) error {
 func (r *UserRepo) IncrementSessionVersion(ctx context.Context, id uint) error {
 	return r.db.WithContext(ctx).Model(&userPO{}).Where("id = ?", id).
 		Update("session_version", gorm.Expr("session_version + 1")).Error
+}
+
+// NewSessionVersionProvider creates a jwt.SessionVersionProvider from a db handle.
+func NewSessionVersionProvider(db *gorm.DB) jwt.SessionVersionProvider {
+	r := NewUserRepo(db)
+	return r.GetSessionVersion
 }
 
 func (r *UserRepo) GetSessionVersion(ctx context.Context, id uint) (int, error) {

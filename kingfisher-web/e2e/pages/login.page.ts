@@ -8,6 +8,7 @@ export class LoginPage {
 
   async goto(): Promise<void> {
     await this.page.goto('/login');
+    await this.page.waitForLoadState('networkidle');
   }
 
   usernameInput(): Locator {
@@ -24,6 +25,14 @@ export class LoginPage {
 
   registerLink(): Locator {
     return this.page.getByText('去注册');
+  }
+
+  rememberAccountCheckbox(): Locator {
+    return this.page.getByText('记住账户');
+  }
+
+  rememberPwdCheckbox(): Locator {
+    return this.page.getByText('记住密码');
   }
 
   formErrors(): Locator {

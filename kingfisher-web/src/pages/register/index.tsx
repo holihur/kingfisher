@@ -11,7 +11,6 @@ const RegisterPage: React.FC = () => {
   const [registrationEnabled, setRegistrationEnabled] = useState<boolean | null>(null);
   const navigate = useNavigate();
 
-  // 读取注册开关（公开配置），未开放时禁用注册并提示
   useEffect(() => {
     configApi
       .getPublic('registration_enabled')
@@ -26,36 +25,23 @@ const RegisterPage: React.FC = () => {
       message.success('注册成功，请登录');
       navigate('/login');
     } catch {
-      /* error handled by interceptor */
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        minHeight: '100vh',
-        background: '#f0f2f5',
-      }}
-    >
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#f0f2f5' }}>
       <Card style={{ width: 400, boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }} variant="borderless">
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <h2 style={{ margin: 0 }}>Kingfisher</h2>
-          <p style={{ color: '#999', margin: '8px 0 0' }}>注册新账号</p>
+          <h2 style={{ margin: 0 }}>注册账号</h2>
+          <p style={{ color: '#999', margin: '8px 0 0' }}>创建新账号以使用系统</p>
         </div>
+
         {registrationEnabled === false && (
-          <Alert
-            type="warning"
-            showIcon
-            title="当前未开放注册"
-            description="系统管理员已关闭公开注册，请联系管理员开通账号。"
-            style={{ marginBottom: 16 }}
-          />
+          <Alert type="warning" showIcon message="当前未开放注册" description="请联系管理员开通账号。" style={{ marginBottom: 16 }} />
         )}
+
         <Form onFinish={onFinish} size="large" disabled={registrationEnabled === false}>
           <Form.Item name="username" rules={[
             { required: true, message: '请输入用户名' },
@@ -70,18 +56,30 @@ const RegisterPage: React.FC = () => {
           ]}>
             <Input.Password prefix={<LockOutlined />} placeholder="密码" />
           </Form.Item>
+          <Form.Item
+            name="confirm_password"
+            dependencies={['password']}
+            rules={[
+              { required: true, message: '请确认密码' },
+              ({ getFieldValue }) => ({
+                validator(_, value) {
+                  if (!value || getFieldValue('password') === value) return Promise.resolve();
+                  return Promise.reject(new Error('两次输入的密码不一致'));
+                },
+              }),
+            ]}
+          >
+            <Input.Password prefix={<LockOutlined />} placeholder="确认密码" />
+          </Form.Item>
           <Form.Item name="email" rules={[{ type: 'email', message: '邮箱格式不正确' }]}>
             <Input prefix={<MailOutlined />} placeholder="邮箱（选填）" />
           </Form.Item>
           <Form.Item>
-            <Button type="primary" htmlType="submit" loading={loading} block disabled={registrationEnabled === false}>
-              注 册
-            </Button>
+            <Button type="primary" htmlType="submit" loading={loading} block disabled={registrationEnabled === false}>注 册</Button>
           </Form.Item>
         </Form>
-        <div style={{ textAlign: 'center', marginTop: 16 }}>
-          已有账号？<a href="/login">去登录</a>
-        </div>
+
+        <div style={{ textAlign: 'center', marginTop: 16 }}>已有账号？<a href="/login">去登录</a></div>
       </Card>
     </div>
   );

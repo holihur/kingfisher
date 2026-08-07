@@ -1,0 +1,43 @@
+const ACCOUNTS_KEY = 'kingfisher_accounts';
+
+export interface SavedAccount {
+  username: string;
+  password: string;
+  lastLogin: number;
+}
+
+function encodePwd(plain: string): string {
+  try { return btoa(plain); } catch { return ''; }
+}
+function decodePwd(encoded: string): string {
+  try { return atob(encoded); } catch { return ''; }
+}
+
+export function loadAccounts(): SavedAccount[] {
+  try {
+    const raw = localStorage.getItem(ACCOUNTS_KEY);
+    return raw ? (JSON.parse(raw) as SavedAccount[]) : [];
+  } catch { return []; }
+}
+
+export function saveAccount(username: string, password: string, rememberAccount: boolean, rememberPwd: boolean): void {
+  if (!rememberAccount) return;
+  const accounts = loadAccounts().filter(a => a.username !== username);
+  accounts.push({
+    username,
+    password: rememberPwd ? encodePwd(password) : '',
+    lastLogin: Date.now(),
+  });
+  accounts.sort((a, b) => b.lastLogin - a.lastLogin);
+  localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts.slice(0, 10)));
+}
+
+export function getAccountPassword(username: string): string {
+  const a = loadAccounts().find(a => a.username === username);
+  return a ? decodePwd(a.password) : '';
+}
+
+export function removeAccount(username: string): void {
+  const accounts = loadAccounts().filter(a => a.username !== username);
+  localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
+}

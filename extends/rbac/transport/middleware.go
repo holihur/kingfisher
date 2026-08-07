@@ -24,7 +24,9 @@ func RBACMiddlewareWith(roleSvc *app.RoleService) gin.HandlerFunc {
 	return RBACMiddleware(roleSvc)
 }
 
-func AuthMiddleware(jwtMgr *jwt.JWTManager) gin.HandlerFunc {
+// AuthMiddleware validates JWT access tokens and enforces session version.
+// svp is optional; if nil, session version check is skipped.
+func AuthMiddleware(jwtMgr *jwt.JWTManager, svp jwt.SessionVersionProvider) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		h := c.GetHeader("Authorization")
 		if h == "" || !strings.HasPrefix(h, "Bearer ") {
@@ -38,12 +40,22 @@ func AuthMiddleware(jwtMgr *jwt.JWTManager) gin.HandlerFunc {
 			c.Abort()
 			return
 		}
+		// Enforce session version: reject tokens issued before last password change / session revoke
+		if svp != nil {
+			currentSV, err := svp(c.Request.Context(), claims.UserID)
+			if err == nil && claims.SessionVersion < currentSV {
+				response.ErrorJSON(c, errcode.ErrTokenInvalid)
+				c.Abort()
+				return
+			}
+		}
 		c.Set("user_id", claims.UserID)
 		c.Set("role_id", claims.RoleID)
 		c.Set("role", claims.Role)
 		c.Next()
 	}
 }
+
 func RBACMiddleware(roleSvc *app.RoleService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID := c.GetUint("user_id")
@@ -56,19 +68,9 @@ func RBACMiddleware(roleSvc *app.RoleService) gin.HandlerFunc {
 		c.Next()
 	}
 }
-func RBACMiddlewareSvc(db *gorm.DB, c cache.Cache) gin.HandlerFunc {
-	roleRepo := adapter.NewRoleRepo(db)
-	roleSvc := app.NewRoleService(roleRepo, c)
-	return RBACMiddleware(roleSvc)
-}
 
 func RequirePerm(code string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Super admin bypass — admin has all permissions implicitly
-		if role, _ := c.Get("role"); role == "admin" {
-			c.Next()
-			return
-		}
 		ps, _ := c.Get("permissions")
 		psMap, _ := ps.(map[string]bool)
 		if psMap == nil {

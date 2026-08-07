@@ -85,6 +85,46 @@ func TestRevokeToken(t *testing.T) {
 	}
 }
 
+func TestParseRejectsRefreshToken(t *testing.T) {
+	mgr := NewJWTManager(config.JWTConfig{Secret: "test-secret", AccessTTL: time.Hour, RefreshTTL: 2 * time.Hour, Issuer: "test"}, nil)
+	_, refresh, _ := mgr.GenerateToken(context.Background(), 1, 1, "admin", 1)
+	_, err := mgr.ParseToken(context.Background(), refresh)
+	if err == nil {
+		t.Error("ParseToken should reject refresh tokens")
+	}
+}
+
+func TestParseRefreshTokenRejectsAccess(t *testing.T) {
+	mgr := NewJWTManager(config.JWTConfig{Secret: "test-secret", AccessTTL: time.Hour, RefreshTTL: 2 * time.Hour, Issuer: "test"}, nil)
+	access, _, _ := mgr.GenerateToken(context.Background(), 1, 1, "admin", 1)
+	_, err := mgr.ParseRefreshToken(context.Background(), access)
+	if err == nil {
+		t.Error("ParseRefreshToken should reject access tokens")
+	}
+}
+
+func TestJWTAlgorithmRestriction(t *testing.T) {
+	mgr := NewJWTManager(config.JWTConfig{Secret: "test-secret", AccessTTL: time.Hour, RefreshTTL: 2 * time.Hour, Issuer: "test"}, nil)
+	access, _, _ := mgr.GenerateToken(context.Background(), 1, 1, "admin", 1)
+	// Parsing with correct algorithm should succeed
+	_, err := mgr.ParseToken(context.Background(), access)
+	if err != nil {
+		t.Fatal("expected success with HS256:", err)
+	}
+}
+
+func TestJWTIssuerValidation(t *testing.T) {
+	mgr := NewJWTManager(config.JWTConfig{Secret: "test-secret", AccessTTL: time.Hour, RefreshTTL: 2 * time.Hour, Issuer: "test-issuer"}, nil)
+	access, _, _ := mgr.GenerateToken(context.Background(), 1, 1, "admin", 1)
+	claims, err := mgr.ParseToken(context.Background(), access)
+	if err != nil {
+		t.Fatal("parse:", err)
+	}
+	if claims.Issuer != "test-issuer" {
+		t.Error("issuer mismatch")
+	}
+}
+
 func BenchmarkGenerateToken(b *testing.B) {
 	mgr := NewJWTManager(config.JWTConfig{Secret: "test", AccessTTL: 1e12, RefreshTTL: 2e12, Issuer: "test"}, nil)
 	b.ResetTimer()

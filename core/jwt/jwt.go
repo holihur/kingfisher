@@ -85,10 +85,14 @@ func (m *JWTManager) GenerateToken(ctx context.Context, userID uint, roleID uint
 	return accessToken, refreshToken, nil
 }
 
-func (m *JWTManager) ParseToken(ctx context.Context, tokenStr string) (*Claims, error) {
+// parseCore is the shared token parsing with algorithm + issuer validation.
+func (m *JWTManager) parseCore(tokenStr string) (*Claims, error) {
 	token, err := jwtlib.ParseWithClaims(tokenStr, &Claims{}, func(t *jwtlib.Token) (any, error) {
 		return []byte(m.secret), nil
-	})
+	},
+		jwtlib.WithValidMethods([]string{"HS256"}),
+		jwtlib.WithIssuer(m.issuer),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("parse token: %w", err)
 	}
@@ -96,9 +100,24 @@ func (m *JWTManager) ParseToken(ctx context.Context, tokenStr string) (*Claims, 
 	if !ok || !token.Valid {
 		return nil, fmt.Errorf("invalid token")
 	}
-	// Check revocation
+	return claims, nil
+}
+
+// ParseToken parses and validates a JWT. For API auth, use ParseAccessToken.
+func (m *JWTManager) ParseToken(ctx context.Context, tokenStr string) (*Claims, error) {
+	claims, err := m.parseCore(tokenStr)
+	if err != nil {
+		return nil, err
+	}
+	if claims.Type != "access" {
+		return nil, fmt.Errorf("not an access token")
+	}
+	// Check revocation (fails closed on cache error)
 	if m.cache != nil {
-		revoked, _ := m.cache.Exists(ctx, "blacklist:token:"+claims.JTI)
+		revoked, err := m.cache.Exists(ctx, "blacklist:token:"+claims.JTI)
+		if err != nil {
+			return nil, fmt.Errorf("revocation check failed: %w", err)
+		}
 		if revoked {
 			return nil, fmt.Errorf("token revoked")
 		}
@@ -106,13 +125,35 @@ func (m *JWTManager) ParseToken(ctx context.Context, tokenStr string) (*Claims, 
 	return claims, nil
 }
 
-func (m *JWTManager) RefreshToken(ctx context.Context, refreshToken string) (string, error) {
-	claims, err := m.ParseToken(ctx, refreshToken)
+// ParseRefreshToken parses a refresh token (type=refresh only).
+func (m *JWTManager) ParseRefreshToken(ctx context.Context, refreshToken string) (*Claims, error) {
+	claims, err := m.parseCore(refreshToken)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	if claims.Type != "refresh" {
-		return "", fmt.Errorf("not a refresh token")
+		return nil, fmt.Errorf("not a refresh token")
+	}
+	// Check revocation
+	if m.cache != nil {
+		revoked, err := m.cache.Exists(ctx, "blacklist:token:"+claims.JTI)
+		if err != nil {
+			return nil, fmt.Errorf("revocation check failed: %w", err)
+		}
+		if revoked {
+			return nil, fmt.Errorf("token revoked")
+		}
+	}
+	return claims, nil
+}
+
+// GetSessionVersion returns the session version for a user. Injected per-request.
+type SessionVersionProvider func(ctx context.Context, userID uint) (int, error)
+
+func (m *JWTManager) RefreshToken(ctx context.Context, refreshToken string) (string, error) {
+	claims, err := m.ParseRefreshToken(ctx, refreshToken)
+	if err != nil {
+		return "", err
 	}
 	jti := uuid.New().String()
 	now := time.Now()
@@ -133,7 +174,7 @@ func (m *JWTManager) RefreshToken(ctx context.Context, refreshToken string) (str
 }
 
 func (m *JWTManager) RevokeToken(ctx context.Context, tokenStr string) error {
-	claims, err := m.ParseToken(ctx, tokenStr)
+	claims, err := m.parseCore(tokenStr)
 	if err != nil {
 		return nil //nolint:nilerr // token already invalid
 	}

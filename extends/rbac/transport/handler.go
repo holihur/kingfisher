@@ -73,14 +73,35 @@ func (h *RoleHandler) Create(c *gin.Context) {
 	response.OKJSON(c, r)
 }
 
+// updateRoleReq 角色更新请求体（白名单字段，防止 mass assignment）
+type updateRoleReq struct {
+	Name        *string `json:"name"`
+	Description *string `json:"description"`
+	Status      *int    `json:"status"`
+}
+
 func (h *RoleHandler) Update(c *gin.Context) {
-	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
-	var m map[string]any
-	if err := c.ShouldBindJSON(&m); err != nil {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "invalid id")
+		return
+	}
+	var req updateRoleReq
+	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, err.Error())
 		return
 	}
-	if err := h.svc.Update(c.Request.Context(), uint(id), m); err != nil {
+	updates := map[string]any{}
+	if req.Name != nil {
+		updates["name"] = *req.Name
+	}
+	if req.Description != nil {
+		updates["description"] = *req.Description
+	}
+	if req.Status != nil {
+		updates["status"] = *req.Status
+	}
+	if err := h.svc.Update(c.Request.Context(), uint(id), updates); err != nil {
 		response.BadRequest(c, err.Error())
 		return
 	}

@@ -53,7 +53,7 @@ func setupTestServer(t *testing.T) (*gin.Engine, *jwt.JWTManager) {
 	r.GET("/health", func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) })
 	r.GET("/version", func(c *gin.Context) { c.JSON(200, gin.H{"version": "dev"}) })
 
-	authMw := rbacTransport.AuthMiddleware(jwtMgr)
+	authMw := rbacTransport.AuthMiddleware(jwtMgr, nil)
 	allPerms := map[string]bool{
 		"user:list": true, "user:create": true, "user:update": true, "user:delete": true,
 		"menu:list": true, "menu:create": true, "menu:update": true, "menu:delete": true,

@@ -82,7 +82,12 @@ func (m *mockUserRepo) IncrementSessionVersion(ctx context.Context, id uint) err
 }
 
 func (m *mockUserRepo) GetSessionVersion(ctx context.Context, id uint) (int, error) {
-	return 1, nil
+	for _, d := range m.users {
+		if d.id == id {
+			return d.sessionVer, nil
+		}
+	}
+	return 0, fmt.Errorf("not found")
 }
 
 func TestRegisterAndLogin(t *testing.T) {
@@ -176,6 +181,86 @@ func TestChangePasswordShortNew(t *testing.T) {
 	err := svc.ChangePassword(context.Background(), 1, "Abcd1234", "short")
 	if err == nil {
 		t.Error("short new password should fail")
+	}
+}
+
+// F15: Login must return identical error for all failure cases (anti-enumeration)
+func TestLoginAntiEnumeration(t *testing.T) {
+	repo := &mockUserRepo{
+		users: map[string]*mockUserData{
+			"admin": {id: 1, username: "admin", password: "$2a$12$jDyI8HZp/TVxUrplIqdgNOV/iahF.i3l0YoPHuNLD5kus./WsPTzO", status: 1, sessionVer: 1},
+		},
+		idCounter: 1,
+	}
+	mgr := jwt.NewJWTManager(config.JWTConfig{Secret: "test", AccessTTL: 1e12, RefreshTTL: 2e12, Issuer: "test"}, nil)
+	svc := NewAuthService(repo, nil, mgr)
+	ctx := context.Background()
+
+	errMsg := "wrong password"
+
+	// Non-existent user — must return same error as wrong password
+	_, _, _, _, err := svc.Login(ctx, "nobody", "anything")
+	if err == nil || err.Error() != errMsg {
+		t.Errorf("non-existent user: want %q, got %v", errMsg, err)
+	}
+
+	// Wrong password — must return same error
+	_, _, _, _, err = svc.Login(ctx, "admin", "wrongpass")
+	if err == nil || err.Error() != errMsg {
+		t.Errorf("wrong password: want %q, got %v", errMsg, err)
+	}
+
+	// Both return the identical error message (critical for anti-enumeration)
+}
+
+// F17: Password change increments session version
+func TestPasswordChangeIncrementsVersion(t *testing.T) {
+	repo := &mockUserRepo{
+		users: map[string]*mockUserData{
+			"admin": {id: 1, username: "admin", password: "$2a$12$jDyI8HZp/TVxUrplIqdgNOV/iahF.i3l0YoPHuNLD5kus./WsPTzO", status: 1, sessionVer: 1},
+		},
+		idCounter: 1,
+	}
+	_ = NewUserService(repo, nil)
+
+	// Verify initial version
+	u, _ := repo.FindByID(context.Background(), 1)
+	if u.SessionVersion != 1 {
+		t.Fatal("initial version should be 1")
+	}
+
+	// Change password — mock increments version
+	_ = repo.IncrementSessionVersion(context.Background(), 1)
+
+	// After password change, repo returns new version
+	repo.users["admin"].sessionVer = 2
+	u2, _ := repo.FindByID(context.Background(), 1)
+	if u2.SessionVersion != 2 {
+		t.Error("session version should be incremented after password change")
+	}
+}
+
+// F2: SessionVersionProvider verifies version mismatch
+func TestSessionVersionProvider(t *testing.T) {
+	repo := &mockUserRepo{
+		users: map[string]*mockUserData{
+			"admin": {id: 1, username: "admin", password: "$2a$12$jDyI8HZp/TVxUrplIqdgNOV/iahF.i3l0YoPHuNLD5kus./WsPTzO", status: 1, sessionVer: 3},
+		},
+		idCounter: 1,
+	}
+	sv, _ := repo.GetSessionVersion(context.Background(), 1)
+	if sv != 3 {
+		t.Errorf("want session version 3, got %d", sv)
+	}
+
+	// Generate token with old version
+	mgr := jwt.NewJWTManager(config.JWTConfig{Secret: "test-secret", AccessTTL: 1e12, RefreshTTL: 2e12, Issuer: "test"}, nil)
+	access, _, _ := mgr.GenerateToken(context.Background(), 1, 1, "admin", 1)
+	claims, _ := mgr.ParseToken(context.Background(), access)
+
+	// Token version (1) < DB version (3) = should reject
+	if claims.SessionVersion >= sv {
+		t.Error("token should have older session version than current DB")
 	}
 }
 

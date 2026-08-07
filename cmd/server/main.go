@@ -34,6 +34,7 @@ import (
 	"kingfisher/core/database"
 	"kingfisher/core/jwt"
 	"kingfisher/core/logger"
+	"kingfisher/core/middleware"
 	"kingfisher/core/router"
 	_ "kingfisher/docs"
 
@@ -42,6 +43,7 @@ import (
 	dictTransport "kingfisher/extends/dict/transport"
 	menuTransport "kingfisher/extends/menu/transport"
 	rbacTransport "kingfisher/extends/rbac/transport"
+	userAdapter "kingfisher/extends/user/adapter/mysql"
 	userTransport "kingfisher/extends/user/transport"
 )
 
@@ -64,6 +66,7 @@ func main() {
 	}
 
 	// 2. Initialize logger
+	middleware.InitValidator()
 	zapLog, err := logger.New(logger.Config{
 		Level: cfg.Log.Level, Format: cfg.Log.Format, Output: cfg.Log.Output,
 		FilePath: cfg.Log.FilePath, MaxSize: cfg.Log.MaxSize,
@@ -123,34 +126,29 @@ func main() {
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	r.Static("/uploads", "./uploads")
 
+	// Global rate limit — wired with the real Redis cache
+	if cfg.RateLimit.Enabled {
+		r.Use(middleware.RateLimit(redisCache, cfg.RateLimit.RequestsPerMinute, 1*time.Minute))
+	}
+
 	// 8. Build auth/rbac middleware
-	authMw := rbacTransport.AuthMiddleware(jwtMgr)
+	svProvider := userAdapter.NewSessionVersionProvider(db)
+	authMw := rbacTransport.AuthMiddleware(jwtMgr, svProvider)
 	// Create RBAC service for permission lookups — shared between RBAC middleware and User module
 	rbacSvc := rbacTransport.NewRoleService(db, redisCache)
 	rbacMw := rbacTransport.RBACMiddlewareWith(rbacSvc)
 
 	// 9. Register all extends modules
 	auditMod := auditTransport.NewAuditModule(db)
-	configMod := configTransport.NewConfigModule(db, redisCache)
 	userMod := userTransport.NewUserModule(db, redisCache, jwtMgr, rbacSvc.GetUserPermissions)
 	// Inject audit logger into auth handler so login/logout are recorded
 	userMod.InjectAuditLogger(userTransport.AuditLogger(auditMod.AuditLogCallback()))
 	userMod.InjectAuditService(auditMod.Service())
-	// Inject role landing page provider so login response carries the role's landing page
-	userMod.InjectLandingPageProvider(rbacSvc.GetRoleLandingPage)
-	// Inject config provider so register reads registration switch + default role
-	userMod.InjectConfigProvider(func(ctx context.Context, key string) (string, error) {
-		c, err := configMod.Service().Get(ctx, key)
-		if err != nil {
-			return "", err
-		}
-		return c.Value, nil
-	})
 	mods := []router.Module{
 		userMod,
 		rbacTransport.NewRBACModule(db, redisCache),
 		menuTransport.NewMenuModule(db, redisCache),
-		configMod,
+		configTransport.NewConfigModule(db, redisCache),
 		dictTransport.NewDictModule(db, redisCache),
 		auditMod,
 	}

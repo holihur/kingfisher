@@ -83,4 +83,30 @@ test.describe('Login Page', () => {
     await expect(page.getByPlaceholder('密码')).toBeFocused();
   });
 
+  test('记住账户勾选框默认选中，记住密码默认不选且禁用', async ({ page }) => {
+    await loginPage.goto();
+
+    const accountCb = loginPage.rememberAccountCheckbox();
+    const pwdCb = loginPage.rememberPwdCheckbox();
+
+    // 记住账户默认勾选
+    await expect(accountCb).toBeVisible();
+    await expect(page.locator('.ant-checkbox-wrapper').filter({ hasText: '记住账户' }).locator('.ant-checkbox')).toHaveClass(/ant-checkbox-checked/);
+
+    // 记住密码存在且可见
+    await expect(pwdCb).toBeVisible();
+  });
+
+  test('取消记住账户 → 记住密码跟着取消', async ({ page }) => {
+    await loginPage.goto();
+
+    // 先勾选记住密码
+    await loginPage.rememberPwdCheckbox().click();
+    // 再取消记住账户
+    await loginPage.rememberAccountCheckbox().click();
+
+    // 记住密码应被禁用
+    await expect(page.locator('.ant-checkbox-wrapper').filter({ hasText: '记住密码' }).locator('input')).toBeDisabled();
+  });
+
 });
