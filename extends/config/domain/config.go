@@ -14,7 +14,19 @@ type SystemConfig struct {
 	// Render 前端渲染组件：text|number|switch|select|textarea
 	Render string `json:"render"`
 	// RenderOptions 渲染组件配置（JSON），如 select 的选项
-	RenderOptions string    `json:"render_options"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	RenderOptions string `json:"render_options"`
+	// GroupID 配置分组（关联 config_groups.id）
+	GroupID   uint      `json:"group_id"`
+	GroupName string    `json:"group_name,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// ConfigGroup 配置分组
+type ConfigGroup struct {
+	ID        uint      `json:"id"`
+	Name      string    `json:"name"`
+	Sort      int       `json:"sort"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }

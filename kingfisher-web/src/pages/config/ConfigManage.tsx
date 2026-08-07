@@ -1,8 +1,9 @@
-import React, { useRef, useState } from 'react';
-import { Modal, Form, Input, InputNumber, Switch, Select, message, Tag, Popconfirm } from 'antd';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Modal, Form, Input, InputNumber, Switch, Select, message, Tag, Popconfirm, List, Button, Space, Empty } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import ProTable, { ProColumns, ActionType } from '@ant-design/pro-table';
 import { useAuthStore } from '../../stores/auth';
-import { configApi } from '../../api/config';
+import { configApi, configGroupApi } from '../../api/config';
 
 /** 渲染组件类型：text|number|switch|select|textarea */
 type RenderType = 'text' | 'number' | 'switch' | 'select' | 'textarea';
@@ -52,6 +53,12 @@ function stringToFormValue(v: string | undefined, render: RenderType): unknown {
   return v;
 }
 
+interface ConfigGroup {
+  id: number;
+  name: string;
+  sort: number;
+}
+
 const ConfigManage: React.FC = () => {
   const actionRef = useRef<ActionType>(null);
   const [editModal, setEditModal] = useState<{ open: boolean; config: Record<string, unknown> | null }>({
@@ -60,6 +67,25 @@ const ConfigManage: React.FC = () => {
   });
   const [form] = Form.useForm<Record<string, unknown>>();
   const perms = useAuthStore((s) => s.permissions);
+
+  // 分组状态
+  const [groups, setGroups] = useState<ConfigGroup[]>([]);
+  const [selectedGroupId, setSelectedGroupId] = useState(0); // 0 = 全部
+  const [groupModal, setGroupModal] = useState<{ open: boolean; editing: ConfigGroup | null }>({ open: false, editing: null });
+  const [groupForm] = Form.useForm<{ name: string; sort: number }>();
+
+  const loadGroups = useCallback(async () => {
+    try {
+      const r = await configGroupApi.list();
+      setGroups((r.data as ConfigGroup[]) || []);
+    } catch {
+      /* interceptor handles */
+    }
+  }, []);
+
+  useEffect(() => {
+    loadGroups();
+  }, [loadGroups]);
 
   // 编辑弹窗内当前选中的渲染组件（联动 Value 控件与选项编辑区）
   const watchedRender = (Form.useWatch('render', form) as RenderType | undefined) ||
@@ -140,6 +166,7 @@ const ConfigManage: React.FC = () => {
       String(v.version ?? ''),
       render,
       String(v.render_options ?? ''),
+      Number(v.group_id) || 0,
     );
     message.success('更新成功');
     setEditModal({ open: false, config: null });
@@ -169,19 +196,101 @@ const ConfigManage: React.FC = () => {
     }
   };
 
+  // 分组 CRUD
+  const openCreateGroup = () => {
+    groupForm.resetFields();
+    setGroupModal({ open: true, editing: null });
+  };
+  const openEditGroup = (g: ConfigGroup) => {
+    groupForm.setFieldsValue({ name: g.name, sort: g.sort });
+    setGroupModal({ open: true, editing: g });
+  };
+  const handleGroupSubmit = async () => {
+    const v = await groupForm.validateFields();
+    if (groupModal.editing) {
+      await configGroupApi.update(groupModal.editing.id, v.name, v.sort ?? 0);
+      message.success('分组已更新');
+    } else {
+      await configGroupApi.create(v.name, v.sort ?? 0);
+      message.success('分组已创建');
+    }
+    setGroupModal({ open: false, editing: null });
+    loadGroups();
+  };
+  const handleGroupDelete = async (g: ConfigGroup) => {
+    await configGroupApi.delete(g.id);
+    message.success('分组已删除，其下配置移回未分组');
+    if (selectedGroupId === g.id) setSelectedGroupId(0);
+    loadGroups();
+    actionRef.current?.reload();
+  };
+
   return (
-    <>
-      <ProTable
-        columns={columns}
-        actionRef={actionRef}
-        request={async () => {
-          const r = await configApi.getAll();
-          return { data: (r.data as unknown[]) || [], success: true };
-        }}
-        rowKey="key"
-        search={false}
-        headerTitle="系统配置"
-      />
+    <div style={{ display: 'flex', gap: 16 }}>
+      {/* 左侧：分组列表 */}
+      <div style={{ width: 220, flexShrink: 0, background: '#fff', borderRadius: 8, padding: 12 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <span style={{ fontWeight: 600 }}>配置分组</span>
+          {perms.includes('config:update') && (
+            <Button size="small" type="primary" ghost icon={<PlusOutlined />} onClick={openCreateGroup}>
+              新增
+            </Button>
+          )}
+        </div>
+        <List
+          size="small"
+          dataSource={[{ id: 0, name: '全部', sort: -1 }, ...groups]}
+          locale={{ emptyText: <Empty description="暂无分组" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
+          renderItem={(g) => (
+            <List.Item
+              onClick={() => {
+                setSelectedGroupId(g.id);
+                actionRef.current?.reload();
+              }}
+              style={{
+                cursor: 'pointer',
+                padding: '6px 8px',
+                borderRadius: 6,
+                background: selectedGroupId === g.id ? '#e6f4ff' : 'transparent',
+                border: selectedGroupId === g.id ? '1px solid #91caff' : '1px solid transparent',
+              }}
+              actions={
+                g.id === 0 || !perms.includes('config:update')
+                  ? []
+                  : [
+                      <EditOutlined key="edit" onClick={(e) => { e.stopPropagation(); openEditGroup(g); }} />,
+                      <Popconfirm key="del" title="删除分组？其下配置将移回未分组" onConfirm={() => handleGroupDelete(g)}>
+                        <DeleteOutlined style={{ color: 'red' }} onClick={(e) => e.stopPropagation()} />
+                      </Popconfirm>,
+                    ]
+              }
+            >
+              <span>{g.name}</span>
+            </List.Item>
+          )}
+        />
+      </div>
+
+      {/* 右侧：配置列表 */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <ProTable
+          columns={columns}
+          actionRef={actionRef}
+          request={async () => {
+            const r = await configApi.getAll();
+            let data = (r.data as unknown[]) || [];
+            if (selectedGroupId !== 0) {
+              data = data.filter((c) => (c as Record<string, unknown>).group_id === selectedGroupId);
+            }
+            return { data, success: true };
+          }}
+          rowKey="key"
+          search={false}
+          headerTitle={`系统配置${selectedGroupId ? `（${groups.find(g => g.id === selectedGroupId)?.name ?? ''}）` : ''}`}
+        />
+      </div>
+
+      {/* 配置编辑弹窗 */}
       <Modal
         title={`编辑 — ${editModal.config?.key}`}
         open={editModal.open}
@@ -199,6 +308,13 @@ const ConfigManage: React.FC = () => {
             valuePropName={watchedRender === 'switch' ? 'checked' : 'value'}
           >
             {editModal.config ? renderValueInput(watchedRender, parseRenderOptions(watchedOptions)) : <Input />}
+          </Form.Item>
+          <Form.Item name="group_id" label="分组">
+            <Select
+              allowClear
+              placeholder="选择分组"
+              options={groups.map(g => ({ label: g.name, value: g.id }))}
+            />
           </Form.Item>
           <Form.Item name="render" label="渲染组件">
             <Select options={RENDER_TYPES} placeholder="用于编辑此字段的组件" allowClear />
@@ -223,7 +339,24 @@ const ConfigManage: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
-    </>
+
+      {/* 分组新增/编辑弹窗 */}
+      <Modal
+        title={groupModal.editing ? `编辑分组 — ${groupModal.editing.name}` : '新增分组'}
+        open={groupModal.open}
+        onOk={handleGroupSubmit}
+        onCancel={() => setGroupModal({ open: false, editing: null })}
+      >
+        <Form form={groupForm} layout="vertical">
+          <Form.Item name="name" label="分组名" rules={[{ required: true, message: '请输入分组名' }]}>
+            <Input placeholder="如 站点 / 安全" />
+          </Form.Item>
+          <Form.Item name="sort" label="排序">
+            <InputNumber style={{ width: '100%' }} placeholder="数字越小越靠前" />
+          </Form.Item>
+        </Form>
+      </Modal>
+    </div>
   );
 };
 

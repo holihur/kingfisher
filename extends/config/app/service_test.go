@@ -46,11 +46,11 @@ func (m *mockConfigRepo) GetPublicByKey(ctx context.Context, key string) (*domai
 	return c, nil
 }
 
-func (m *mockConfigRepo) Set(ctx context.Context, key, value string, isPublic bool, version, render, renderOptions string) error {
+func (m *mockConfigRepo) Set(ctx context.Context, key, value string, isPublic bool, version, render, renderOptions string, groupID uint) error {
 	if m.configs == nil {
 		m.configs = map[string]*domain.SystemConfig{}
 	}
-	m.configs[key] = &domain.SystemConfig{Key: key, Value: value, IsPublic: isPublic, Version: version, Render: render, RenderOptions: renderOptions}
+	m.configs[key] = &domain.SystemConfig{Key: key, Value: value, IsPublic: isPublic, Version: version, Render: render, RenderOptions: renderOptions, GroupID: groupID}
 	return nil
 }
 
@@ -104,7 +104,7 @@ func TestConfigGetNotFound(t *testing.T) {
 func TestConfigSet(t *testing.T) {
 	repo := &mockConfigRepo{configs: map[string]*domain.SystemConfig{}}
 	svc := NewConfigService(repo, nil)
-	if err := svc.Set(context.Background(), "key1", "val1", true, "1.1.0", "select", `[{"label":"开启","value":"1"}]`); err != nil {
+	if err := svc.Set(context.Background(), "key1", "val1", true, "1.1.0", "select", `[{"label":"开启","value":"1"}]`, 2); err != nil {
 		t.Fatal("set:", err)
 	}
 	cfg, _ := svc.Get(context.Background(), "key1")
@@ -117,6 +117,9 @@ func TestConfigSet(t *testing.T) {
 	if cfg.Render != "select" || cfg.RenderOptions == "" {
 		t.Errorf("want render=select with options, got render=%q options=%q", cfg.Render, cfg.RenderOptions)
 	}
+	if cfg.GroupID != 2 {
+		t.Errorf("want group_id=2, got %d", cfg.GroupID)
+	}
 }
 
 func TestConfigSetUpdate(t *testing.T) {
@@ -126,7 +129,7 @@ func TestConfigSetUpdate(t *testing.T) {
 		},
 	}
 	svc := NewConfigService(repo, nil)
-	if err := svc.Set(context.Background(), "site_name", "new", true, "1.2.0", "text", ""); err != nil {
+	if err := svc.Set(context.Background(), "site_name", "new", true, "1.2.0", "text", "", 1); err != nil {
 		t.Fatal("set:", err)
 	}
 	cfg, _ := svc.Get(context.Background(), "site_name")
@@ -138,6 +141,9 @@ func TestConfigSetUpdate(t *testing.T) {
 	}
 	if cfg.Render != "text" {
 		t.Errorf("want render=text, got %q", cfg.Render)
+	}
+	if cfg.GroupID != 1 {
+		t.Errorf("want group_id=1, got %d", cfg.GroupID)
 	}
 }
 
@@ -199,5 +205,92 @@ func TestConfigDelete(t *testing.T) {
 	}
 	if len(repo.configs) != 0 {
 		t.Error("should be empty")
+	}
+}
+
+// ---- 配置分组 ----
+
+type mockGroupRepo struct {
+	groups []domain.ConfigGroup
+}
+
+func (m *mockGroupRepo) List(ctx context.Context) ([]domain.ConfigGroup, error) {
+	return m.groups, nil
+}
+
+func (m *mockGroupRepo) Create(ctx context.Context, name string, sort int) (*domain.ConfigGroup, error) {
+	g := domain.ConfigGroup{ID: uint(len(m.groups) + 1), Name: name, Sort: sort}
+	m.groups = append(m.groups, g)
+	return &g, nil
+}
+
+func (m *mockGroupRepo) Update(ctx context.Context, id uint, name string, sort int) error {
+	for i := range m.groups {
+		if m.groups[i].ID == id {
+			m.groups[i].Name = name
+			m.groups[i].Sort = sort
+			return nil
+		}
+	}
+	return fmt.Errorf("group %d not found", id)
+}
+
+func (m *mockGroupRepo) Delete(ctx context.Context, id uint) error {
+	for i := range m.groups {
+		if m.groups[i].ID == id {
+			m.groups = append(m.groups[:i], m.groups[i+1:]...)
+			return nil
+		}
+	}
+	return nil
+}
+
+func TestConfigGroupCRUD(t *testing.T) {
+	repo := &mockGroupRepo{}
+	svc := NewConfigGroupService(repo)
+
+	// Create
+	g, err := svc.Create(context.Background(), "站点", 1)
+	if err != nil {
+		t.Fatal("create group:", err)
+	}
+	if g.Name != "站点" || g.Sort != 1 {
+		t.Errorf("unexpected group: %+v", g)
+	}
+	if _, err := svc.Create(context.Background(), "安全", 2); err != nil {
+		t.Fatal("create group:", err)
+	}
+
+	// List
+	groups, err := svc.List(context.Background())
+	if err != nil {
+		t.Fatal("list groups:", err)
+	}
+	if len(groups) != 2 {
+		t.Fatalf("want 2 groups, got %d", len(groups))
+	}
+
+	// Update
+	if err := svc.Update(context.Background(), g.ID, "站点设置", 3); err != nil {
+		t.Fatal("update group:", err)
+	}
+	groups, _ = svc.List(context.Background())
+	found := false
+	for _, gg := range groups {
+		if gg.ID == g.ID && gg.Name == "站点设置" && gg.Sort == 3 {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("group not updated correctly")
+	}
+
+	// Delete
+	if err := svc.Delete(context.Background(), g.ID); err != nil {
+		t.Fatal("delete group:", err)
+	}
+	groups, _ = svc.List(context.Background())
+	if len(groups) != 1 {
+		t.Errorf("want 1 group after delete, got %d", len(groups))
 	}
 }

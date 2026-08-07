@@ -12,12 +12,22 @@ import (
 	rbacTransport "kingfisher/extends/rbac/transport"
 )
 
-type ConfigModule struct{ handler *ConfigHandler }
+type ConfigModule struct {
+	handler      *ConfigHandler
+	groupHandler *ConfigGroupHandler
+}
 
 func NewConfigModule(db *gorm.DB, c cache.Cache) *ConfigModule {
 	repo := adapter.NewConfigRepo(db)
 	svc := app.NewConfigService(repo, c)
-	return &ConfigModule{handler: NewConfigHandler(svc)}
+
+	groupRepo := adapter.NewConfigGroupRepo(db)
+	groupSvc := app.NewConfigGroupService(groupRepo)
+
+	return &ConfigModule{
+		handler:      NewConfigHandler(svc),
+		groupHandler: NewConfigGroupHandler(groupSvc),
+	}
 }
 func (m *ConfigModule) Name() string                       { return "config" }
 func (m *ConfigModule) Init(ctx context.Context) error     { return nil }
@@ -34,4 +44,11 @@ func (m *ConfigModule) RegisterProtected(r *gin.RouterGroup) {
 	configs.GET("/:key", rbacTransport.RequirePerm("config:list"), m.handler.Get)
 	configs.PUT("/:key", rbacTransport.RequirePerm("config:update"), m.handler.Set)
 	configs.DELETE("/:key", rbacTransport.RequirePerm("config:update"), m.handler.Delete)
+
+	// 配置分组 CRUD
+	groups := r.Group("/config-groups")
+	groups.GET("", rbacTransport.RequirePerm("config:list"), m.groupHandler.List)
+	groups.POST("", rbacTransport.RequirePerm("config:update"), m.groupHandler.Create)
+	groups.PUT("/:id", rbacTransport.RequirePerm("config:update"), m.groupHandler.Update)
+	groups.DELETE("/:id", rbacTransport.RequirePerm("config:update"), m.groupHandler.Delete)
 }

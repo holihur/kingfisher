@@ -81,11 +81,23 @@ type SystemConfigPO struct {
 	Render string `gorm:"size:32"`
 	// RenderOptions 渲染组件配置（JSON），如 select 的选项 [{"label":"开启","value":"1"}]
 	RenderOptions string `gorm:"type:text"`
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
+	// GroupID 配置分组（关联 config_groups.id）
+	GroupID   uint `gorm:"default:0;index"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 func (SystemConfigPO) TableName() string { return "system_configs" }
+
+type ConfigGroupPO struct {
+	ID        uint   `gorm:"primaryKey"`
+	Name      string `gorm:"size:64;uniqueIndex;not null"`
+	Sort      int    `gorm:"default:0"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+func (ConfigGroupPO) TableName() string { return "config_groups" }
 
 type AuditLogPO struct {
 	ID         uint      `gorm:"primaryKey"`

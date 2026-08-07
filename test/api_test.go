@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"sort"
+	"strconv"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -75,6 +76,8 @@ func setupTestServer(t *testing.T) (*gin.Engine, *jwt.JWTManager) {
 	}
 	return r, jwtMgr
 }
+
+func itoa(n int) string { return strconv.Itoa(n) }
 
 func doRequest(method, path, token string, body any) *http.Request {
 	var buf bytes.Buffer
@@ -299,6 +302,72 @@ func TestPublicConfigListExcludesPrivate(t *testing.T) {
 		if it.(map[string]any)["key"] == "max_login_attempts" {
 			t.Error("private config leaked into public list")
 		}
+	}
+}
+
+// Config group tests
+
+func TestConfigGroupCRUDAPI(t *testing.T) {
+	s, _ := setupTestServer(t)
+	tok := login(t, s)
+
+	// List 种子分组（站点/安全）
+	w := httptest.NewRecorder()
+	s.ServeHTTP(w, doRequest("GET", "/api/v1/config-groups", tok, nil))
+	m := assertCode(t, w, 0)
+	groups := m["data"].([]any)
+	if len(groups) < 2 {
+		t.Fatalf("want >=2 seed groups, got %d", len(groups))
+	}
+
+	// Create
+	w = httptest.NewRecorder()
+	s.ServeHTTP(w, doRequest("POST", "/api/v1/config-groups", tok, map[string]any{"name": "集成测试组", "sort": 9}))
+	m = assertCode(t, w, 0)
+	newGroup := m["data"].(map[string]any)
+	gid := int(newGroup["id"].(float64))
+
+	// Update
+	w = httptest.NewRecorder()
+	s.ServeHTTP(w, doRequest("PUT", "/api/v1/config-groups/"+itoa(gid), tok, map[string]any{"name": "集成测试组-改", "sort": 8}))
+	assertCode(t, w, 0)
+
+	// Verify updated
+	w = httptest.NewRecorder()
+	s.ServeHTTP(w, doRequest("GET", "/api/v1/config-groups", tok, nil))
+	m = assertCode(t, w, 0)
+	found := false
+	for _, g := range m["data"].([]any) {
+		if int(g.(map[string]any)["id"].(float64)) == gid && g.(map[string]any)["name"] == "集成测试组-改" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("updated group not found in list")
+	}
+
+	// Delete
+	w = httptest.NewRecorder()
+	s.ServeHTTP(w, doRequest("DELETE", "/api/v1/config-groups/"+itoa(gid), tok, nil))
+	assertCode(t, w, 0)
+}
+
+func TestConfigSetWithGroupID(t *testing.T) {
+	s, _ := setupTestServer(t)
+	tok := login(t, s)
+
+	// 配置关联分组（group_id=1 站点）
+	w := httptest.NewRecorder()
+	s.ServeHTTP(w, doRequest("PUT", "/api/v1/configs/site_name", tok, map[string]any{"value": "Kingfisher", "is_public": true, "version": "1.0.0", "render": "text", "group_id": 1}))
+	assertCode(t, w, 0)
+
+	// 读回确认 group_id + group_name
+	w = httptest.NewRecorder()
+	s.ServeHTTP(w, doRequest("GET", "/api/v1/configs/site_name", tok, nil))
+	m := assertCode(t, w, 0)
+	cfg := m["data"].(map[string]any)
+	if int(cfg["group_id"].(float64)) != 1 {
+		t.Errorf("want group_id=1, got %v", cfg["group_id"])
 	}
 }
 

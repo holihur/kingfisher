@@ -76,8 +76,8 @@ func (s *ConfigService) GetPublic(ctx context.Context, key string) (*domain.Syst
 	return s.repo.GetPublicByKey(ctx, key)
 }
 
-func (s *ConfigService) Set(ctx context.Context, key, value string, isPublic bool, version, render, renderOptions string) error {
-	if err := s.repo.Set(ctx, key, value, isPublic, version, render, renderOptions); err != nil {
+func (s *ConfigService) Set(ctx context.Context, key, value string, isPublic bool, version, render, renderOptions string, groupID uint) error {
+	if err := s.repo.Set(ctx, key, value, isPublic, version, render, renderOptions, groupID); err != nil {
 		return err
 	}
 	if s.cache != nil {
@@ -96,4 +96,29 @@ func (s *ConfigService) Delete(ctx context.Context, key string) error {
 		_ = s.cache.Delete(ctx, "config:all")
 	}
 	return nil
+}
+
+// ConfigGroupService 配置分组 CRUD
+type ConfigGroupService struct {
+	groupRepo port.ConfigGroupRepository
+}
+
+func NewConfigGroupService(groupRepo port.ConfigGroupRepository) *ConfigGroupService {
+	return &ConfigGroupService{groupRepo: groupRepo}
+}
+
+func (s *ConfigGroupService) List(ctx context.Context) ([]domain.ConfigGroup, error) {
+	return s.groupRepo.List(ctx)
+}
+
+func (s *ConfigGroupService) Create(ctx context.Context, name string, sort int) (*domain.ConfigGroup, error) {
+	return s.groupRepo.Create(ctx, name, sort)
+}
+
+func (s *ConfigGroupService) Update(ctx context.Context, id uint, name string, sort int) error {
+	return s.groupRepo.Update(ctx, id, name, sort)
+}
+
+func (s *ConfigGroupService) Delete(ctx context.Context, id uint) error {
+	return s.groupRepo.Delete(ctx, id)
 }
