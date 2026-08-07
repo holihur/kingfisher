@@ -71,6 +71,7 @@ type updateMenuReq struct {
 	Component *string `json:"component"`
 	Sort      *int    `json:"sort"`
 	ParentID  *uint   `json:"parent_id"`
+	Status    *int    `json:"status"`
 }
 
 func (h *MenuHandler) Update(c *gin.Context) {
@@ -102,6 +103,9 @@ func (h *MenuHandler) Update(c *gin.Context) {
 	}
 	if req.ParentID != nil {
 		updates["parent_id"] = *req.ParentID
+	}
+	if req.Status != nil {
+		updates["status"] = *req.Status
 	}
 	if err := h.svc.Update(c.Request.Context(), uint(id), updates); err != nil {
 		response.BadRequest(c, err.Error())

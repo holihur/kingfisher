@@ -18,6 +18,7 @@ import {
 import { useAuthStore } from '../stores/auth';
 import { useMenuStore } from '../stores/menu';
 import { clearTokens } from '../utils/token';
+import { configApi } from '../api/config';
 
 const icons: Record<string, React.ReactNode> = {
   DashboardOutlined: <DashboardOutlined />,
@@ -37,10 +38,19 @@ const AdminLayout: React.FC = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < MOBILE_BREAKPOINT);
   const [collapsed, setCollapsed] = useState(isMobile);
   const [openKeys, setOpenKeys] = useState<string[]>([]);
+  const [siteName, setSiteName] = useState('Kingfisher');
   const { menuTree, fetchMenus, loading } = useMenuStore();
   const { userInfo } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
+
+  useEffect(() => {
+    configApi.getPublic('site_name').then(r => {
+      const name = (r.data as any)?.value || 'Kingfisher';
+      setSiteName(name);
+      document.title = name;
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     const handleResize = () => {
@@ -52,9 +62,7 @@ const AdminLayout: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  useEffect(() => {
-    fetchMenus();
-  }, []);
+  // 菜单由路由层 AppRoutes 加载（驱动动态路由），此处不再重复请求
 
   // 菜单加载完成后 / 路由变化时，展开当前路由对应的祖先菜单
   useEffect(() => {
@@ -123,7 +131,7 @@ const AdminLayout: React.FC = () => {
               borderBottom: '1px solid rgba(255,255,255,0.1)',
             }}
           >
-            Kingfisher
+            {siteName}
           </div>
           {siderContent}
         </Drawer>
@@ -141,7 +149,7 @@ const AdminLayout: React.FC = () => {
               borderBottom: '1px solid rgba(255,255,255,0.1)',
             }}
           >
-            {collapsed ? 'K' : 'Kingfisher'}
+            {collapsed ? (siteName || 'K').charAt(0) : siteName}
           </div>
           {siderContent}
         </Layout.Sider>

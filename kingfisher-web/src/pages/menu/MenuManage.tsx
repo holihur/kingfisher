@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Modal, Form, Input, InputNumber, TreeSelect, App, Popconfirm } from 'antd';
+import { Button, Modal, Form, Input, InputNumber, TreeSelect, App, Popconfirm, Switch } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import DataTable from '../../components/DataTable';
 import { useAuthStore } from '../../stores/auth';
@@ -66,7 +66,28 @@ const MenuManage: React.FC = () => {
     { title: '路由', dataIndex: 'path' },
     { title: '图标', dataIndex: 'icon', width: 120 },
     { title: '排序', dataIndex: 'sort', width: 80 },
-    { title: '创建时间', dataIndex: 'created_at', width: 150, render: (v: unknown) => formatTime(v) },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      width: 90,
+      render: (_: unknown, r: Record<string, unknown>) => {
+        const enabled = (r.status as number) === 1;
+        return (
+          <Switch
+            size="small"
+            checked={enabled}
+            checkedChildren="启用"
+            unCheckedChildren="禁用"
+            disabled={!perms.includes('menu:update')}
+            onChange={async (checked) => {
+              await menuApi.update(r.id as number, { status: checked ? 1 : 0 });
+              message.success(checked ? '已启用' : '已禁用');
+              fetchTree();
+            }}
+          />
+        );
+      },
+    },
     { title: '更新时间', dataIndex: 'updated_at', width: 150, render: (v: unknown) => formatTime(v) },
     {
       title: '操作',
