@@ -46,11 +46,11 @@ func (m *mockConfigRepo) GetPublicByKey(ctx context.Context, key string) (*domai
 	return c, nil
 }
 
-func (m *mockConfigRepo) Set(ctx context.Context, key, value string, isPublic bool, version string) error {
+func (m *mockConfigRepo) Set(ctx context.Context, key, value string, isPublic bool, version, render, renderOptions string) error {
 	if m.configs == nil {
 		m.configs = map[string]*domain.SystemConfig{}
 	}
-	m.configs[key] = &domain.SystemConfig{Key: key, Value: value, IsPublic: isPublic, Version: version}
+	m.configs[key] = &domain.SystemConfig{Key: key, Value: value, IsPublic: isPublic, Version: version, Render: render, RenderOptions: renderOptions}
 	return nil
 }
 
@@ -104,7 +104,7 @@ func TestConfigGetNotFound(t *testing.T) {
 func TestConfigSet(t *testing.T) {
 	repo := &mockConfigRepo{configs: map[string]*domain.SystemConfig{}}
 	svc := NewConfigService(repo, nil)
-	if err := svc.Set(context.Background(), "key1", "val1", true, "1.1.0"); err != nil {
+	if err := svc.Set(context.Background(), "key1", "val1", true, "1.1.0", "select", `[{"label":"开启","value":"1"}]`); err != nil {
 		t.Fatal("set:", err)
 	}
 	cfg, _ := svc.Get(context.Background(), "key1")
@@ -113,6 +113,9 @@ func TestConfigSet(t *testing.T) {
 	}
 	if !cfg.IsPublic || cfg.Version != "1.1.0" {
 		t.Errorf("want is_public=true version=1.1.0, got %+v", cfg)
+	}
+	if cfg.Render != "select" || cfg.RenderOptions == "" {
+		t.Errorf("want render=select with options, got render=%q options=%q", cfg.Render, cfg.RenderOptions)
 	}
 }
 
@@ -123,7 +126,7 @@ func TestConfigSetUpdate(t *testing.T) {
 		},
 	}
 	svc := NewConfigService(repo, nil)
-	if err := svc.Set(context.Background(), "site_name", "new", true, "1.2.0"); err != nil {
+	if err := svc.Set(context.Background(), "site_name", "new", true, "1.2.0", "text", ""); err != nil {
 		t.Fatal("set:", err)
 	}
 	cfg, _ := svc.Get(context.Background(), "site_name")
@@ -132,6 +135,9 @@ func TestConfigSetUpdate(t *testing.T) {
 	}
 	if !cfg.IsPublic || cfg.Version != "1.2.0" {
 		t.Errorf("want is_public=true version=1.2.0, got %+v", cfg)
+	}
+	if cfg.Render != "text" {
+		t.Errorf("want render=text, got %q", cfg.Render)
 	}
 }
 

@@ -188,12 +188,12 @@ func SeedData(db *gorm.DB) error {
 
 		// System Configs
 		configs := []SystemConfigPO{
-			{Key: "site_name", Value: "Kingfisher Admin", Remark: "系统名称", IsPublic: true, Version: "1.0.0"},
-			{Key: "site_description", Value: "后台管理系统", Remark: "系统描述", IsPublic: true, Version: "1.0.0"},
-			{Key: "site_logo", Value: "/logo.png", Remark: "Logo", IsPublic: true, Version: "1.0.0"},
-			{Key: "max_login_attempts", Value: "5", Remark: "最大登录失败次数", Version: "1.0.0"},
-			{Key: "lockout_duration", Value: "15m", Remark: "锁定时间", Version: "1.0.0"},
-			{Key: "session_timeout", Value: "30m", Remark: "会话超时", Version: "1.0.0"},
+			{Key: "site_name", Value: "Kingfisher Admin", Remark: "系统名称", IsPublic: true, Version: "1.0.0", Render: "text"},
+			{Key: "site_description", Value: "后台管理系统", Remark: "系统描述", IsPublic: true, Version: "1.0.0", Render: "textarea"},
+			{Key: "site_logo", Value: "/logo.png", Remark: "Logo", IsPublic: true, Version: "1.0.0", Render: "text"},
+			{Key: "max_login_attempts", Value: "5", Remark: "最大登录失败次数", Version: "1.0.0", Render: "number"},
+			{Key: "lockout_duration", Value: "15m", Remark: "锁定时间", Version: "1.0.0", Render: "text"},
+			{Key: "session_timeout", Value: "30m", Remark: "会话超时", Version: "1.0.0", Render: "text"},
 		}
 		if err := tx.Create(&configs).Error; err != nil {
 			return fmt.Errorf("seed configs: %w", err)

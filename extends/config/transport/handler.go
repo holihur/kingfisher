@@ -60,9 +60,11 @@ func (h *ConfigHandler) Get(c *gin.Context) {
 }
 
 type SetConfigReq struct {
-	Value    string `json:"value" binding:"required"`
-	IsPublic *bool  `json:"is_public"`
-	Version  string `json:"version"`
+	Value         string `json:"value" binding:"required"`
+	IsPublic      *bool  `json:"is_public"`
+	Version       string `json:"version"`
+	Render        string `json:"render"`
+	RenderOptions string `json:"render_options"`
 }
 
 func (h *ConfigHandler) Set(c *gin.Context) {
@@ -75,7 +77,7 @@ func (h *ConfigHandler) Set(c *gin.Context) {
 	if req.IsPublic != nil {
 		isPublic = *req.IsPublic
 	}
-	_ = h.svc.Set(c.Request.Context(), c.Param("key"), req.Value, isPublic, req.Version)
+	_ = h.svc.Set(c.Request.Context(), c.Param("key"), req.Value, isPublic, req.Version, req.Render, req.RenderOptions)
 	response.OKJSON(c, nil)
 }
 

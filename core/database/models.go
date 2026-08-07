@@ -76,9 +76,13 @@ type SystemConfigPO struct {
 	// IsPublic 是否公开：公开项可在未登录状态下通过 /api/v1/public/configs 读取
 	IsPublic bool   `gorm:"default:false;not null"`
 	// Version 表示该配置由哪个版本新增
-	Version   string `gorm:"size:32"`
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	Version string `gorm:"size:32"`
+	// Render 前端渲染组件：text|number|switch|select|textarea
+	Render string `gorm:"size:32"`
+	// RenderOptions 渲染组件配置（JSON），如 select 的选项 [{"label":"开启","value":"1"}]
+	RenderOptions string `gorm:"type:text"`
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
 }
 
 func (SystemConfigPO) TableName() string { return "system_configs" }

@@ -11,6 +11,6 @@ type ConfigRepository interface {
 	GetPublicAll(ctx context.Context) ([]domain.SystemConfig, error)
 	GetByKey(ctx context.Context, key string) (*domain.SystemConfig, error)
 	GetPublicByKey(ctx context.Context, key string) (*domain.SystemConfig, error)
-	Set(ctx context.Context, key, value string, isPublic bool, version string) error
+	Set(ctx context.Context, key, value string, isPublic bool, version, render, renderOptions string) error
 	Delete(ctx context.Context, key string) error
 }

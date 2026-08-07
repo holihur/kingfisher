@@ -76,8 +76,8 @@ func (s *ConfigService) GetPublic(ctx context.Context, key string) (*domain.Syst
 	return s.repo.GetPublicByKey(ctx, key)
 }
 
-func (s *ConfigService) Set(ctx context.Context, key, value string, isPublic bool, version string) error {
-	if err := s.repo.Set(ctx, key, value, isPublic, version); err != nil {
+func (s *ConfigService) Set(ctx context.Context, key, value string, isPublic bool, version, render, renderOptions string) error {
+	if err := s.repo.Set(ctx, key, value, isPublic, version, render, renderOptions); err != nil {
 		return err
 	}
 	if s.cache != nil {
