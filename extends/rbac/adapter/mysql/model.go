@@ -31,6 +31,7 @@ type permissionPO struct {
 	Resource  string
 	Action    string
 	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 func (permissionPO) TableName() string { return "permissions" }

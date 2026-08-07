@@ -15,6 +15,7 @@ interface RoleRow {
   status: number;
   landing_page: string;
   created_at: string;
+  updated_at: string;
 }
 
 const RoleList: React.FC = () => {
@@ -80,7 +81,13 @@ const RoleList: React.FC = () => {
     {
       title: '创建时间',
       dataIndex: 'created_at',
-      width: 160,
+      width: 150,
+      render: (v: unknown) => formatTime(v),
+    },
+    {
+      title: '更新时间',
+      dataIndex: 'updated_at',
+      width: 150,
       render: (v: unknown) => formatTime(v),
     },
     {

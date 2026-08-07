@@ -98,7 +98,7 @@ func (r *RoleRepo) GetRolePermissions(ctx context.Context, roleID uint) ([]domai
 	}
 	perms := make([]domain.Permission, len(pos))
 	for i, p := range pos {
-		perms[i] = domain.Permission{ID: p.ID, Name: p.Name, Code: p.Code, Resource: p.Resource, Action: p.Action}
+		perms[i] = domain.Permission{ID: p.ID, Name: p.Name, Code: p.Code, Resource: p.Resource, Action: p.Action, CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt}
 	}
 	return perms, nil
 }
@@ -124,7 +124,7 @@ func (r *PermRepo) FindAll(ctx context.Context) ([]domain.Permission, error) {
 	}
 	perms := make([]domain.Permission, len(pos))
 	for i, p := range pos {
-		perms[i] = domain.Permission{ID: p.ID, Name: p.Name, Code: p.Code, Resource: p.Resource, Action: p.Action}
+		perms[i] = domain.Permission{ID: p.ID, Name: p.Name, Code: p.Code, Resource: p.Resource, Action: p.Action, CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt}
 	}
 	return perms, nil
 }

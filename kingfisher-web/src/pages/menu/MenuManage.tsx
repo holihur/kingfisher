@@ -4,6 +4,7 @@ import { PlusOutlined } from '@ant-design/icons';
 import DataTable from '../../components/DataTable';
 import { useAuthStore } from '../../stores/auth';
 import { menuApi } from '../../api/menu';
+import { formatTime } from '../../utils/format';
 
 interface MenuItem {
   id: number;
@@ -65,6 +66,8 @@ const MenuManage: React.FC = () => {
     { title: '路由', dataIndex: 'path' },
     { title: '图标', dataIndex: 'icon', width: 120 },
     { title: '排序', dataIndex: 'sort', width: 80 },
+    { title: '创建时间', dataIndex: 'created_at', width: 150, render: (v: unknown) => formatTime(v) },
+    { title: '更新时间', dataIndex: 'updated_at', width: 150, render: (v: unknown) => formatTime(v) },
     {
       title: '操作',
       key: 'action',

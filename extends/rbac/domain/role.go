@@ -21,6 +21,7 @@ type Permission struct {
 	Resource  string    `json:"resource"`
 	Action    string    `json:"action"`
 	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 type Menu struct {
 	ID         uint   `json:"id"`

@@ -50,6 +50,7 @@ type PermissionPO struct {
 	Resource  string `gorm:"size:32;not null"`
 	Action    string `gorm:"size:16;not null"`
 	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 func (PermissionPO) TableName() string { return "permissions" }

@@ -5,6 +5,7 @@ import DataTable, { SearchField } from '../../components/DataTable';
 import { useAuthStore } from '../../stores/auth';
 import { configApi, configGroupApi } from '../../api/config';
 import { useTableUrlQuery } from '../../hooks/useTableUrlQuery';
+import { formatTime } from '../../utils/format';
 
 /** 渲染组件类型：text|number|switch|select|textarea */
 type RenderType = 'text' | 'number' | 'switch' | 'select' | 'textarea';
@@ -70,6 +71,8 @@ interface ConfigRow {
   render_options: string;
   group_id: number;
   group_name?: string;
+  created_at: string;
+  updated_at: string;
 }
 
 const ConfigManage: React.FC = () => {
@@ -155,6 +158,8 @@ const ConfigManage: React.FC = () => {
         r.is_public ? <Tag color="green">公开</Tag> : <Tag color="default">私密</Tag>,
     },
     { title: '版本', dataIndex: 'version', width: 90 },
+    { title: '创建时间', dataIndex: 'created_at', width: 150, render: (v: unknown) => formatTime(v) },
+    { title: '更新时间', dataIndex: 'updated_at', width: 150, render: (v: unknown) => formatTime(v) },
     {
       title: '操作',
       key: 'action',

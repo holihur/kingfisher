@@ -4,6 +4,7 @@ import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import DataTable, { SearchField } from '../../components/DataTable';
 import { useAuthStore } from '../../stores/auth';
 import { dictTypeApi, dictEntryApi } from '../../api/dict';
+import { formatTime } from '../../utils/format';
 
 interface DictType {
   id: number;
@@ -22,6 +23,8 @@ interface DictEntry {
   sort: number;
   status: number;
   remark: string;
+  created_at: string;
+  updated_at: string;
 }
 
 const DictManage: React.FC = () => {
@@ -187,6 +190,8 @@ const DictManage: React.FC = () => {
         r.status === 1 ? <Tag color="green">启用</Tag> : <Tag color="red">禁用</Tag>,
     },
     { title: '备注', dataIndex: 'remark', ellipsis: true },
+    { title: '创建时间', dataIndex: 'created_at', width: 150, render: (v: unknown) => formatTime(v) },
+    { title: '更新时间', dataIndex: 'updated_at', width: 150, render: (v: unknown) => formatTime(v) },
     {
       title: '操作',
       key: 'action',

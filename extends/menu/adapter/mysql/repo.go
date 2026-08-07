@@ -39,7 +39,7 @@ func (r *MenuRepo) FindByParentID(ctx context.Context, parentID uint) ([]domain.
 	}
 	menus := make([]domain.Menu, len(pos))
 	for i, p := range pos {
-		menus[i] = domain.Menu{ID: p.ID, ParentID: p.ParentID, Name: p.Name, Path: p.Path, Component: p.Component, Icon: p.Icon, Sort: p.Sort, Type: p.Type, Permission: p.Permission, Status: p.Status}
+		menus[i] = domain.Menu{ID: p.ID, ParentID: p.ParentID, Name: p.Name, Path: p.Path, Component: p.Component, Icon: p.Icon, Sort: p.Sort, Type: p.Type, Permission: p.Permission, Status: p.Status, CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt}
 	}
 	return menus, nil
 }
@@ -65,7 +65,7 @@ func (r *MenuRepo) FindByRoleIDs(ctx context.Context, roleIDs []uint) ([]domain.
 	}
 	menus := make([]domain.Menu, len(pos))
 	for i, p := range pos {
-		menus[i] = domain.Menu{ID: p.ID, ParentID: p.ParentID, Name: p.Name, Path: p.Path, Component: p.Component, Icon: p.Icon, Sort: p.Sort, Type: p.Type, Permission: p.Permission, Status: p.Status}
+		menus[i] = domain.Menu{ID: p.ID, ParentID: p.ParentID, Name: p.Name, Path: p.Path, Component: p.Component, Icon: p.Icon, Sort: p.Sort, Type: p.Type, Permission: p.Permission, Status: p.Status, CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt}
 	}
 	return menus, nil
 }
