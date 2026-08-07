@@ -251,6 +251,57 @@ func TestNoAuthConfigs(t *testing.T) {
 	}
 }
 
+// Public config tests: is_public=true 的配置无需登录即可读取
+
+func TestPublicConfigsNoAuth(t *testing.T) {
+	s, _ := setupTestServer(t)
+	w := httptest.NewRecorder()
+	s.ServeHTTP(w, doRequest("GET", "/api/v1/public/configs", "", nil))
+	m := assertCode(t, w, 0)
+	items := m["data"].([]any)
+	if len(items) != 3 {
+		t.Fatalf("want 3 public configs (site_name/site_logo/site_description), got %d", len(items))
+	}
+	for _, it := range items {
+		cfg := it.(map[string]any)
+		if cfg["is_public"] != true {
+			t.Errorf("config %v should be public", cfg["key"])
+		}
+	}
+}
+
+func TestPublicConfigGetSingleNoAuth(t *testing.T) {
+	s, _ := setupTestServer(t)
+	w := httptest.NewRecorder()
+	s.ServeHTTP(w, doRequest("GET", "/api/v1/public/configs/site_name", "", nil))
+	m := assertCode(t, w, 0)
+	cfg := m["data"].(map[string]any)
+	if cfg["key"] != "site_name" || cfg["is_public"] != true {
+		t.Errorf("unexpected public config: %v", cfg)
+	}
+}
+
+func TestPublicConfigPrivateNotExposed(t *testing.T) {
+	s, _ := setupTestServer(t)
+	w := httptest.NewRecorder()
+	// 非公开配置不能通过公开接口读取（不应泄露其存在）
+	s.ServeHTTP(w, doRequest("GET", "/api/v1/public/configs/max_login_attempts", "", nil))
+	assertCode(t, w, 10401) // ErrConfigNotFound
+}
+
+func TestPublicConfigListExcludesPrivate(t *testing.T) {
+	s, _ := setupTestServer(t)
+	w := httptest.NewRecorder()
+	s.ServeHTTP(w, doRequest("GET", "/api/v1/public/configs", "", nil))
+	m := assertCode(t, w, 0)
+	items := m["data"].([]any)
+	for _, it := range items {
+		if it.(map[string]any)["key"] == "max_login_attempts" {
+			t.Error("private config leaked into public list")
+		}
+	}
+}
+
 // User CRUD tests
 
 func TestGetUsers(t *testing.T) {
@@ -520,8 +571,8 @@ func TestGetConfigs(t *testing.T) {
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, doRequest("GET", "/api/v1/configs", tok, nil))
 	m := assertCode(t, w, 0)
-	if len(m["data"].([]any)) != 5 {
-		t.Error("want 5 configs")
+	if len(m["data"].([]any)) != 6 {
+		t.Error("want 6 configs")
 	}
 }
 

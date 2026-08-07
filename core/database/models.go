@@ -73,6 +73,10 @@ type SystemConfigPO struct {
 	Key       string `gorm:"size:64;uniqueIndex;not null"`
 	Value     string `gorm:"type:text;not null"`
 	Remark    string `gorm:"size:255"`
+	// IsPublic 是否公开：公开项可在未登录状态下通过 /api/v1/public/configs 读取
+	IsPublic bool   `gorm:"default:false;not null"`
+	// Version 表示该配置由哪个版本新增
+	Version   string `gorm:"size:32"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }

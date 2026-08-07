@@ -7,13 +7,18 @@ import { useAuthStore } from '../../stores/auth';
 const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [siteName, setSiteName] = useState('Kingfisher');
+  const [siteDescription, setSiteDescription] = useState('后台管理系统');
   const login = useAuthStore((s) => s.login);
   const navigate = useNavigate();
 
   const [searchParams] = useSearchParams();
 
   useEffect(() => {
-    import('../../api/config').then(m => m.configApi.get('site_name').then(r => setSiteName((r.data as any)?.value || 'Kingfisher')).catch(() => {}));
+    // site_name / site_description 标记为公开，未登录也能通过公开接口读取；失败时兜底默认值
+    import('../../api/config').then((m) => {
+      m.configApi.getPublic('site_name').then(r => setSiteName((r.data as any)?.value || 'Kingfisher')).catch(() => {});
+      m.configApi.getPublic('site_description').then(r => setSiteDescription((r.data as any)?.value || '后台管理系统')).catch(() => {});
+    });
   }, []);
   const redirectTo = searchParams.get('redirect') || '/dashboard';
 
@@ -44,7 +49,7 @@ const LoginPage: React.FC = () => {
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <div style={{ fontSize: 40, marginBottom: 8 }}>🦜</div>
           <h2 style={{ margin: 0 }}>{siteName}</h2>
-          <p style={{ color: '#999', margin: '8px 0 0' }}>后台管理系统</p>
+          <p style={{ color: '#999', margin: '8px 0 0' }}>{siteDescription}</p>
         </div>
         <Form onFinish={onFinish} size="large">
           <Form.Item name="username" rules={[{ required: true, message: '请输入用户名' }]}>

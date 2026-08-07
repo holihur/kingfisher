@@ -22,7 +22,12 @@ func NewConfigModule(db *gorm.DB, c cache.Cache) *ConfigModule {
 func (m *ConfigModule) Name() string                       { return "config" }
 func (m *ConfigModule) Init(ctx context.Context) error     { return nil }
 func (m *ConfigModule) Shutdown(ctx context.Context) error { return nil }
-func (m *ConfigModule) RegisterPublic(r *gin.RouterGroup)  {}
+func (m *ConfigModule) RegisterPublic(r *gin.RouterGroup) {
+	// 公开配置：无需登录即可读取 is_public=true 的配置
+	pub := r.Group("/public/configs")
+	pub.GET("", m.handler.GetPublicAll)
+	pub.GET("/:key", m.handler.GetPublic)
+}
 func (m *ConfigModule) RegisterProtected(r *gin.RouterGroup) {
 	configs := r.Group("/configs")
 	configs.GET("", rbacTransport.RequirePerm("config:list"), m.handler.GetAll)

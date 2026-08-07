@@ -7,6 +7,8 @@ type configPO struct {
 	Key       string
 	Value     string
 	Remark    string
+	IsPublic  bool
+	Version   string
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }

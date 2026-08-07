@@ -29,6 +29,14 @@ const ConfigManage: React.FC = () => {
     },
     { title: '备注', dataIndex: 'remark', ellipsis: true },
     {
+      title: '是否公开',
+      dataIndex: 'is_public',
+      width: 100,
+      render: (_, r) =>
+        r.is_public ? <Tag color="green">公开</Tag> : <Tag color="default">私密</Tag>,
+    },
+    { title: '版本', dataIndex: 'version', width: 100 },
+    {
       title: '操作',
       valueType: 'option',
       render: (_, r) => [
@@ -36,7 +44,7 @@ const ConfigManage: React.FC = () => {
           <a
             key="ed"
             onClick={() => {
-              form.setFieldsValue(r);
+              form.setFieldsValue({ ...r, is_public: !!r.is_public });
               setEditModal({ open: true, config: r });
             }}
           >
@@ -62,7 +70,12 @@ const ConfigManage: React.FC = () => {
 
   const handleEdit = async () => {
     const v = await form.validateFields();
-    await configApi.set(editModal.config!.key as string, String(v.value ?? ''));
+    await configApi.set(
+      editModal.config!.key as string,
+      String(v.value ?? ''),
+      Boolean(v.is_public),
+      String(v.version ?? ''),
+    );
     message.success('更新成功');
     setEditModal({ open: false, config: null });
     actionRef.current?.reload();
@@ -104,6 +117,12 @@ const ConfigManage: React.FC = () => {
           </Form.Item>
           <Form.Item name="value" label="Value" rules={[{ required: true }]}>
             {editModal.config ? renderValueInput(editModal.config.key as string) : <Input />}
+          </Form.Item>
+          <Form.Item name="is_public" label="是否公开" valuePropName="checked">
+            <Switch checkedChildren="公开" unCheckedChildren="私密" />
+          </Form.Item>
+          <Form.Item name="version" label="版本（表示该配置由哪个版本新增）">
+            <Input placeholder="如 1.1.0" />
           </Form.Item>
           <Form.Item name="remark" label="备注">
             <Input.TextArea rows={2} />

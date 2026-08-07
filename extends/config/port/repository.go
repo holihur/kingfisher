@@ -8,7 +8,9 @@ import (
 
 type ConfigRepository interface {
 	GetAll(ctx context.Context) ([]domain.SystemConfig, error)
+	GetPublicAll(ctx context.Context) ([]domain.SystemConfig, error)
 	GetByKey(ctx context.Context, key string) (*domain.SystemConfig, error)
-	Set(ctx context.Context, key, value string) error
+	GetPublicByKey(ctx context.Context, key string) (*domain.SystemConfig, error)
+	Set(ctx context.Context, key, value string, isPublic bool, version string) error
 	Delete(ctx context.Context, key string) error
 }
