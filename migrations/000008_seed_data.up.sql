@@ -18,13 +18,17 @@ INSERT INTO permissions (id, name, code, resource, action) VALUES
 (12,'删除角色','role:delete','role','delete'),
 (13,'查看配置','config:list','config','read'),
 (14,'更新配置','config:update','config','update'),
-(15,'查看审计','audit:list','audit','read');
+(15,'查看审计','audit:list','audit','read'),
+(16,'查看字典','dict:list','dict','read'),
+(17,'创建字典','dict:create','dict','create'),
+(18,'更新字典','dict:update','dict','update'),
+(19,'删除字典','dict:delete','dict','delete');
 -- Admin: all permissions
-INSERT INTO role_permissions (role_id, permission_id) VALUES (1,1),(1,2),(1,3),(1,4),(1,5),(1,6),(1,7),(1,8),(1,9),(1,10),(1,11),(1,12),(1,13),(1,14),(1,15);
+INSERT INTO role_permissions (role_id, permission_id) VALUES (1,1),(1,2),(1,3),(1,4),(1,5),(1,6),(1,7),(1,8),(1,9),(1,10),(1,11),(1,12),(1,13),(1,14),(1,15),(1,16),(1,17),(1,18),(1,19);
 -- Editor: limited permissions
-INSERT INTO role_permissions (role_id, permission_id) VALUES (3,1),(3,2),(3,3),(3,5),(3,6),(3,7),(3,9),(3,13);
+INSERT INTO role_permissions (role_id, permission_id) VALUES (3,1),(3,2),(3,3),(3,5),(3,6),(3,7),(3,9),(3,13),(3,16);
 -- Viewer: read-only
-INSERT INTO role_permissions (role_id, permission_id) VALUES (4,1),(4,5),(4,9),(4,13);
+INSERT INTO role_permissions (role_id, permission_id) VALUES (4,1),(4,5),(4,9),(4,13),(4,16);
 INSERT INTO menus (id, parent_id, name, path, icon, sort, type) VALUES
 (1, 0, 'Dashboard', '/dashboard', 'DashboardOutlined', 1, 2),
 (2, 0, '系统管理', '', 'SettingOutlined', 2, 1),
@@ -32,9 +36,10 @@ INSERT INTO menus (id, parent_id, name, path, icon, sort, type) VALUES
 (4, 2, '菜单管理', '/system/menus', 'MenuOutlined', 2, 2),
 (5, 2, '角色管理', '/system/roles', 'SafetyOutlined', 3, 2),
 (6, 2, '系统配置', '/system/configs', 'ControlOutlined', 4, 2),
-(7, 2, '审计日志', '/system/audit', 'AuditOutlined', 5, 2);
+(7, 2, '审计日志', '/system/audit', 'AuditOutlined', 5, 2),
+(8, 2, '字典管理', '/system/dicts', 'BookOutlined', 6, 2);
 -- Admin: all menus
-INSERT INTO role_menus (role_id, menu_id) VALUES (1,1),(1,2),(1,3),(1,4),(1,5),(1,6),(1,7);
+INSERT INTO role_menus (role_id, menu_id) VALUES (1,1),(1,2),(1,3),(1,4),(1,5),(1,6),(1,7),(1,8);
 -- Editor: dashboard + users (no menus/roles/config/audit)
 INSERT INTO role_menus (role_id, menu_id) VALUES (3,1),(3,2),(3,3);
 -- Viewer: dashboard only

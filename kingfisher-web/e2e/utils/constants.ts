@@ -14,6 +14,8 @@ export const URLS = {
   roles:     '/system/roles',
   configs:   '/system/configs',
   audit:     '/system/audit',
+  dicts:     '/system/dicts',
+  profile:   '/profile',
 } as const;
 
 export const ROLE_NAMES: Record<string, string> = {

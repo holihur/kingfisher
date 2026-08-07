@@ -11,6 +11,8 @@ import MenuManage from '../pages/menu/MenuManage';
 import RoleList from '../pages/role/RoleList';
 import ConfigManage from '../pages/config/ConfigManage';
 import AuditLogList from '../pages/audit/AuditLogList';
+import DictManage from '../pages/dict/DictManage';
+import Profile from '../pages/profile';
 import RegisterPage from '../pages/register';
 import { hasToken } from '../utils/token';
 import { useAuthStore } from '../stores/auth';
@@ -59,11 +61,13 @@ const router = createBrowserRouter([
     ),
     children: [
       { path: 'dashboard', element: <Suspense><Dashboard /></Suspense> },
+      { path: 'profile', element: <Suspense><Profile /></Suspense> },
       { path: 'system/users', element: <Suspense><PermGuard perm="user:list"><UserList /></PermGuard></Suspense> },
       { path: 'system/menus', element: <Suspense><PermGuard perm="menu:list"><MenuManage /></PermGuard></Suspense> },
       { path: 'system/roles', element: <Suspense><PermGuard perm="role:list"><RoleList /></PermGuard></Suspense> },
       { path: 'system/configs', element: <Suspense><PermGuard perm="config:list"><ConfigManage /></PermGuard></Suspense> },
       { path: 'system/audit', element: <Suspense><PermGuard perm="audit:list"><AuditLogList /></PermGuard></Suspense> },
+      { path: 'system/dicts', element: <Suspense><PermGuard perm="dict:list"><DictManage /></PermGuard></Suspense> },
       { index: true, element: <Navigate to="/dashboard" replace /> },
     ],
   },

@@ -40,6 +40,13 @@ const (
 	// Config 10400-10499
 	ErrConfigNotFound  = 10401
 	ErrConfigKeyExists = 10402
+
+	// Dict 10500-10599
+	ErrDictTypeNotFound   = 10501
+	ErrDictTypeCodeExists = 10502
+	ErrDictEntryNotFound  = 10503
+	ErrDictTypeHasEntries = 10504
+	ErrDictTypeNotPublic  = 10505
 )
 
 //nolint:gosec // false positive — Chinese error messages
@@ -69,8 +76,13 @@ var errMsg = map[int]string{
 	ErrRoleExists:         "角色已存在",
 	ErrRoleNotFound:       "角色不存在",
 	ErrRoleInUse:          "角色被用户使用中",
-	ErrConfigNotFound:     "配置不存在",
-	ErrConfigKeyExists:    "配置键已存在",
+	ErrConfigNotFound:      "配置不存在",
+	ErrConfigKeyExists:     "配置键已存在",
+	ErrDictTypeNotFound:    "字典类型不存在",
+	ErrDictTypeCodeExists:  "字典类型编码已存在",
+	ErrDictEntryNotFound:   "字典条目不存在",
+	ErrDictTypeHasEntries:  "字典类型下存在条目，不可删除",
+	ErrDictTypeNotPublic:   "字典类型未公开",
 }
 
 func Msg(code int) string {
@@ -96,7 +108,7 @@ func HTTPStatus(code int) int {
 		return 404
 	case code == 10008:
 		return 405
-	case code == 10001 || (code >= 10100 && code < 10500):
+	case code == 10001 || (code >= 10100 && code < 10600):
 		return 400
 	default:
 		return 500

@@ -43,6 +43,7 @@ tasks:
         kill_port {{.WEB_PORT}} || true
         rm -f kingfisher.db kingfisher.db-shm kingfisher.db-wal
         echo "✓ SQLite 数据库已重置"
+        redis-cli FLUSHDB 2>/dev/null && echo "✓ Redis 缓存已清除" || true
         # Ctrl+C 时同步退出前后端子进程
         # （|| true 容错：个别 shell 不支持该 trap 语法时不影响启动）
         trap 'kill 0' INT TERM EXIT 2>/dev/null || true

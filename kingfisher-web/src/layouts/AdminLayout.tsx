@@ -11,6 +11,7 @@ import {
   SafetyOutlined,
   ControlOutlined,
   AuditOutlined,
+  BookOutlined,
   MenuOutlined,
   QuestionOutlined,
 } from '@ant-design/icons';
@@ -26,6 +27,7 @@ const icons: Record<string, React.ReactNode> = {
   MenuOutlined: <MenuOutlined />,
   ControlOutlined: <ControlOutlined />,
   AuditOutlined: <AuditOutlined />,
+  BookOutlined: <BookOutlined />,
 };
 
 const MOBILE_BREAKPOINT = 768;
@@ -172,7 +174,12 @@ const AdminLayout: React.FC = () => {
             })()} />
           </div>
           <Dropdown
-            menu={{ items: [{ key: 'logout', icon: <LogoutOutlined />, label: '退出登录', onClick: handleLogout }] }}
+            menu={{
+                items: [
+                  { key: 'profile', icon: <UserOutlined />, label: '个人中心', onClick: () => navigate('/profile') },
+                  { key: 'logout', icon: <LogoutOutlined />, label: '退出登录', onClick: handleLogout },
+                ],
+              }}
           >
             <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
               <Avatar src={(userInfo as Record<string, unknown>)?.avatar as string} />

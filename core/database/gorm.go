@@ -107,6 +107,8 @@ func autoMigrate(db *gorm.DB) error {
 		&SystemConfigPO{},
 		&ConfigGroupPO{},
 		&AuditLogPO{},
+		&DictTypePO{},
+		&DictEntryPO{},
 	)
 }
 
@@ -135,6 +137,10 @@ func SeedData(db *gorm.DB) error {
 			{ID: 13, Name: "查看配置", Code: "config:list", Resource: "config", Action: "read"},
 			{ID: 14, Name: "更新配置", Code: "config:update", Resource: "config", Action: "update"},
 			{ID: 15, Name: "查看审计", Code: "audit:list", Resource: "audit", Action: "read"},
+			{ID: 16, Name: "查看字典", Code: "dict:list", Resource: "dict", Action: "read"},
+			{ID: 17, Name: "创建字典", Code: "dict:create", Resource: "dict", Action: "create"},
+			{ID: 18, Name: "更新字典", Code: "dict:update", Resource: "dict", Action: "update"},
+			{ID: 19, Name: "删除字典", Code: "dict:delete", Resource: "dict", Action: "delete"},
 		}
 		if err := tx.Create(&perms).Error; err != nil {
 			return fmt.Errorf("seed permissions: %w", err)
@@ -155,8 +161,9 @@ func SeedData(db *gorm.DB) error {
 		rp := []RP{
 			{1, 1}, {1, 2}, {1, 3}, {1, 4}, {1, 5}, {1, 6}, {1, 7}, {1, 8},
 			{1, 9}, {1, 10}, {1, 11}, {1, 12}, {1, 13}, {1, 14}, {1, 15},
-			{3, 1}, {3, 2}, {3, 3}, {3, 5}, {3, 6}, {3, 7}, {3, 9}, {3, 13},
-			{4, 1}, {4, 5}, {4, 9}, {4, 13},
+			{1, 16}, {1, 17}, {1, 18}, {1, 19},
+			{3, 1}, {3, 2}, {3, 3}, {3, 5}, {3, 6}, {3, 7}, {3, 9}, {3, 13}, {3, 16},
+			{4, 1}, {4, 5}, {4, 9}, {4, 13}, {4, 16},
 		}
 		if err := tx.Table("role_permissions").Create(&rp).Error; err != nil {
 			return fmt.Errorf("seed role_permissions: %w", err)
@@ -171,6 +178,7 @@ func SeedData(db *gorm.DB) error {
 			{ID: 11, ParentID: 2, Name: "角色管理", Path: "/system/roles", Component: "pages/Role/RoleList", Icon: "SafetyOutlined", Sort: 3},
 			{ID: 15, ParentID: 2, Name: "系统配置", Path: "/system/configs", Component: "pages/Config/ConfigManage", Icon: "ControlOutlined", Sort: 4},
 			{ID: 16, ParentID: 2, Name: "审计日志", Path: "/system/audit", Component: "pages/Audit/AuditLogList", Icon: "AuditOutlined", Sort: 5},
+			{ID: 17, ParentID: 2, Name: "字典管理", Path: "/system/dicts", Component: "pages/Dict/DictManage", Icon: "BookOutlined", Sort: 6},
 		}
 		if err := tx.Create(&menus).Error; err != nil {
 			return fmt.Errorf("seed menus: %w", err)
@@ -179,7 +187,7 @@ func SeedData(db *gorm.DB) error {
 		// Role-Menu links (admin sees all, editor sees Dashboard+Users+Menus, viewer sees Dashboard only)
 		type RM struct{ RoleID, MenuID uint }
 		rm := []RM{
-			{1, 1}, {1, 2}, {1, 3}, {1, 7}, {1, 11}, {1, 15}, {1, 16},
+			{1, 1}, {1, 2}, {1, 3}, {1, 7}, {1, 11}, {1, 15}, {1, 16}, {1, 17},
 			{3, 1}, {3, 3}, {3, 7},
 			{4, 1},
 		}
@@ -209,12 +217,28 @@ func SeedData(db *gorm.DB) error {
 			return fmt.Errorf("seed configs: %w", err)
 		}
 
+		// Dictionary Types + Entries
+		dictTypes := []DictTypePO{
+			{ID: 1, Code: "gender", Name: "性别", IsPublic: true, Status: 1},
+		}
+		if err := tx.Create(&dictTypes).Error; err != nil {
+			return fmt.Errorf("seed dict types: %w", err)
+		}
+		dictEntries := []DictEntryPO{
+			{TypeID: 1, Label: "男", Value: "male", Sort: 1, Status: 1},
+			{TypeID: 1, Label: "女", Value: "female", Sort: 2, Status: 1},
+			{TypeID: 1, Label: "未知", Value: "unknown", Sort: 3, Status: 1},
+		}
+		if err := tx.Create(&dictEntries).Error; err != nil {
+			return fmt.Errorf("seed dict entries: %w", err)
+		}
+
 		// Users
 		pwHash := "$2a$12$jDyI8HZp/TVxUrplIqdgNOV/iahF.i3l0YoPHuNLD5kus./WsPTzO" // #nosec G101 — seed data hash (Abcd1234)
 		users := []UserPO{
-			{ID: 1, Username: "admin", Password: pwHash, Email: "admin@example.com", Status: 1, RoleID: 1},
-			{ID: 2, Username: "editor", Password: pwHash, Email: "editor@example.com", Status: 1, RoleID: 3},
-			{ID: 3, Username: "viewer", Password: pwHash, Email: "viewer@example.com", Status: 1, RoleID: 4},
+			{ID: 1, Username: "admin", Nickname: "admin", Password: pwHash, Email: "admin@example.com", Status: 1, RoleID: 1},
+			{ID: 2, Username: "editor", Nickname: "editor", Password: pwHash, Email: "editor@example.com", Status: 1, RoleID: 3},
+			{ID: 3, Username: "viewer", Nickname: "viewer", Password: pwHash, Email: "viewer@example.com", Status: 1, RoleID: 4},
 		}
 		return tx.Create(&users).Error
 	})

@@ -14,6 +14,7 @@ import (
 type UserPO struct {
 	ID             uint   `gorm:"primaryKey"`
 	Username       string `gorm:"size:32;uniqueIndex;not null"`
+	Nickname       string `gorm:"size:64"`
 	Password       string `gorm:"size:128;not null"`
 	Email          string `gorm:"size:128"`
 	Avatar         string `gorm:"size:255"`
@@ -128,3 +129,30 @@ type RolePermissionPO struct {
 }
 
 func (RolePermissionPO) TableName() string { return "role_permissions" }
+
+type DictTypePO struct {
+	ID        uint   `gorm:"primaryKey"`
+	Code      string `gorm:"size:64;uniqueIndex;not null"`
+	Name      string `gorm:"size:128;not null"`
+	IsPublic  bool   `gorm:"default:false;not null"`
+	Status    int    `gorm:"default:1"`
+	Remark    string `gorm:"size:255"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+func (DictTypePO) TableName() string { return "dict_types" }
+
+type DictEntryPO struct {
+	ID        uint   `gorm:"primaryKey"`
+	TypeID    uint   `gorm:"index;not null"`
+	Label     string `gorm:"size:128;not null"`
+	Value     string `gorm:"size:128;not null"`
+	Sort      int    `gorm:"default:0"`
+	Status    int    `gorm:"default:1"`
+	Remark    string `gorm:"size:255"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+func (DictEntryPO) TableName() string { return "dict_entries" }
