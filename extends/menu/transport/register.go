@@ -9,6 +9,7 @@ import (
 	"kingfisher/core/cache"
 	adapter "kingfisher/extends/menu/adapter/mysql"
 	app "kingfisher/extends/menu/app"
+	rbacTransport "kingfisher/extends/rbac/transport"
 )
 
 type MenuModule struct{ handler *MenuHandler }
@@ -24,9 +25,10 @@ func (m *MenuModule) Shutdown(ctx context.Context) error { return nil }
 func (m *MenuModule) RegisterPublic(r *gin.RouterGroup)  {}
 func (m *MenuModule) RegisterProtected(r *gin.RouterGroup) {
 	menus := r.Group("/menus")
-	menus.GET("/tree", m.handler.GetTree)
-	menus.GET("/:id", m.handler.GetByID)
-	menus.POST("", m.handler.Create)
-	menus.PUT("/:id", m.handler.Update)
-	menus.DELETE("/:id", m.handler.Delete)
+	menus.GET("/tree", rbacTransport.RequirePerm("menu:list"), m.handler.GetTree)
+	menus.GET("/my", m.handler.GetMyTree) // role-filtered, all authenticated users
+	menus.GET("/:id", rbacTransport.RequirePerm("menu:list"), m.handler.GetByID)
+	menus.POST("", rbacTransport.RequirePerm("menu:create"), m.handler.Create)
+	menus.PUT("/:id", rbacTransport.RequirePerm("menu:update"), m.handler.Update)
+	menus.DELETE("/:id", rbacTransport.RequirePerm("menu:delete"), m.handler.Delete)
 }

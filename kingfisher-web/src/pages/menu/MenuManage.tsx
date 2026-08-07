@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Modal, Form, Input, InputNumber, Select, TreeSelect, Tag, message, Popconfirm } from 'antd';
+import { Button, Modal, Form, Input, InputNumber, TreeSelect, message, Popconfirm } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import ProTable from '@ant-design/pro-table';
 import { useAuthStore } from '../../stores/auth';
@@ -12,8 +12,6 @@ interface MenuItem {
   path: string;
   icon: string;
   sort: number;
-  type: number;
-  permission: string;
   children?: MenuItem[];
   level?: number;
 }
@@ -25,6 +23,7 @@ const MenuManage: React.FC = () => {
   const [form] = Form.useForm();
   const perms = useAuthStore((s) => s.permissions);
 
+
   const fetchTree = async () => {
     const r = await menuApi.getTree();
     setTree((r.data as MenuItem[]) || []);
@@ -34,7 +33,10 @@ const MenuManage: React.FC = () => {
   }, []);
 
   const flatten = (items: MenuItem[], lvl = 0): Record<string, unknown>[] =>
-    items.flatMap((i) => [{ ...i, level: lvl }, ...(i.children ? flatten(i.children, lvl + 1) : [])]);
+    items.flatMap((i) => {
+      const { children, ...rest } = i as MenuItem & { children?: MenuItem[] };
+      return [{ ...rest, level: lvl }, ...(children ? flatten(children, lvl + 1) : [])];
+    });
 
   const handleSubmit = async () => {
     const v = await form.validateFields();
@@ -49,66 +51,34 @@ const MenuManage: React.FC = () => {
     fetchTree();
   };
 
-  const typeTag = ['blue', 'green', 'orange'];
-  const typeLabel = ['目录', '菜单', '按钮'];
-
   const columns = [
     {
       title: '名称',
       dataIndex: 'name',
       render: (_: unknown, r: Record<string, unknown>) => (
         <span style={{ paddingLeft: ((r.level as number) || 0) * 24 }}>
-          <Tag color={typeTag[((r.type as number) || 2) - 1]}>{typeLabel[((r.type as number) || 2) - 1]}</Tag>
-          {r.name as string}
+          {r.parent_id ? '↳ ' : ''}{r.name as string}
         </span>
       ),
     },
     { title: '路由', dataIndex: 'path' },
+    { title: '图标', dataIndex: 'icon', width: 120 },
     { title: '排序', dataIndex: 'sort', width: 80 },
     {
       title: '操作',
       valueType: 'option',
       render: (_: unknown, r: Record<string, unknown>) => [
         perms.includes('menu:update') ? (
-          <a
-            key="ed"
-            onClick={() => {
-              setEditing(r as unknown as MenuItem);
-              form.setFieldsValue(r as Record<string, unknown>);
-              setModalOpen(true);
-            }}
-          >
-            编辑
-          </a>
+          <a key="ed" onClick={() => { setEditing(r as unknown as MenuItem); setModalOpen(true); }}>编辑</a>
         ) : null,
-        (r.type as number) !== 3 && perms.includes('menu:create') ? (
-          <a
-            key="add"
-            onClick={() => {
-              setEditing({ parent_id: r.id as number } as MenuItem);
-              form.resetFields();
-              form.setFieldValue('parent_id', r.id);
-              setModalOpen(true);
-            }}
-          >
-            添加子项
-          </a>
+        perms.includes('menu:create') ? (
+          <a key="add" onClick={() => { setEditing({ parent_id: r.id as number } as MenuItem); setModalOpen(true); }}>添加子项</a>
         ) : null,
         perms.includes('menu:delete') ? (
           (r.children as MenuItem[])?.length > 0 ? (
-            <a key="del-disabled" style={{ color: '#ccc', cursor: 'not-allowed' }} title="有子节点无法删除">
-              删除
-            </a>
+            <a key="del-disabled" style={{ color: '#ccc', cursor: 'not-allowed' }} title="有子节点无法删除">删除</a>
           ) : (
-            <Popconfirm
-              key="del"
-              title="确认删除？"
-              onConfirm={async () => {
-                await menuApi.delete(r.id as number);
-                message.success('已删除');
-                fetchTree();
-              }}
-            >
+            <Popconfirm key="del" title="确认删除？" onConfirm={async () => { try { await menuApi.delete(r.id as number); message.success('已删除'); fetchTree(); } catch { /* error shown by interceptor */ } }}>
               <a style={{ color: 'red' }}>删除</a>
             </Popconfirm>
           )
@@ -119,77 +89,40 @@ const MenuManage: React.FC = () => {
 
   return (
     <>
-      <ProTable
-        columns={columns as Record<string, unknown>[]}
-        dataSource={flatten(tree)}
-        rowKey="id"
-        search={false}
-        pagination={false}
+      <ProTable columns={columns as Record<string, unknown>[]} dataSource={flatten(tree)} rowKey="id" search={false} pagination={false}
         headerTitle="菜单管理"
         toolBarRender={() => [
           perms.includes('menu:create') ? (
-            <Button
-              key="add"
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => {
-                setEditing(null);
-                form.resetFields();
-                setModalOpen(true);
-              }}
-            >
+            <Button key="add" type="primary" icon={<PlusOutlined />} onClick={() => { setEditing(null); setModalOpen(true); }}>
               新增根菜单
             </Button>
           ) : null,
         ]}
       />
-      <Modal
-        title={editing?.id ? '编辑菜单' : '新增菜单'}
-        open={modalOpen}
-        onOk={handleSubmit}
-        onCancel={() => {
-          setModalOpen(false);
-          setEditing(null);
-        }}
-        destroyOnClose
-      >
-        <Form form={form} layout="vertical" preserve={false}>
+      <Modal title={editing?.id ? '编辑菜单' : '新增菜单'} open={modalOpen} onOk={handleSubmit}
+        onCancel={() => { setModalOpen(false); setEditing(null); }}
+        afterOpenChange={(open) => {
+          if (open && editing) {
+            form.setFieldsValue(editing as any);
+          } else if (open && !editing) {
+            form.resetFields();
+          }
+        }}>
+        <Form form={form} layout="vertical">
           <Form.Item name="parent_id" label="上级菜单">
-            <TreeSelect
-              treeData={[
-                { title: '根菜单', value: 0, children: (tree || []).filter((m: MenuItem) => m.type !== 3).map((m: MenuItem) => ({
-                  title: m.name,
-                  value: m.id,
-                  children: (m.children || []).filter((c: MenuItem) => c.type !== 3).map((c: MenuItem) => ({
-                    title: c.name,
-                    value: c.id,
-                  })),
-                })) },
-              ]}
-              placeholder="不选则为根菜单"
-              allowClear
-            />
-          </Form.Item>
-          <Form.Item name="type" label="类型" rules={[{ required: true }]}>
-            <Select
-              options={[
-                { label: '目录', value: 1 },
-                { label: '菜单', value: 2 },
-                { label: '按钮', value: 3 },
-              ]}
-            />
+            <TreeSelect treeData={[{ title: '根菜单', value: 0, children: (tree || []).map((m: MenuItem) => ({
+              title: m.name, value: m.id,
+              children: (m.children || []).map((c: MenuItem) => ({ title: c.name, value: c.id })),
+            })) }]} placeholder="不选则为根菜单" allowClear />
           </Form.Item>
           <Form.Item name="name" label="名称" rules={[{ required: true }]}>
             <Input />
           </Form.Item>
           <Form.Item name="path" label="路由路径">
-            <Input placeholder="type=菜单时必填" />
+            <Input />
           </Form.Item>
           <Form.Item name="icon" label="图标">
             <Input placeholder="AntD 图标名" />
-          </Form.Item>
-          <Form.Item name="permission" label="权限标识">
-            <Input placeholder="如 user:create" />
           </Form.Item>
           <Form.Item name="sort" label="排序">
             <InputNumber min={0} />

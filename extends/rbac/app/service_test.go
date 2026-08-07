@@ -191,6 +191,70 @@ func TestGetUserPermissions(t *testing.T) {
 	}
 }
 
+func TestRoleUpdate(t *testing.T) {
+	repo := &mockRoleRepo{
+		roles: map[uint]*domain.Role{1: {ID: 1, Name: "old", Code: "old", Status: 1}},
+	}
+	svc := NewRoleService(repo, nil)
+	if err := svc.Update(context.Background(), 1, map[string]any{"name": "new"}); err != nil {
+		t.Fatal("update:", err)
+	}
+}
+
+func TestAssignPermissions(t *testing.T) {
+	repo := &mockRoleRepo{
+		roles: map[uint]*domain.Role{1: {ID: 1, Name: "admin", Code: "admin", Status: 1}},
+	}
+	svc := NewRoleService(repo, nil)
+	if err := svc.AssignPermissions(context.Background(), 1, []uint{1, 3, 5}); err != nil {
+		t.Fatal("assign:", err)
+	}
+}
+
+func TestAssignMenus(t *testing.T) {
+	repo := &mockRoleRepo{
+		roles: map[uint]*domain.Role{1: {ID: 1, Name: "admin", Code: "admin", Status: 1}},
+	}
+	svc := NewRoleService(repo, nil)
+	if err := svc.AssignMenus(context.Background(), 1, []uint{1, 2}); err != nil {
+		t.Fatal("assign:", err)
+	}
+}
+
+func TestGetRolePermissions(t *testing.T) {
+	repo := &mockRoleRepo{
+		roles: map[uint]*domain.Role{1: {ID: 1, Name: "admin", Code: "admin"}},
+		perms: map[uint][]domain.Permission{
+			1: {{ID: 1, Name: "查看用户", Code: "user:list"}},
+		},
+	}
+	svc := NewRoleService(repo, nil)
+	perms, err := svc.GetRolePermissions(context.Background(), 1)
+	if err != nil {
+		t.Fatal("get:", err)
+	}
+	if len(perms) != 1 {
+		t.Error("should have 1 perm")
+	}
+}
+
+func TestGetRoleMenus(t *testing.T) {
+	repo := &mockRoleRepo{
+		roles: map[uint]*domain.Role{1: {ID: 1, Name: "admin", Code: "admin"}},
+		menus: map[uint][]domain.Menu{
+			1: {{ID: 1, Name: "Dashboard"}},
+		},
+	}
+	svc := NewRoleService(repo, nil)
+	menus, err := svc.GetRoleMenus(context.Background(), 1)
+	if err != nil {
+		t.Fatal("get:", err)
+	}
+	if len(menus) != 1 {
+		t.Error("should have 1 menu")
+	}
+}
+
 func TestStrSliceRoundTrip(t *testing.T) {
 	input := []string{"user:list", "menu:create", "role:delete"}
 	s := strings.Join(input, ",")

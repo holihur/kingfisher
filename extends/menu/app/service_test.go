@@ -78,9 +78,9 @@ func (m *mockMenuRepo) HasChildren(ctx context.Context, id uint) (bool, error) {
 func TestMenuGetTree(t *testing.T) {
 	repo := &mockMenuRepo{
 		menus: map[uint]*domain.Menu{
-			1: {ID: 1, Name: "Dashboard", Path: "/dashboard", Type: 2},
-			2: {ID: 2, Name: "系统管理", Path: "/system", Type: 1},
-			3: {ID: 3, ParentID: 2, Name: "用户管理", Path: "/system/users", Type: 2, Permission: "user:list"},
+			1: {ID: 1, Name: "Dashboard", Path: "/dashboard"},
+			2: {ID: 2, Name: "系统管理", Path: "/system"},
+			3: {ID: 3, ParentID: 2, Name: "用户管理", Path: "/system/users"},
 		},
 	}
 	svc := NewMenuService(repo, nil)
@@ -96,7 +96,7 @@ func TestMenuGetTree(t *testing.T) {
 func TestMenuCreate(t *testing.T) {
 	repo := &mockMenuRepo{menus: map[uint]*domain.Menu{}}
 	svc := NewMenuService(repo, nil)
-	m := &domain.Menu{Name: "测试", Path: "/test", Type: 2}
+	m := &domain.Menu{Name: "测试", Path: "/test"}
 	if err := svc.Create(context.Background(), m); err != nil {
 		t.Fatal("create:", err)
 	}
@@ -108,11 +108,11 @@ func TestMenuCreate(t *testing.T) {
 func TestMenuCreateDuplicatePath(t *testing.T) {
 	repo := &mockMenuRepo{
 		menus: map[uint]*domain.Menu{
-			1: {ID: 1, Name: "existing", Path: "/test", Type: 2},
+			1: {ID: 1, Name: "existing", Path: "/test"},
 		},
 	}
 	svc := NewMenuService(repo, nil)
-	m := &domain.Menu{Name: "dup", Path: "/test", Type: 2}
+	m := &domain.Menu{Name: "dup", Path: "/test"}
 	if err := svc.Create(context.Background(), m); err == nil {
 		t.Error("duplicate path should fail")
 	}
@@ -145,7 +145,7 @@ func TestMenuDeleteWithoutChildren(t *testing.T) {
 
 func TestMenuGetByID(t *testing.T) {
 	repo := &mockMenuRepo{
-		menus: map[uint]*domain.Menu{1: {ID: 1, Name: "Dashboard", Path: "/dashboard", Type: 2}},
+		menus: map[uint]*domain.Menu{1: {ID: 1, Name: "Dashboard", Path: "/dashboard"}},
 	}
 	svc := NewMenuService(repo, nil)
 	m, err := svc.GetByID(context.Background(), 1)
@@ -159,10 +159,10 @@ func TestMenuGetByID(t *testing.T) {
 
 func TestBuildTree(t *testing.T) {
 	menus := []domain.Menu{
-		{ID: 1, Name: "Root", Type: 1},
-		{ID: 2, ParentID: 1, Name: "Child", Type: 2},
-		{ID: 3, ParentID: 1, Name: "Child2", Type: 2},
-		{ID: 4, Name: "Root2", Type: 2},
+		{ID: 1, Name: "Root"},
+		{ID: 2, ParentID: 1, Name: "Child"},
+		{ID: 3, ParentID: 1, Name: "Child2"},
+		{ID: 4, Name: "Root2"},
 	}
 	tree := buildTree(menus, 0)
 	if len(tree) != 2 {

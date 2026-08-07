@@ -17,6 +17,7 @@ type Cache interface {
 	Get(ctx context.Context, key string) (string, error)
 	Set(ctx context.Context, key string, val any, ttl time.Duration) error
 	Delete(ctx context.Context, keys ...string) error
+	DeleteByPattern(ctx context.Context, pattern string) error
 	Exists(ctx context.Context, key string) (bool, error)
 	Incr(ctx context.Context, key string) (int64, error)
 	Expire(ctx context.Context, key string, ttl time.Duration) error
@@ -58,6 +59,24 @@ func (c *RedisCache) Set(ctx context.Context, key string, val any, ttl time.Dura
 
 func (c *RedisCache) Delete(ctx context.Context, keys ...string) error {
 	return c.client.Del(ctx, keys...).Err()
+}
+
+// DeleteByPattern deletes all keys matching a glob pattern (SCAN + DEL).
+// Redis DEL does not accept patterns, so this is required to invalidate
+// caches keyed by prefix (e.g. "user:perms:*").
+func (c *RedisCache) DeleteByPattern(ctx context.Context, pattern string) error {
+	var keys []string
+	iter := c.client.Scan(ctx, 0, pattern, 100).Iterator()
+	for iter.Next(ctx) {
+		keys = append(keys, iter.Val())
+	}
+	if err := iter.Err(); err != nil {
+		return err
+	}
+	if len(keys) > 0 {
+		return c.client.Del(ctx, keys...).Err()
+	}
+	return nil
 }
 
 func (c *RedisCache) Exists(ctx context.Context, key string) (bool, error) {

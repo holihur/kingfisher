@@ -29,6 +29,5 @@ type Menu struct {
 	Icon       string `json:"icon"`
 	Sort       int    `json:"sort"`
 	Type       int    `json:"type"`
-	Permission string `json:"permission"`
 	Status     int    `json:"status"`
 }

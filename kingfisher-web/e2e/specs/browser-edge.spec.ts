@@ -1,69 +1,52 @@
 import { test, expect } from '@playwright/test';
-import { newAuthenticatedPage } from '../fixtures/auth';
-import { UserListPage } from '../pages/user-list.page';
+import { CREDENTIALS } from '../utils/constants';
 
-test.describe('Browser Edge Cases', () => {
-  test('ESC 关闭弹窗', async ({ browser }) => {
-    const context = await browser.newContext();
-    const page = await newAuthenticatedPage(context, 'admin');
-    const userList = new UserListPage(page);
-    await userList.goto();
-
-    await userList.addButton().click();
-    await expect(userList.modal()).toBeVisible();
-
-    await page.keyboard.press('Escape');
-    await expect(userList.modal()).not.toBeVisible();
-
-    await context.close();
+async function loginAdmin(page) {
+  const resp = await page.request.post('http://localhost:18080/api/v1/auth/login', {
+    data: { username: CREDENTIALS.admin.username, password: CREDENTIALS.admin.password },
   });
+  const body = await resp.json();
+  await page.goto('/login');
+  await page.evaluate(
+    ({ t, r }) => { localStorage.setItem('kingfisher_token', t); localStorage.setItem('kingfisher_refresh', r); },
+    { t: body.data.access_token, r: body.data.refresh_token },
+  );
+}
 
-  test('弹窗外点击关闭（点击遮罩）', async ({ browser }) => {
-    const context = await browser.newContext();
-    const page = await newAuthenticatedPage(context, 'admin');
-    const userList = new UserListPage(page);
-    await userList.goto();
+test('ESC 关闭弹窗', async ({ page }) => {
+  await loginAdmin(page);
+  await page.goto('/system/users');
+  await page.waitForLoadState('networkidle');
+  await page.getByRole('button', { name: '新增用户' }).click();
+  await expect(page.locator('.ant-modal')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.ant-modal')).not.toBeVisible();
+});
 
-    await userList.addButton().click();
-    await expect(userList.modal()).toBeVisible();
+test('遮罩点击关闭弹窗', async ({ page }) => {
+  await loginAdmin(page);
+  await page.goto('/system/users');
+  await page.waitForLoadState('networkidle');
+  await page.getByRole('button', { name: '新增用户' }).click();
+  await expect(page.locator('.ant-modal')).toBeVisible();
+  await page.locator('.ant-modal-mask').click({ position: { x: 10, y: 10 } });
+  await expect(page.locator('.ant-modal')).not.toBeVisible();
+});
 
-    // Click the mask behind the modal
-    const mask = page.locator('.ant-modal-mask');
-    await mask.click({ position: { x: 10, y: 10 } });
-    await expect(userList.modal()).not.toBeVisible();
+test('Mobile viewport 不溢出', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await loginAdmin(page);
+  await page.goto('/login');
+  await page.waitForLoadState('networkidle');
+  const bodyWidth = await page.evaluate(() => document.body.scrollWidth);
+  expect(bodyWidth).toBeLessThanOrEqual(375);
+});
 
-    await context.close();
-  });
-
-  test('Mobile viewport (375x812) 布局不溢出', async ({ browser }) => {
-    const context = await browser.newContext({
-      viewport: { width: 375, height: 812 },
-    });
-    const page = await newAuthenticatedPage(context, 'admin');
-
-    await page.goto('/login');
-    await page.waitForLoadState('networkidle');
-
-    const bodyWidth = await page.evaluate(() => document.body.scrollWidth);
-    expect(bodyWidth).toBeLessThanOrEqual(375);
-
-    await context.close();
-  });
-
-  test('页面刷新后保持状态不跳转登录', async ({ browser }) => {
-    const context = await browser.newContext();
-    const page = await newAuthenticatedPage(context, 'admin');
-    await page.goto('/dashboard');
-    await page.waitForLoadState('networkidle');
-
-    expect(page.url()).toContain('/dashboard');
-
-    await page.reload();
-    await page.waitForLoadState('networkidle');
-
-    // Should stay on dashboard
-    expect(page.url()).toContain('/dashboard');
-
-    await context.close();
-  });
+test('页面刷新保持登录', async ({ page }) => {
+  await loginAdmin(page);
+  await page.goto('/dashboard');
+  await page.waitForLoadState('networkidle');
+  await page.reload();
+  await page.waitForLoadState('networkidle');
+  expect(page.url()).toContain('/dashboard');
 });

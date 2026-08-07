@@ -5,15 +5,10 @@ import type { FormInstance } from 'antd';
 interface UserFormProps {
   form: FormInstance;
   editing?: Record<string, unknown> | null;
+  roles: { label: string; value: number }[];
 }
 
-const ROLES = [
-  { label: '管理员', value: 1 },
-  { label: '编辑', value: 3 },
-  { label: '访客', value: 4 },
-];
-
-const UserForm: React.FC<UserFormProps> = ({ form, editing }) => (
+const UserForm: React.FC<UserFormProps> = ({ form, editing, roles }) => (
   <Form form={form} layout="vertical" preserve={false}>
     <Form.Item name="username" label="用户名" rules={[{ required: true, min: 3, max: 32 }]}>
       <Input disabled={!!editing?.id} />
@@ -33,7 +28,7 @@ const UserForm: React.FC<UserFormProps> = ({ form, editing }) => (
       ]} />
     </Form.Item>
     <Form.Item name="role_id" label="角色">
-      <Select options={ROLES} />
+      <Select options={roles} />
     </Form.Item>
   </Form>
 );

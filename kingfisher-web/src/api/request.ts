@@ -31,15 +31,17 @@ request.interceptors.response.use(
         return Promise.reject(new Error('登录已过期'));
       default:
         message.error(msg || `请求失败 [${code}]`);
-        return Promise.reject(new Error(msg));
+        return Promise.reject(new Error(msg || `请求失败 [${code}]`));
     }
   },
-  (error: AxiosError) => {
+  (error: AxiosError<{ message?: string }>) => {
     if (!error.response) {
       message.error('网络异常');
       return Promise.reject(error);
     }
-    const msgs: Record<number, string> = {
+    // 优先使用后端返回的错误信息
+    const backendMsg = error.response.data?.message;
+    const statusMsgs: Record<number, string> = {
       400: '请求参数错误',
       401: '未授权',
       403: '无权限',
@@ -47,7 +49,7 @@ request.interceptors.response.use(
       429: '请求过于频繁',
       500: '服务器内部错误',
     };
-    message.error(msgs[error.response.status] || `服务器错误 (${error.response.status})`);
+    message.error(backendMsg || statusMsgs[error.response.status] || `服务器错误 (${error.response.status})`);
     return Promise.reject(error);
   }
 );

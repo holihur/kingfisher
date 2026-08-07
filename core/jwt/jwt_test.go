@@ -11,7 +11,7 @@ import (
 
 func TestGenerateAndParse(t *testing.T) {
 	mgr := NewJWTManager(config.JWTConfig{Secret: "test-secret", AccessTTL: time.Hour, RefreshTTL: 2 * time.Hour, Issuer: "test"}, nil)
-	access, refresh, err := mgr.GenerateToken(context.Background(), 1, "admin", 1)
+	access, refresh, err := mgr.GenerateToken(context.Background(), 1, 1, "admin", 1)
 	if err != nil {
 		t.Fatal("generate:", err)
 	}
@@ -26,6 +26,9 @@ func TestGenerateAndParse(t *testing.T) {
 	if claims.UserID != 1 {
 		t.Error("user_id should be 1")
 	}
+	if claims.RoleID != 1 {
+		t.Error("role_id should be 1")
+	}
 	if claims.Role != "admin" {
 		t.Error("role should be admin")
 	}
@@ -39,7 +42,7 @@ func TestGenerateAndParse(t *testing.T) {
 
 func TestRefreshToken(t *testing.T) {
 	mgr := NewJWTManager(config.JWTConfig{Secret: "test-secret", AccessTTL: time.Hour, RefreshTTL: 2 * time.Hour, Issuer: "test"}, nil)
-	_, refresh, _ := mgr.GenerateToken(context.Background(), 1, "admin", 1)
+	_, refresh, _ := mgr.GenerateToken(context.Background(), 1, 1, "admin", 1)
 
 	newAccess, err := mgr.RefreshToken(context.Background(), refresh)
 	if err != nil {
@@ -52,7 +55,7 @@ func TestRefreshToken(t *testing.T) {
 
 func TestRefreshWithAccessToken(t *testing.T) {
 	mgr := NewJWTManager(config.JWTConfig{Secret: "test-secret", AccessTTL: time.Hour, RefreshTTL: 2 * time.Hour, Issuer: "test"}, nil)
-	access, _, _ := mgr.GenerateToken(context.Background(), 1, "admin", 1)
+	access, _, _ := mgr.GenerateToken(context.Background(), 1, 1, "admin", 1)
 
 	_, err := mgr.RefreshToken(context.Background(), access)
 	if err == nil {
@@ -63,7 +66,7 @@ func TestRefreshWithAccessToken(t *testing.T) {
 func TestExpiredToken(t *testing.T) {
 	// Token with very short TTL — generates fine but Parse fails after TTL
 	mgr := NewJWTManager(config.JWTConfig{Secret: "test", AccessTTL: -1 * time.Hour, RefreshTTL: time.Hour, Issuer: "test"}, nil)
-	_, _, err := mgr.GenerateToken(context.Background(), 1, "admin", 1)
+	_, _, err := mgr.GenerateToken(context.Background(), 1, 1, "admin", 1)
 	// GenerateToken with negative TTL creates a token that's already expired; parse would fail
 	if err != nil {
 		t.Log("generate with negative TTL:", err)
@@ -72,7 +75,7 @@ func TestExpiredToken(t *testing.T) {
 
 func TestRevokeToken(t *testing.T) {
 	mgr := NewJWTManager(config.JWTConfig{Secret: "test", AccessTTL: time.Hour, RefreshTTL: 2 * time.Hour, Issuer: "test"}, nil)
-	access, _, _ := mgr.GenerateToken(context.Background(), 1, "admin", 1)
+	access, _, _ := mgr.GenerateToken(context.Background(), 1, 1, "admin", 1)
 	// Revoke without cache: ParseToken succeeds, then cache.Set fails silently (cache is nil)
 	// Cache=nil means IsRevoked is skipped in ParseToken
 	err := mgr.RevokeToken(context.Background(), access)
@@ -86,6 +89,6 @@ func BenchmarkGenerateToken(b *testing.B) {
 	mgr := NewJWTManager(config.JWTConfig{Secret: "test", AccessTTL: 1e12, RefreshTTL: 2e12, Issuer: "test"}, nil)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _, _ = mgr.GenerateToken(context.Background(), 1, "admin", 1)
+		_, _, _ = mgr.GenerateToken(context.Background(), 1, 1, "admin", 1)
 	}
 }

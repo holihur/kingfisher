@@ -31,15 +31,15 @@ func (m *RBACModule) Shutdown(ctx context.Context) error { return nil }
 func (m *RBACModule) RegisterPublic(r *gin.RouterGroup)  {}
 func (m *RBACModule) RegisterProtected(r *gin.RouterGroup) {
 	roles := r.Group("/roles")
-	roles.GET("", m.roleHandler.List)
-	roles.GET("/:id", m.roleHandler.GetByID)
+	roles.GET("", RequirePerm("role:list"), m.roleHandler.List)
+	roles.GET("/:id", RequirePerm("role:list"), m.roleHandler.GetByID)
 	roles.POST("", RequirePerm("role:create"), m.roleHandler.Create)
 	roles.PUT("/:id", RequirePerm("role:update"), m.roleHandler.Update)
 	roles.DELETE("/:id", RequirePerm("role:delete"), m.roleHandler.Delete)
-	roles.GET("/:id/permissions", m.roleHandler.GetPermissions)
+	roles.GET("/:id/permissions", RequirePerm("role:list"), m.roleHandler.GetPermissions)
 	roles.PUT("/:id/permissions", RequirePerm("role:update"), m.roleHandler.AssignPerms)
-	roles.GET("/:id/menus", m.roleHandler.GetMenus)
+	roles.GET("/:id/menus", RequirePerm("role:list"), m.roleHandler.GetMenus)
 	roles.PUT("/:id/menus", RequirePerm("role:update"), m.roleHandler.AssignMenus)
 	perms := r.Group("/permissions")
-	perms.GET("", m.permHandler.List)
+	perms.GET("", RequirePerm("role:list"), m.permHandler.List)
 }

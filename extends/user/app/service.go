@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -82,7 +83,7 @@ func (s *AuthService) Login(ctx context.Context, username, password string) (str
 	if user.RoleID == 3 {
 		roleCode = "editor"
 	}
-	access, refresh, err := s.jwtMgr.GenerateToken(ctx, user.ID, roleCode, user.SessionVersion)
+	access, refresh, err := s.jwtMgr.GenerateToken(ctx, user.ID, user.RoleID, roleCode, user.SessionVersion)
 	if err != nil {
 		return "", "", nil, err
 	}
@@ -100,17 +101,28 @@ func (s *AuthService) RefreshToken(ctx context.Context, refreshToken string) (st
 
 // User CRUD
 type UserService struct {
-	repo port.UserRepository
+	repo  port.UserRepository
+	cache cache.Cache
 }
 
-func NewUserService(repo port.UserRepository) *UserService { return &UserService{repo: repo} }
+func NewUserService(repo port.UserRepository, c cache.Cache) *UserService {
+	return &UserService{repo: repo, cache: c}
+}
 
 func (s *UserService) GetByID(ctx context.Context, id uint) (*domain.User, error) {
 	return s.repo.FindByID(ctx, id)
 }
 
 func (s *UserService) Update(ctx context.Context, id uint, updates map[string]any) error {
-	return s.repo.Update(ctx, id, updates)
+	if err := s.repo.Update(ctx, id, updates); err != nil {
+		return err
+	}
+	// When role changes, invalidate cached permissions so RBAC middleware
+	// picks up the new role's permissions on next request.
+	if _, ok := updates["role_id"]; ok && s.cache != nil {
+		_ = s.cache.Delete(ctx, "user:perms:"+strconv.Itoa(int(id)))
+	}
+	return nil
 }
 
 func (s *UserService) Delete(ctx context.Context, id uint) error {

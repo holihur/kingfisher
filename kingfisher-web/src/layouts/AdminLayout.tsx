@@ -16,6 +16,7 @@ import {
 } from '@ant-design/icons';
 import { useAuthStore } from '../stores/auth';
 import { useMenuStore } from '../stores/menu';
+import { clearTokens } from '../utils/token';
 
 const icons: Record<string, React.ReactNode> = {
   DashboardOutlined: <DashboardOutlined />,
@@ -33,8 +34,9 @@ const AdminLayout: React.FC = () => {
   const [mobileDrawer, setMobileDrawer] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < MOBILE_BREAKPOINT);
   const [collapsed, setCollapsed] = useState(isMobile);
+  const [openKeys, setOpenKeys] = useState<string[]>([]);
   const { menuTree, fetchMenus, loading } = useMenuStore();
-  const { userInfo, logout, fetchUserInfo } = useAuthStore();
+  const { userInfo } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -50,12 +52,22 @@ const AdminLayout: React.FC = () => {
 
   useEffect(() => {
     fetchMenus();
-    fetchUserInfo();
   }, []);
+
+  // 菜单加载完成后 / 路由变化时，展开当前路由对应的祖先菜单
+  useEffect(() => {
+    if (!menuTree?.length) return;
+    const chain = findBreadcrumb(menuTree as any, location.pathname);
+    // 面包屑链上除叶子外的所有节点 = 需要展开的子菜单（key 即其 path）
+    const ancestors = chain.slice(0, -1).map((m) => m.path).filter(Boolean) as string[];
+    if (ancestors.length) {
+      setOpenKeys((prev) => Array.from(new Set([...prev, ...ancestors])));
+    }
+  }, [menuTree, location.pathname]);
 
   const buildItems = (items: Record<string, unknown>[]): Record<string, unknown>[] =>
     (items || [])
-      .filter((m: Record<string, unknown>) => (m.status as number) === 1 && (m.type as number) !== 3)
+      .filter((m: Record<string, unknown>) => (m.status as number) === 1)
       .sort((a: Record<string, unknown>, b: Record<string, unknown>) => (a.sort as number) - (b.sort as number))
       .map((item: Record<string, unknown>) => {
         const ch = buildItems((item.children as Record<string, unknown>[]) || []);
@@ -64,23 +76,25 @@ const AdminLayout: React.FC = () => {
           icon: icons[item.icon as string] || <QuestionOutlined />,
           label: item.name as string,
           children: ch.length > 0 ? ch : undefined,
-        };
+        } as Record<string, unknown>;
       });
 
   const handleLogout = () => {
-    logout();
-    navigate('/login');
+    clearTokens();
+    window.location.href = '/login';
   };
 
   const menuProps = {
     theme: 'dark' as const,
     mode: 'inline' as const,
     selectedKeys: [location.pathname],
+    openKeys,
+    onOpenChange: (keys: string[]) => setOpenKeys(keys),
     onClick: ({ key }: { key: string }) => {
       navigate(key);
       setMobileDrawer(false);
     },
-    items: buildItems(menuTree as Record<string, unknown>[]),
+    items: buildItems(menuTree as unknown as Record<string, unknown>[]) as any,
   };
 
   const siderContent = loading ? <Spin style={{ display: 'block', marginTop: 40 }} /> : <Menu {...menuProps} />;
@@ -150,7 +164,7 @@ const AdminLayout: React.FC = () => {
               })
             )}
             <Breadcrumb items={(() => {
-              const bc = findBreadcrumb(menuTree as Record<string, unknown>[], location.pathname);
+              const bc = findBreadcrumb(menuTree as any, location.pathname);
               if (bc.length) {
                 return [{ title: '首页' }, ...bc.map(m => ({ title: m.name }))];
               }

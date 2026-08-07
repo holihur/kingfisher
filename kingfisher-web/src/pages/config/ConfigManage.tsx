@@ -12,12 +12,12 @@ function configInputType(key: string): 'number' | 'switch' | 'text' {
 }
 
 const ConfigManage: React.FC = () => {
-  const actionRef = useRef<ActionType>();
+  const actionRef = useRef<ActionType>(null);
   const [editModal, setEditModal] = useState<{ open: boolean; config: Record<string, unknown> | null }>({
     open: false,
     config: null,
   });
-  const [form] = Form.useForm();
+  const [form] = Form.useForm<Record<string, unknown>>();
   const perms = useAuthStore((s) => s.permissions);
 
   const columns: ProColumns[] = [

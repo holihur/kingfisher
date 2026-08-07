@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"sort"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -442,6 +443,27 @@ func TestAssignPermissions(t *testing.T) {
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, doRequest("PUT", "/api/v1/roles/3/permissions", tok, map[string]any{"permission_ids": []int{1, 5}}))
 	assertCode(t, w, 0)
+
+	// Verify persistence: role 3 (editor) must now have exactly [1, 5]
+	w2 := httptest.NewRecorder()
+	s.ServeHTTP(w2, doRequest("GET", "/api/v1/roles/3/permissions", tok, nil))
+	m := assertCode(t, w2, 0)
+	perms, ok := m["data"].([]any)
+	if !ok {
+		t.Fatalf("want data array, got %v", m["data"])
+	}
+	var ids []int
+	for _, p := range perms {
+		pm, ok := p.(map[string]any)
+		if !ok {
+			t.Fatalf("bad perm element: %v", p)
+		}
+		ids = append(ids, int(pm["id"].(float64)))
+	}
+	sort.Ints(ids)
+	if fmt.Sprint(ids) != "[1 5]" {
+		t.Errorf("want permission ids [1 5], got %v", ids)
+	}
 }
 
 func TestGetRolePermissions(t *testing.T) {
@@ -467,6 +489,27 @@ func TestAssignMenus(t *testing.T) {
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, doRequest("PUT", "/api/v1/roles/3/menus", tok, map[string]any{"menu_ids": []int{1}}))
 	assertCode(t, w, 0)
+
+	// Verify persistence: role 3 (editor) must now have exactly [1]
+	w2 := httptest.NewRecorder()
+	s.ServeHTTP(w2, doRequest("GET", "/api/v1/roles/3/menus", tok, nil))
+	m := assertCode(t, w2, 0)
+	menus, ok := m["data"].([]any)
+	if !ok {
+		t.Fatalf("want data array, got %v", m["data"])
+	}
+	var ids []int
+	for _, mn := range menus {
+		mm, ok := mn.(map[string]any)
+		if !ok {
+			t.Fatalf("bad menu element: %v", mn)
+		}
+		ids = append(ids, int(mm["id"].(float64)))
+	}
+	sort.Ints(ids)
+	if fmt.Sprint(ids) != "[1]" {
+		t.Errorf("want menu ids [1], got %v", ids)
+	}
 }
 
 // Config tests

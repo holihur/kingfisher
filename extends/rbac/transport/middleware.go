@@ -39,6 +39,7 @@ func AuthMiddleware(jwtMgr *jwt.JWTManager) gin.HandlerFunc {
 			return
 		}
 		c.Set("user_id", claims.UserID)
+		c.Set("role_id", claims.RoleID)
 		c.Set("role", claims.Role)
 		c.Next()
 	}
@@ -63,6 +64,11 @@ func RBACMiddlewareSvc(db *gorm.DB, c cache.Cache) gin.HandlerFunc {
 
 func RequirePerm(code string) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// Super admin bypass — admin has all permissions implicitly
+		if role, _ := c.Get("role"); role == "admin" {
+			c.Next()
+			return
+		}
 		ps, _ := c.Get("permissions")
 		psMap, _ := ps.(map[string]bool)
 		if psMap == nil {

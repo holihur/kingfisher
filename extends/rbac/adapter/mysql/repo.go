@@ -54,18 +54,26 @@ func (r *RoleRepo) Delete(ctx context.Context, id uint) error {
 }
 func (r *RoleRepo) AssignPermissions(ctx context.Context, roleID uint, permIDs []uint) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		tx.Where("role_id = ?", roleID).Delete(&struct{ RoleID, PermissionID uint }{})
+		if err := tx.Where("role_id = ?", roleID).Delete(&rolePermissionPO{}).Error; err != nil {
+			return err
+		}
 		for _, pid := range permIDs {
-			tx.Create(&struct{ RoleID, PermissionID uint }{roleID, pid})
+			if err := tx.Create(&rolePermissionPO{RoleID: roleID, PermissionID: pid}).Error; err != nil {
+				return err
+			}
 		}
 		return nil
 	})
 }
 func (r *RoleRepo) AssignMenus(ctx context.Context, roleID uint, menuIDs []uint) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		tx.Where("role_id = ?", roleID).Delete(&struct{ RoleID, MenuID uint }{})
+		if err := tx.Where("role_id = ?", roleID).Delete(&roleMenuPO{}).Error; err != nil {
+			return err
+		}
 		for _, mid := range menuIDs {
-			tx.Create(&struct{ RoleID, MenuID uint }{roleID, mid})
+			if err := tx.Create(&roleMenuPO{RoleID: roleID, MenuID: mid}).Error; err != nil {
+				return err
+			}
 		}
 		return nil
 	})
@@ -95,18 +103,6 @@ func (r *RoleRepo) GetRolePermissions(ctx context.Context, roleID uint) ([]domai
 }
 
 func (r *RoleRepo) GetRoleMenus(ctx context.Context, roleID uint) ([]domain.Menu, error) {
-	type menuPO struct {
-		ID         uint
-		ParentID   uint
-		Name       string
-		Path       string
-		Component  string
-		Icon       string
-		Sort       int
-		Type       int
-		Permission string
-		Status     int
-	}
 	var pos []menuPO
 	err := r.db.WithContext(ctx).Joins("JOIN role_menus rm ON rm.menu_id = menus.id").Where("rm.role_id = ?", roleID).Order("sort ASC").Find(&pos).Error
 	if err != nil {
@@ -114,7 +110,7 @@ func (r *RoleRepo) GetRoleMenus(ctx context.Context, roleID uint) ([]domain.Menu
 	}
 	menus := make([]domain.Menu, len(pos))
 	for i, p := range pos {
-		menus[i] = domain.Menu{ID: p.ID, ParentID: p.ParentID, Name: p.Name, Path: p.Path, Component: p.Component, Icon: p.Icon, Sort: p.Sort, Type: p.Type, Permission: p.Permission}
+		menus[i] = domain.Menu{ID: p.ID, ParentID: p.ParentID, Name: p.Name, Path: p.Path, Component: p.Component, Icon: p.Icon, Sort: p.Sort}
 	}
 	return menus, nil
 }

@@ -13,7 +13,13 @@ import (
 	"kingfisher/extends/user/domain"
 )
 
-type AuthHandler struct{ svc *app.AuthService }
+// AuditLogger is injected by main to record auth events (login/logout).
+type AuditLogger func(ctx context.Context, userID uint, username, action, resource, ip, userAgent string)
+
+type AuthHandler struct {
+	svc      *app.AuthService
+	auditLog AuditLogger
+}
 
 // PermProvider resolves permission codes for a user. Injected by the RBAC module.
 type PermProvider func(ctx context.Context, userID uint) ([]string, error)
@@ -24,6 +30,10 @@ type UserHandler struct {
 }
 
 func NewAuthHandler(svc *app.AuthService) *AuthHandler { return &AuthHandler{svc: svc} }
+
+// SetAuditLogger injects an audit logger from main.
+func (h *AuthHandler) SetAuditLogger(fn AuditLogger) { h.auditLog = fn }
+
 func NewUserHandler(svc *app.UserService) *UserHandler  { return &UserHandler{svc: svc} }
 
 type RegisterReq struct {
@@ -71,13 +81,18 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 	access, refresh, user, err := h.svc.Login(c.Request.Context(), req.Username, req.Password)
 	if err != nil {
-		if err.Error() == "too many attempts" {
+		h.auditLogin(c, req.Username, "FAILURE", err.Error())
+		switch err.Error() {
+		case "too many attempts":
 			response.ErrorJSON(c, errcode.ErrLoginFailed)
-			return
+		case "user disabled":
+			response.ErrorJSON(c, errcode.ErrUserDisabled)
+		default:
+			response.ErrorJSON(c, errcode.ErrPasswordWrong)
 		}
-		response.ErrorJSON(c, errcode.ErrPasswordWrong)
 		return
 	}
+	h.auditLogin(c, req.Username, "SUCCESS", "")
 	response.OKJSON(c, LoginResp{AccessToken: access, RefreshToken: refresh, User: *user})
 }
 
@@ -92,6 +107,11 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 		return
 	}
 	_ = h.svc.RevokeToken(c.Request.Context(), hdr[7:])
+	username := c.GetString("username")
+	if username == "" {
+		username = "unknown"
+	}
+	h.auditLogout(c, username)
 	response.OKJSON(c, nil)
 }
 
@@ -263,4 +283,22 @@ func (h *UserHandler) RevokeSessions(c *gin.Context) {
 		return
 	}
 	response.OKJSON(c, nil)
+}
+
+func (h *AuthHandler) auditLogin(c *gin.Context, username, result, detail string) {
+	if h.auditLog == nil {
+		return
+	}
+	resource := result
+	if detail != "" {
+		resource = result + ": " + detail
+	}
+	h.auditLog(c.Request.Context(), 0, username, "LOGIN", resource, c.ClientIP(), c.Request.UserAgent())
+}
+
+func (h *AuthHandler) auditLogout(c *gin.Context, username string) {
+	if h.auditLog == nil {
+		return
+	}
+	h.auditLog(c.Request.Context(), c.GetUint("user_id"), username, "LOGOUT", "auth", c.ClientIP(), c.Request.UserAgent())
 }

@@ -14,7 +14,7 @@ type MenuHandler struct{ svc *app.MenuService }
 
 func NewMenuHandler(svc *app.MenuService) *MenuHandler { return &MenuHandler{svc: svc} }
 
-// @Summary 菜单树
+// @Summary 菜单树（导航结构，权限校验在业务接口层）
 // @Tags Menu
 // @Router /api/v1/menus/tree [get]
 func (h *MenuHandler) GetTree(c *gin.Context) {
@@ -23,29 +23,18 @@ func (h *MenuHandler) GetTree(c *gin.Context) {
 		response.InternalError(c)
 		return
 	}
-	// Filter by user permissions injected by RBAC middleware
-	perms, _ := c.Get("permissions")
-	psMap, _ := perms.(map[string]bool)
-	if psMap != nil {
-		tree = filterTreeByPerms(tree, psMap)
-	}
 	response.OKJSON(c, tree)
 }
 
-// filterTreeByPerms removes menu items the user doesn't have permission for.
-// Items with no permission requirement (empty string) are visible to all.
-func filterTreeByPerms(menus []domain.Menu, perms map[string]bool) []domain.Menu {
-	filtered := make([]domain.Menu, 0, len(menus))
-	for _, m := range menus {
-		if m.Permission != "" && !perms[m.Permission] {
-			continue // user doesn't have this permission, skip
-		}
-		if len(m.Children) > 0 {
-			m.Children = filterTreeByPerms(m.Children, perms)
-		}
-		filtered = append(filtered, m)
+// GetMyTree returns the menu tree filtered by the current user's role.
+func (h *MenuHandler) GetMyTree(c *gin.Context) {
+	roleID := c.GetUint("role_id")
+	tree, err := h.svc.GetTreeForRole(c.Request.Context(), roleID)
+	if err != nil {
+		response.InternalError(c)
+		return
 	}
-	return filtered
+	response.OKJSON(c, tree)
 }
 
 func (h *MenuHandler) GetByID(c *gin.Context) {

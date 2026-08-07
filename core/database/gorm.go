@@ -161,33 +161,24 @@ func SeedData(db *gorm.DB) error {
 			return fmt.Errorf("seed role_permissions: %w", err)
 		}
 
-		// Menus
+		// Menus (navigation only — permissions managed in role_permissions)
 		menus := []MenuPO{
-			{ID: 1, ParentID: 0, Name: "Dashboard", Path: "/dashboard", Component: "pages/Dashboard", Icon: "DashboardOutlined", Sort: 0, Type: 2},
-			{ID: 2, ParentID: 0, Name: "系统管理", Path: "/system", Icon: "SettingOutlined", Sort: 1, Type: 1},
-			{ID: 3, ParentID: 2, Name: "用户管理", Path: "/system/users", Component: "pages/User/UserList", Icon: "UserOutlined", Sort: 1, Type: 2, Permission: "user:list"},
-			{ID: 4, ParentID: 3, Name: "新增用户", Sort: 1, Type: 3, Permission: "user:create"},
-			{ID: 5, ParentID: 3, Name: "编辑用户", Sort: 2, Type: 3, Permission: "user:update"},
-			{ID: 6, ParentID: 3, Name: "删除用户", Sort: 3, Type: 3, Permission: "user:delete"},
-			{ID: 7, ParentID: 2, Name: "菜单管理", Path: "/system/menus", Component: "pages/Menu/MenuManage", Icon: "MenuOutlined", Sort: 2, Type: 2, Permission: "menu:list"},
-			{ID: 8, ParentID: 7, Name: "新增菜单", Sort: 1, Type: 3, Permission: "menu:create"},
-			{ID: 9, ParentID: 7, Name: "编辑菜单", Sort: 2, Type: 3, Permission: "menu:update"},
-			{ID: 10, ParentID: 7, Name: "删除菜单", Sort: 3, Type: 3, Permission: "menu:delete"},
-			{ID: 11, ParentID: 2, Name: "角色管理", Path: "/system/roles", Component: "pages/Role/RoleList", Icon: "SafetyOutlined", Sort: 3, Type: 2, Permission: "role:list"},
-			{ID: 12, ParentID: 11, Name: "新增角色", Sort: 1, Type: 3, Permission: "role:create"},
-			{ID: 13, ParentID: 11, Name: "编辑角色", Sort: 2, Type: 3, Permission: "role:update"},
-			{ID: 14, ParentID: 11, Name: "删除角色", Sort: 3, Type: 3, Permission: "role:delete"},
-			{ID: 15, ParentID: 2, Name: "系统配置", Path: "/system/configs", Component: "pages/Config/ConfigManage", Icon: "ControlOutlined", Sort: 4, Type: 2, Permission: "config:list"},
+			{ID: 1, ParentID: 0, Name: "仪表盘", Path: "/dashboard", Component: "pages/Dashboard", Icon: "DashboardOutlined", Sort: 0},
+			{ID: 2, ParentID: 0, Name: "系统管理", Path: "/system", Icon: "SettingOutlined", Sort: 1},
+			{ID: 3, ParentID: 2, Name: "用户管理", Path: "/system/users", Component: "pages/User/UserList", Icon: "UserOutlined", Sort: 1},
+			{ID: 7, ParentID: 2, Name: "菜单管理", Path: "/system/menus", Component: "pages/Menu/MenuManage", Icon: "MenuOutlined", Sort: 2},
+			{ID: 11, ParentID: 2, Name: "角色管理", Path: "/system/roles", Component: "pages/Role/RoleList", Icon: "SafetyOutlined", Sort: 3},
+			{ID: 15, ParentID: 2, Name: "系统配置", Path: "/system/configs", Component: "pages/Config/ConfigManage", Icon: "ControlOutlined", Sort: 4},
+			{ID: 16, ParentID: 2, Name: "审计日志", Path: "/system/audit", Component: "pages/Audit/AuditLogList", Icon: "AuditOutlined", Sort: 5},
 		}
 		if err := tx.Create(&menus).Error; err != nil {
 			return fmt.Errorf("seed menus: %w", err)
 		}
 
-		// Role-Menu links
+		// Role-Menu links (admin sees all, editor sees Dashboard+Users+Menus, viewer sees Dashboard only)
 		type RM struct{ RoleID, MenuID uint }
 		rm := []RM{
-			{1, 1}, {1, 2}, {1, 3}, {1, 4}, {1, 5}, {1, 6}, {1, 7}, {1, 8},
-			{1, 9}, {1, 10}, {1, 11}, {1, 12}, {1, 13}, {1, 14}, {1, 15},
+			{1, 1}, {1, 2}, {1, 3}, {1, 7}, {1, 11}, {1, 15}, {1, 16},
 			{3, 1}, {3, 3}, {3, 7},
 			{4, 1},
 		}

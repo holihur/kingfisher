@@ -85,7 +85,7 @@
 
 ## M4 — 后端 API 全量 ✅ 0/20
 
-> 验证：`make swagger` → 浏览器 `/swagger/index.html` 可见全部接口
+> 验证：`task swagger` → 浏览器 `/swagger/index.html` 可见全部接口
 
 - [ ] extends/menu/domain/menu.go
 - [ ] extends/menu/port/repository.go

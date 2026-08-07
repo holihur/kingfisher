@@ -26,6 +26,14 @@ type mockUserData struct {
 }
 
 func (m *mockUserRepo) FindByID(ctx context.Context, id uint) (*domain.User, error) {
+	for _, d := range m.users {
+		if d.id == id {
+			return &domain.User{
+				ID: d.id, Username: d.username, Password: d.password,
+				Email: d.email, Status: d.status, SessionVersion: d.sessionVer,
+			}, nil
+		}
+	}
 	return nil, fmt.Errorf("not found")
 }
 
@@ -136,5 +144,53 @@ func TestRegisterAndLogin(t *testing.T) {
 	}
 	if newAccess == "" {
 		t.Error("empty new access")
+	}
+}
+
+func TestChangePasswordWrongOld(t *testing.T) {
+	repo := &mockUserRepo{
+		users: map[string]*mockUserData{
+			"admin": {id: 1, username: "admin", password: "$2a$12$jDyI8HZp/TVxUrplIqdgNOV/iahF.i3l0YoPHuNLD5kus./WsPTzO", status: 1, sessionVer: 1},
+		},
+		idCounter: 1,
+	}
+	svc := NewUserService(repo, nil)
+
+	err := svc.ChangePassword(context.Background(), 1, "WrongPass1", "NewPass123")
+	if err == nil {
+		t.Error("wrong old password should fail")
+	}
+}
+
+func TestChangePasswordShortNew(t *testing.T) {
+	repo := &mockUserRepo{
+		users: map[string]*mockUserData{
+			"admin": {id: 1, username: "admin", password: "$2a$12$jDyI8HZp/TVxUrplIqdgNOV/iahF.i3l0YoPHuNLD5kus./WsPTzO", status: 1, sessionVer: 1},
+		},
+		idCounter: 1,
+	}
+	svc := NewUserService(repo, nil)
+
+	err := svc.ChangePassword(context.Background(), 1, "Abcd1234", "short")
+	if err == nil {
+		t.Error("short new password should fail")
+	}
+}
+
+func TestUserCreate(t *testing.T) {
+	repo := &mockUserRepo{users: map[string]*mockUserData{}}
+	svc := NewUserService(repo, nil)
+	u, err := svc.CreateUser(context.Background(), "newuser", "Abcd1234", "new@test.com")
+	if err != nil {
+		t.Fatal("create:", err)
+	}
+	if u.ID == 0 {
+		t.Error("id should be set")
+	}
+	if u.Username != "newuser" {
+		t.Error("username mismatch")
+	}
+	if u.Password != "" {
+		t.Error("password should be empty in response")
 	}
 }

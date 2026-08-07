@@ -51,8 +51,8 @@ func (s *RoleService) AssignPermissions(ctx context.Context, roleID uint, permID
 		return err
 	}
 	if s.cache != nil {
-		// Invalidate all user permission caches — SCAN-based in production
-		_ = s.cache.Delete(ctx, "user:perms:*")
+		// Invalidate all user permission caches (SCAN + DEL — Redis DEL can't match patterns)
+		_ = s.cache.DeleteByPattern(ctx, "user:perms:*")
 	}
 	return nil
 }
@@ -102,6 +102,7 @@ func strSlice(s string) []string {
 	}
 	return strings.Split(s, ",")
 }
+
 type PermService struct{ repo port.PermissionRepository }
 
 func NewPermService(repo port.PermissionRepository) *PermService { return &PermService{repo: repo} }

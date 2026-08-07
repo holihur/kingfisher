@@ -16,6 +16,7 @@ import (
 
 type Claims struct {
 	UserID         uint   `json:"user_id"`
+	RoleID         uint   `json:"role_id"`
 	Role           string `json:"role"`
 	JTI            string `json:"jti"`
 	Type           string `json:"type"` // access | refresh
@@ -41,12 +42,13 @@ func NewJWTManager(cfg config.JWTConfig, c cache.Cache) *JWTManager {
 	}
 }
 
-func (m *JWTManager) GenerateToken(ctx context.Context, userID uint, role string, sessionVersion int) (string, string, error) {
+func (m *JWTManager) GenerateToken(ctx context.Context, userID uint, roleID uint, role string, sessionVersion int) (string, string, error) {
 	jti := uuid.New().String()
 	now := time.Now()
 
 	access := Claims{
 		UserID:         userID,
+		RoleID:         roleID,
 		Role:           role,
 		JTI:            jti,
 		Type:           "access",
@@ -64,6 +66,7 @@ func (m *JWTManager) GenerateToken(ctx context.Context, userID uint, role string
 
 	refresh := Claims{
 		UserID:         userID,
+		RoleID:         roleID,
 		Role:           role,
 		JTI:            jti,
 		Type:           "refresh",
@@ -115,6 +118,7 @@ func (m *JWTManager) RefreshToken(ctx context.Context, refreshToken string) (str
 	now := time.Now()
 	access := Claims{
 		UserID:         claims.UserID,
+		RoleID:         claims.RoleID,
 		Role:           claims.Role,
 		JTI:            jti,
 		Type:           "access",

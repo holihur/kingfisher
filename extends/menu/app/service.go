@@ -55,7 +55,7 @@ func (s *MenuService) GetByID(ctx context.Context, id uint) (*domain.Menu, error
 }
 
 func (s *MenuService) Create(ctx context.Context, m *domain.Menu) error {
-	if m.Type == 2 && m.Path != "" {
+	if m.Path != "" {
 		menus, _ := s.repo.FindAll(ctx)
 		for _, existing := range menus {
 			if existing.Path == m.Path && existing.Path != "" {
@@ -63,11 +63,19 @@ func (s *MenuService) Create(ctx context.Context, m *domain.Menu) error {
 			}
 		}
 	}
-	return s.repo.Create(ctx, m)
+	if err := s.repo.Create(ctx, m); err != nil {
+		return err
+	}
+	_ = s.invalidateTreeCache(ctx)
+	return nil
 }
 
 func (s *MenuService) Update(ctx context.Context, id uint, updates map[string]any) error {
-	return s.repo.Update(ctx, id, updates)
+	if err := s.repo.Update(ctx, id, updates); err != nil {
+		return err
+	}
+	_ = s.invalidateTreeCache(ctx)
+	return nil
 }
 
 func (s *MenuService) Delete(ctx context.Context, id uint) error {
@@ -75,7 +83,18 @@ func (s *MenuService) Delete(ctx context.Context, id uint) error {
 	if hasChildren {
 		return fmt.Errorf("menu has children")
 	}
-	return s.repo.Delete(ctx, id)
+	if err := s.repo.Delete(ctx, id); err != nil {
+		return err
+	}
+	_ = s.invalidateTreeCache(ctx)
+	return nil
+}
+
+func (s *MenuService) invalidateTreeCache(ctx context.Context) error {
+	if s.cache == nil {
+		return nil
+	}
+	return s.cache.Delete(ctx, "menu:tree")
 }
 
 func buildTree(menus []domain.Menu, parentID uint) []domain.Menu {

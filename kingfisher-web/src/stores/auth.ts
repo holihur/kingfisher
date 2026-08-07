@@ -9,6 +9,8 @@ interface AuthState {
   userInfo: Record<string, unknown> | null;
   permissions: string[];
   isLoggedIn: boolean;
+  /** 用户信息/权限是否已加载（刷新后先拉取再渲染路由，避免权限误判） */
+  userLoaded: boolean;
   login: (u: string, p: string) => Promise<void>;
   logout: () => void;
   fetchUserInfo: () => Promise<void>;
@@ -20,6 +22,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   userInfo: null,
   permissions: [],
   isLoggedIn: hasToken(),
+  userLoaded: false,
   login: async (username, password) => {
     const resp = await authApi.login({ username, password });
     const { access_token, refresh_token, user } = resp.data as Record<string, unknown>;
@@ -29,11 +32,13 @@ export const useAuthStore = create<AuthState>((set) => ({
       refreshToken: refresh_token as string,
       userInfo: user as Record<string, unknown>,
       isLoggedIn: true,
+      // 登录响应已含用户信息；权限由 AuthGuard 的 fetchUserInfo 后台补齐
+      userLoaded: true,
     });
   },
   logout: () => {
     clearTokens();
-    set({ token: null, refreshToken: null, userInfo: null, permissions: [], isLoggedIn: false });
+    set({ token: null, refreshToken: null, userInfo: null, permissions: [], isLoggedIn: false, userLoaded: false });
   },
   fetchUserInfo: async () => {
     try {
@@ -42,6 +47,9 @@ export const useAuthStore = create<AuthState>((set) => ({
       set({ userInfo: userResp.data as Record<string, unknown>, permissions: (permResp.data as string[]) || [] });
     } catch {
       /* ignore */
+    } finally {
+      // 无论成功与否都标记为已加载，避免一直转圈（失败时权限为空，由 PermGuard 处理）
+      set({ userLoaded: true });
     }
   },
 }));

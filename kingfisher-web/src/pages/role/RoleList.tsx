@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Button, Modal, Form, Input, Tree, Tabs, Checkbox, Row, Col, message, Popconfirm } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import ProTable, { ProColumns, ActionType } from '@ant-design/pro-table';
@@ -7,7 +7,7 @@ import { roleApi } from '../../api/role';
 import { menuApi } from '../../api/menu';
 
 const RoleList: React.FC = () => {
-  const actionRef = useRef<ActionType>();
+  const actionRef = useRef<ActionType>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Record<string, unknown> | null>(null);
   const [permModal, setPermModal] = useState<{ open: boolean; role: Record<string, unknown> | null }>({
@@ -22,8 +22,9 @@ const RoleList: React.FC = () => {
   const [selectedPerms, setSelectedPerms] = useState<number[]>([]);
   const [allMenus, setAllMenus] = useState<Record<string, unknown>[]>([]);
   const [selectedMenus, setSelectedMenus] = useState<number[]>([]);
-  const [form] = Form.useForm();
+  const [form] = Form.useForm<Record<string, unknown>>();
   const perms = useAuthStore((s) => s.permissions);
+
 
   const columns: ProColumns[] = [
     { title: 'ID', dataIndex: 'id', width: 80 },
@@ -71,7 +72,6 @@ const RoleList: React.FC = () => {
             key="ed"
             onClick={() => {
               setEditing(r as Record<string, unknown>);
-              form.setFieldsValue(r as Record<string, unknown>);
               setModalOpen(true);
             }}
           >
@@ -118,6 +118,15 @@ const RoleList: React.FC = () => {
     {}
   );
 
+  // 递归转换菜单树：给每个节点补上 key/title，否则 Tree 组件显示 ---
+  const toTreeData = (items: Record<string, unknown>[]): Record<string, unknown>[] =>
+    items.map((m) => ({
+      ...m,
+      key: m.id as number,
+      title: m.name as string,
+      children: m.children ? toTreeData(m.children as Record<string, unknown>[]) : undefined,
+    }));
+
   return (
     <>
       <ProTable
@@ -138,7 +147,6 @@ const RoleList: React.FC = () => {
               icon={<PlusOutlined />}
               onClick={() => {
                 setEditing(null);
-                form.resetFields();
                 setModalOpen(true);
               }}
             >
@@ -155,9 +163,15 @@ const RoleList: React.FC = () => {
           setModalOpen(false);
           setEditing(null);
         }}
-        destroyOnClose
+        afterOpenChange={(open) => {
+          if (open && editing) {
+            form.setFieldsValue(editing);
+          } else if (open && !editing) {
+            form.resetFields();
+          }
+        }}
       >
-        <Form form={form} layout="vertical" preserve={false}>
+        <Form form={form} layout="vertical">
           <Form.Item name="name" label="角色名" rules={[{ required: true }]}>
             <Input />
           </Form.Item>
@@ -180,12 +194,12 @@ const RoleList: React.FC = () => {
         }}
         onCancel={() => setPermModal({ open: false, role: null })}
       >
-        <Tabs
-          items={Object.entries(grouped).map(([res, ps]) => ({
-            key: res,
-            label: { user: '用户', menu: '菜单', role: '角色', config: '配置', audit: '审计' }[res] || res,
-            children: (
-              <Checkbox.Group value={selectedPerms} onChange={(v) => setSelectedPerms(v as number[])}>
+        <Checkbox.Group value={selectedPerms} onChange={(v) => setSelectedPerms(v as number[])} style={{ width: '100%' }}>
+          <Tabs
+            items={Object.entries(grouped).map(([res, ps]) => ({
+              key: res,
+              label: { user: '用户', menu: '菜单', role: '角色', config: '配置', audit: '审计' }[res] || res,
+              children: (
                 <Row gutter={[16, 8]}>
                   {ps.map((p) => (
                     <Col span={12} key={p.id as number}>
@@ -193,10 +207,10 @@ const RoleList: React.FC = () => {
                     </Col>
                   ))}
                 </Row>
-              </Checkbox.Group>
-            ),
-          }))}
-        />
+              ),
+            }))}
+          />
+        </Checkbox.Group>
       </Modal>
       <Modal
         title={`分配菜单 — ${menuModal.role?.name || ''}`}
@@ -211,16 +225,13 @@ const RoleList: React.FC = () => {
         <Tree
           checkable
           defaultExpandAll
+          key={menuModal.role?.id as number}
           checkedKeys={selectedMenus}
-          onCheck={(keys) => setSelectedMenus(keys as number[])}
-          treeData={
-            (allMenus || []).map((m: Record<string, unknown>) => ({
-              ...m,
-              key: m.id as number,
-              title: m.name as string,
-              children: (m.children as Record<string, unknown>[]) || [],
-            })) as Record<string, unknown>[]
-          }
+          onCheck={(keys) => {
+            const arr = Array.isArray(keys) ? keys : (keys as { checked: React.Key[] }).checked;
+            setSelectedMenus(arr as number[]);
+          }}
+          treeData={toTreeData(allMenus as Record<string, unknown>[]) as Record<string, unknown>[]}
         />
       </Modal>
     </>

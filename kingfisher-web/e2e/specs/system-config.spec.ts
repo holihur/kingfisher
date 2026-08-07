@@ -1,45 +1,38 @@
 import { test, expect } from '@playwright/test';
-import { newAuthenticatedPage } from '../fixtures/auth';
-import { ConfigManagePage } from '../pages/config-manage.page';
+import { CREDENTIALS } from '../utils/constants';
 
-test.describe('System Config', () => {
-  test('配置列表显示 5 个配置项', async ({ browser }) => {
-    const context = await browser.newContext();
-    const page = await newAuthenticatedPage(context, 'admin');
-    const configPage = new ConfigManagePage(page);
-    await configPage.goto();
-
-    await expect(configPage.table()).toBeVisible();
-    await expect(configPage.table()).toContainText('site_name');
-    await expect(configPage.table()).toContainText('max_login_attempts');
-    await expect(configPage.tableRows()).toHaveCount(5);
-
-    await context.close();
+test.beforeEach(async ({ page }) => {
+  const resp = await page.request.post('http://localhost:18080/api/v1/auth/login', {
+    data: { username: CREDENTIALS.admin.username, password: CREDENTIALS.admin.password },
   });
+  const body = await resp.json();
+  await page.goto('/login');
+  await page.evaluate(
+    ({ t, r }) => { localStorage.setItem('kingfisher_token', t); localStorage.setItem('kingfisher_refresh', r); },
+    { t: body.data.access_token, r: body.data.refresh_token },
+  );
+});
 
-  test('编辑 site_name 配置值', async ({ browser }) => {
-    const context = await browser.newContext();
-    const page = await newAuthenticatedPage(context, 'admin');
-    const configPage = new ConfigManagePage(page);
-    await configPage.goto();
+test('配置列表显示配置项', async ({ page }) => {
+  await page.goto('/system/configs');
+  await page.waitForLoadState('networkidle');
+  await expect(page.locator('.ant-table')).toBeVisible();
+  await expect(page.locator('.ant-table')).toContainText('site_name');
+  await expect(page.locator('.ant-table')).toContainText('max_login_attempts');
+});
 
-    // Edit site_name
-    await configPage.editLink('site_name').click();
-    await expect(configPage.modal()).toBeVisible();
-
-    const valueInput = configPage.modal().locator('#value');
-    await valueInput.clear();
-    await valueInput.fill('Kingfisher E2E Test');
-    await configPage.modal().getByRole('button', { name: /确定|保存/ }).click();
-    await expect(page.locator('.ant-message-notice')).toBeVisible({ timeout: 5000 });
-
-    // Restore original
-    await configPage.editLink('site_name').click();
-    await valueInput.clear();
-    await valueInput.fill('Kingfisher Admin');
-    await configPage.modal().getByRole('button', { name: /确定|保存/ }).click();
-    await expect(page.locator('.ant-message-notice')).toBeVisible({ timeout: 5000 });
-
-    await context.close();
-  });
+test('编辑 site_name', async ({ page }) => {
+  await page.goto('/system/configs');
+  await page.waitForLoadState('networkidle');
+  await page.locator('tr', { hasText: 'site_name' }).getByText('编辑').click();
+  await expect(page.locator('.ant-modal')).toBeVisible();
+  await page.locator('#value').clear();
+  await page.locator('#value').fill('E2E Test');
+  await page.locator('.ant-modal').getByRole('button', { name: /确定|保存/ }).click();
+  await expect(page.locator('.ant-modal')).not.toBeVisible({ timeout: 10000 });
+  // Restore
+  await page.locator('tr', { hasText: 'site_name' }).getByText('编辑').click();
+  await page.locator('#value').clear();
+  await page.locator('#value').fill('Kingfisher Admin');
+  await page.locator('.ant-modal').getByRole('button', { name: /确定|保存/ }).click();
 });

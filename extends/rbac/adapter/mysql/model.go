@@ -25,3 +25,32 @@ type permissionPO struct {
 }
 
 func (permissionPO) TableName() string { return "permissions" }
+
+type rolePermissionPO struct {
+	RoleID       uint
+	PermissionID uint
+}
+
+func (rolePermissionPO) TableName() string { return "role_permissions" }
+
+type roleMenuPO struct {
+	RoleID uint
+	MenuID uint
+}
+
+func (roleMenuPO) TableName() string { return "role_menus" }
+
+type menuPO struct {
+	ID         uint
+	ParentID   uint
+	Name       string
+	Path       string
+	Component  string
+	Icon       string
+	Sort       int
+	Type       int
+	Permission string
+	Status     int
+}
+
+func (menuPO) TableName() string { return "menus" }

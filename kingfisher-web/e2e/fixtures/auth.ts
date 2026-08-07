@@ -2,21 +2,18 @@ import { type Page, type BrowserContext, request } from '@playwright/test';
 import { CREDENTIALS } from '../utils/constants';
 
 /**
- * Authenticate by calling the login API, then inject tokens via
- * addInitScript so localStorage is populated BEFORE any page navigation.
- * This avoids the redirect-to-/login race condition.
+ * Get valid tokens by calling the login API.
  */
 async function getTokens(role: 'admin' | 'editor' | 'viewer') {
   const creds = CREDENTIALS[role];
-  const apiContext = await request.newContext({ baseURL: 'http://localhost:18080' });
-  const resp = await apiContext.post('/api/v1/auth/login', {
+  const ctx = await request.newContext({ baseURL: 'http://localhost:18080' });
+  const resp = await ctx.post('/api/v1/auth/login', {
     data: { username: creds.username, password: creds.password },
   });
   const body = await resp.json();
-  await apiContext.dispose();
-
+  await ctx.dispose();
   if (body.code !== 0) {
-    throw new Error(`Login API failed for ${role}: ${JSON.stringify(body)}`);
+    throw new Error(`Login failed for ${role}: ${JSON.stringify(body)}`);
   }
   return {
     token: body.data.access_token as string,
@@ -25,29 +22,32 @@ async function getTokens(role: 'admin' | 'editor' | 'viewer') {
 }
 
 /**
- * Create a new page that is already authenticated as the given role.
- * Uses addInitScript to inject tokens into localStorage before any navigation.
+ * Create an authenticated page. Navigates to /, sets localStorage, then navigates to dashboard.
+ * Simpler than addInitScript — no race condition, trivially testable.
  */
 export async function newAuthenticatedPage(
   context: BrowserContext,
   role: 'admin' | 'editor' | 'viewer',
 ): Promise<Page> {
   const { token, refresh } = await getTokens(role);
+  const page = await context.newPage();
 
-  // Inject BEFORE any page loads — otherwise AuthGuard redirects to /login
-  await context.addInitScript(
-    (tokens) => {
-      localStorage.setItem('kingfisher_token', tokens.token);
-      localStorage.setItem('kingfisher_refresh', tokens.refresh);
+  // Navigate to login to establish origin
+  await page.goto('/login');
+  // Inject tokens directly
+  await page.evaluate(
+    ({ t, r }) => {
+      localStorage.setItem('kingfisher_token', t);
+      localStorage.setItem('kingfisher_refresh', r);
     },
-    { token, refresh },
+    { t: token, r: refresh },
   );
 
-  return context.newPage();
+  return page;
 }
 
 /**
- * UI-based login. Navigates to /login, fills the form, submits.
+ * UI-based login.
  */
 export async function loginViaUI(page: Page, role: 'admin' | 'editor' | 'viewer'): Promise<void> {
   const creds = CREDENTIALS[role];
@@ -59,11 +59,10 @@ export async function loginViaUI(page: Page, role: 'admin' | 'editor' | 'viewer'
 }
 
 /**
- * Logout via UI — click header dropdown → 退出登录.
+ * Logout via UI.
  */
 export async function logoutViaUI(page: Page): Promise<void> {
-  // Open user dropdown in header — click on the avatar + username area
-  await page.locator('.ant-layout-header .ant-dropdown-trigger').click();
+  await page.locator('.ant-layout-header').locator('[class*="dropdown"]').first().click();
   await page.getByText('退出登录').click();
   await page.waitForURL('**/login');
 }

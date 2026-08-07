@@ -29,11 +29,12 @@ export default defineConfig({
 
   webServer: [
     {
-      command: 'CONFIG_PATH=config/e2e.yaml go run ./cmd/server',
+      command: 'bash scripts/e2e-server.sh',
       port: 18080,
       timeout: 60000,
       reuseExistingServer: !process.env.CI,
       cwd: '../../',
+      env: { CONFIG_PATH: 'config/e2e.yaml' },
     },
     {
       command: 'npx vite --port 15173 --strictPort',

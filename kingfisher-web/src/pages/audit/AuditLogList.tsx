@@ -3,7 +3,7 @@ import ProTable, { ProColumns, ActionType } from '@ant-design/pro-table';
 import { auditApi } from '../../api/audit';
 
 const AuditLogList: React.FC = () => {
-  const actionRef = useRef<ActionType>();
+  const actionRef = useRef<ActionType>(null);
   const columns: ProColumns[] = [
     { title: 'ID', dataIndex: 'id', width: 80 },
     { title: '用户', dataIndex: 'username' },

@@ -38,7 +38,7 @@ export const useMenuStore = create<MenuState>((set) => ({
   loading: false,
   fetchMenus: async () => {
     set({ loading: true });
-    const resp = await menuApi.getTree();
+    const resp = await menuApi.getMyTree();
     set({ menuTree: (resp.data as MenuItem[]) || [], loading: false });
   },
 }));

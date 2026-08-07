@@ -10,7 +10,12 @@ import (
 
 	adapter "kingfisher/extends/audit/adapter/mysql"
 	"kingfisher/extends/audit/app"
+	"kingfisher/extends/audit/domain"
+	rbacTransport "kingfisher/extends/rbac/transport"
 )
+
+// AuditRecorder is a callback used by other modules to record audit entries.
+type AuditRecorder func(ctx context.Context, userID uint, username, action, resource, ip, userAgent string)
 
 type AuditModule struct {
 	handler *AuditHandler
@@ -27,6 +32,20 @@ func (m *AuditModule) Init(ctx context.Context) error     { return nil }
 func (m *AuditModule) Shutdown(ctx context.Context) error { return nil }
 func (m *AuditModule) RegisterPublic(r *gin.RouterGroup)  {}
 func (m *AuditModule) RegisterProtected(r *gin.RouterGroup) {
-	r.GET("/audit-logs", m.handler.List)
+	r.GET("/audit-logs", rbacTransport.RequirePerm("audit:list"), m.handler.List)
 }
 func (m *AuditModule) Middleware() gin.HandlerFunc { return AuditMiddleware(m.svc) }
+
+// AuditLogCallback returns an AuditRecorder for other modules to use.
+func (m *AuditModule) AuditLogCallback() AuditRecorder {
+	return func(ctx context.Context, userID uint, username, action, resource, ip, userAgent string) {
+		m.svc.Log(ctx, &domain.AuditLog{
+			UserID:    userID,
+			Username:  username,
+			Action:    action,
+			Resource:  resource,
+			IP:        ip,
+			UserAgent: userAgent,
+		})
+	}
+}

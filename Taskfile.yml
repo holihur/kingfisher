@@ -1,0 +1,129 @@
+# Taskfile.yml — 等价替换原 Makefile，用法：`task <target>`（原 `make <target>`）
+# 安装 task：brew install go-task/tap/go-task
+
+version: '3'
+
+vars:
+  APP: server
+  # 开发端口：后端 8080（config.yaml），前端 5173（vite.config.ts）
+  # 支持环境变量覆盖：SERVER_PORT=9090 WEB_PORT=5273 task dev
+  SERVER_PORT:
+    sh: echo "${SERVER_PORT:-8080}"
+  WEB_PORT:
+    sh: echo "${WEB_PORT:-5173}"
+
+tasks:
+  default:
+    desc: 显示可用任务
+    cmds:
+      - task --list
+
+  run:
+    desc: 启动服务
+    cmds:
+      - go run ./cmd/server
+
+  dev:
+    desc: 启动前后端（重置 SQLite 数据库，自动 kill 占用端口的进程）
+    silent: true
+    cmds:
+      - |
+        # 关闭 errexit：个别 shell 下 lsof 无匹配返回 1，不应中断整个脚本
+        set +e
+        # kill 占用端口的进程，避免端口冲突
+        kill_port() {
+          pids=$(lsof -ti :$1 2>/dev/null || true)
+          if [ -n "$pids" ]; then
+            echo "  kill $pids (port $1 被占用)"
+            kill $pids 2>/dev/null || true
+          fi
+          return 0
+        }
+        kill_port {{.SERVER_PORT}} || true
+        kill_port {{.WEB_PORT}} || true
+        rm -f kingfisher.db kingfisher.db-shm kingfisher.db-wal
+        echo "✓ SQLite 数据库已重置"
+        # Ctrl+C 时同步退出前后端子进程
+        # （|| true 容错：个别 shell 不支持该 trap 语法时不影响启动）
+        trap 'kill 0' INT TERM EXIT 2>/dev/null || true
+        (go run ./cmd/server) &
+        (cd kingfisher-web && npm run dev) &
+        wait
+
+  build:
+    desc: 编译
+    cmds:
+      - go build -ldflags="-s -w -X main.version=$(git describe --tags --always 2>/dev/null || echo dev) -X main.commit=$(git rev-parse --short HEAD 2>/dev/null || echo unknown) -X main.buildTime=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -o bin/{{.APP}} ./cmd/server
+
+  test:
+    desc: 运行测试
+    cmds:
+      - go test -v -race -count=1 ./...
+
+  test-short:
+    desc: 单元测试
+    cmds:
+      - go test -v -race -short ./...
+
+  cover:
+    desc: 测试覆盖率
+    cmds:
+      - go test -coverprofile=coverage.out ./...
+      - go tool cover -func=coverage.out
+
+  lint:
+    desc: Go 代码检查
+    cmds:
+      - golangci-lint run ./...
+
+  fmt:
+    desc: Go 代码格式化
+    cmds:
+      - goimports -w -local kingfisher .
+
+  lint-fe:
+    desc: 前端代码检查
+    dir: kingfisher-web
+    cmds:
+      - npx eslint src/ && npx prettier --check src/
+
+  fmt-fe:
+    desc: 前端代码格式化
+    dir: kingfisher-web
+    cmds:
+      - npx prettier --write src/
+
+  test-e2e:
+    desc: 运行 E2E 测试（需要 Redis 在 localhost:6379）
+    dir: kingfisher-web
+    cmds:
+      - echo "Starting E2E tests..."
+      - npm run test:e2e
+
+  test-e2e-ui:
+    desc: Playwright UI 调试模式
+    dir: kingfisher-web
+    cmds:
+      - npm run test:e2e:ui
+
+  test-e2e-report:
+    desc: 查看 E2E 报告
+    dir: kingfisher-web
+    cmds:
+      - npx playwright show-report ../test/e2e/playwright-report
+
+  clean:
+    desc: 清理
+    cmds:
+      - rm -f kingfisher.db bin/{{.APP}}
+
+  wire:
+    desc: 生成依赖注入
+    dir: internal/wire
+    cmds:
+      - wire
+
+  swagger:
+    desc: 生成 API 文档
+    cmds:
+      - swag init -g cmd/server/main.go -o docs --parseDependency --parseInternal

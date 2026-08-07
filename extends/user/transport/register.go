@@ -26,7 +26,7 @@ type UserModule struct {
 func NewUserModule(db *gorm.DB, c cache.Cache, jwtMgr *jwt.JWTManager, getUserPerms PermProvider) *UserModule {
 	repo := adapter.NewUserRepo(db)
 	authSvc := app.NewAuthService(repo, c, jwtMgr)
-	userSvc := app.NewUserService(repo)
+	userSvc := app.NewUserService(repo, c)
 	uh := NewUserHandler(userSvc)
 	uh.getUserPerms = getUserPerms
 	return &UserModule{
@@ -35,6 +35,9 @@ func NewUserModule(db *gorm.DB, c cache.Cache, jwtMgr *jwt.JWTManager, getUserPe
 		cache:       c,
 	}
 }
+
+// InjectAuditLogger wires the audit logger callback into the auth handler.
+func (m *UserModule) InjectAuditLogger(fn AuditLogger) { m.authHandler.auditLog = fn }
 
 func (m *UserModule) Name() string                       { return "user" }
 func (m *UserModule) Init(ctx context.Context) error     { return nil }

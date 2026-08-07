@@ -116,7 +116,6 @@ func main() {
 	r.GET("/health", func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) })
 	r.GET("/ready", readyHandler(db, rdb))
 	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
-	r.StaticFile("/swagger/doc.json", "./docs/swagger.json")
 	r.GET("/swagger/*any", swaggerUI())
 
 	// 8. Build auth/rbac middleware
@@ -127,8 +126,11 @@ func main() {
 
 	// 9. Register all extends modules
 	auditMod := auditTransport.NewAuditModule(db)
+	userMod := userTransport.NewUserModule(db, redisCache, jwtMgr, rbacSvc.GetUserPermissions)
+	// Inject audit logger into auth handler so login/logout are recorded
+	userMod.InjectAuditLogger(userTransport.AuditLogger(auditMod.AuditLogCallback()))
 	mods := []router.Module{
-		userTransport.NewUserModule(db, redisCache, jwtMgr, rbacSvc.GetUserPermissions),
+		userMod,
 		rbacTransport.NewRBACModule(db, redisCache),
 		menuTransport.NewMenuModule(db, redisCache),
 		configTransport.NewConfigModule(db, redisCache),

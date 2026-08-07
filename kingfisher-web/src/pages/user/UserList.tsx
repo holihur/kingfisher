@@ -1,20 +1,31 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Button, Modal, Form, message, Popconfirm, Badge } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import ProTable, { ProColumns, ActionType } from '@ant-design/pro-table';
 import { useAuthStore } from '../../stores/auth';
 import { userApi } from '../../api/user';
+import { roleApi } from '../../api/role';
 import UserForm from './UserForm';
 
-const ROLE_MAP: Record<number, string> = { 1: '管理员', 3: '编辑', 4: '访客' };
-
 const UserList: React.FC = () => {
-  const actionRef = useRef<ActionType>();
+  const actionRef = useRef<ActionType>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Record<string, unknown> | null>(null);
-  const [form] = Form.useForm();
+  const [form] = Form.useForm<Record<string, unknown>>();
   const permissions = useAuthStore((s) => s.permissions);
   const hasPerm = (code: string) => permissions.includes(code);
+  const [roleOptions, setRoleOptions] = useState<{ label: string; value: number }[]>([]);
+  const [roleNameMap, setRoleNameMap] = useState<Record<number, string>>({});
+
+  useEffect(() => {
+    roleApi.getList().then((r) => {
+      const items = (r.data as Record<string, unknown>[]) || [];
+      setRoleOptions(items.map((i) => ({ label: i.name as string, value: i.id as number })));
+      const map: Record<number, string> = {};
+      items.forEach((i) => { map[i.id as number] = i.name as string; });
+      setRoleNameMap(map);
+    });
+  }, []);
 
   const columns: ProColumns[] = [
     { title: 'ID', dataIndex: 'id', width: 80 },
@@ -24,7 +35,7 @@ const UserList: React.FC = () => {
       title: '角色',
       dataIndex: 'role_id',
       width: 100,
-      render: (_, r) => ROLE_MAP[r.role_id as number] || `#${r.role_id}`,
+      render: (_, r) => roleNameMap[r.role_id as number] || `#${r.role_id}`,
     },
     {
       title: '状态',
@@ -44,7 +55,6 @@ const UserList: React.FC = () => {
             key="edit"
             onClick={() => {
               setEditing(r as Record<string, unknown>);
-              form.setFieldsValue(r as Record<string, unknown>);
               setModalOpen(true);
             }}
           >
@@ -74,12 +84,11 @@ const UserList: React.FC = () => {
       await userApi.update(editing.id as number, values as Record<string, unknown>);
       message.success('更新成功');
     } else {
-      await userApi.create(values);
+      await userApi.create(values as any);
       message.success('创建成功');
     }
     setModalOpen(false);
     setEditing(null);
-    form.resetFields();
     actionRef.current?.reload();
   };
 
@@ -113,7 +122,6 @@ const UserList: React.FC = () => {
               icon={<PlusOutlined />}
               onClick={() => {
                 setEditing(null);
-                form.resetFields();
                 setModalOpen(true);
               }}
             >
@@ -129,11 +137,16 @@ const UserList: React.FC = () => {
         onCancel={() => {
           setModalOpen(false);
           setEditing(null);
-          form.resetFields();
         }}
-        destroyOnClose
+        afterOpenChange={(open) => {
+          if (open && editing) {
+            form.setFieldsValue(editing as any);
+          } else if (open && !editing) {
+            form.resetFields();
+          }
+        }}
       >
-        <UserForm form={form} editing={editing} />
+        <UserForm form={form} editing={editing} roles={roleOptions} />
       </Modal>
     </>
   );
