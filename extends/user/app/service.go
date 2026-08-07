@@ -166,6 +166,14 @@ func (s *UserService) Delete(ctx context.Context, id uint) error {
 	return s.repo.Delete(ctx, id)
 }
 
+func (s *UserService) BatchDelete(ctx context.Context, ids []uint) error {
+	return s.repo.DeleteBatch(ctx, ids)
+}
+
+func (s *UserService) BatchUpdateStatus(ctx context.Context, ids []uint, status int) error {
+	return s.repo.UpdateStatusBatch(ctx, ids, status)
+}
+
 func (s *UserService) CreateUser(ctx context.Context, username, password, email string) (*domain.User, error) {
 	_, err := s.repo.FindByUsername(ctx, username)
 	if err == nil {

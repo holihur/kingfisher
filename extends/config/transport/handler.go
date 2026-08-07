@@ -30,6 +30,9 @@ var configQueryDefs = query.Defs{
 
 // @Summary 配置列表
 // @Tags Config
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} response.Response{object} "配置列表"
 // @Router /api/v1/configs [get]
 func (h *ConfigHandler) GetAll(c *gin.Context) {
 	pq, err := query.Parse(c, configQueryDefs)
@@ -48,6 +51,8 @@ func (h *ConfigHandler) GetAll(c *gin.Context) {
 // GetPublicAll 公开配置列表（无需登录）
 // @Summary 公开配置列表
 // @Tags Config
+// @Produce json
+// @Success 200 {object} response.Response{object} "公开配置列表"
 // @Router /api/v1/public/configs [get]
 func (h *ConfigHandler) GetPublicAll(c *gin.Context) {
 	configs, err := h.svc.GetAllPublic(c.Request.Context())
@@ -61,6 +66,10 @@ func (h *ConfigHandler) GetPublicAll(c *gin.Context) {
 // GetPublic 公开配置单条（无需登录；非公开项视为不存在）
 // @Summary 公开配置单条
 // @Tags Config
+// @Produce json
+// @Param key path string true "配置键"
+// @Success 200 {object} response.Response{object} "配置详情"
+// @Failure 10401 {object} response.Response "不存在"
 // @Router /api/v1/public/configs/:key [get]
 func (h *ConfigHandler) GetPublic(c *gin.Context) {
 	v, err := h.svc.GetPublic(c.Request.Context(), c.Param("key"))
@@ -71,7 +80,12 @@ func (h *ConfigHandler) GetPublic(c *gin.Context) {
 	response.OKJSON(c, v)
 }
 
-func (h *ConfigHandler) Get(c *gin.Context) {
+func (h *// @Produce json
+// @Security BearerAuth
+// @Param key path string true "配置键"
+// @Success 200 {object} response.Response{object} "配置详情"
+// @Failure 10401 {object} response.Response "不存在"
+ConfigHandler) Get(c *gin.Context) {
 	v, err := h.svc.Get(c.Request.Context(), c.Param("key"))
 	if err != nil {
 		response.ErrorJSON(c, errcode.ErrConfigNotFound)
@@ -89,7 +103,14 @@ type SetConfigReq struct {
 	GroupID       uint   `json:"group_id"`
 }
 
-func (h *ConfigHandler) Set(c *gin.Context) {
+func (h *// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param key path string true "配置键"
+// @Param body body SetConfigReq true "配置值"
+// @Success 200 {object} response.Response "更新成功"
+// @Failure 400 {object} response.Response "参数错误"
+ConfigHandler) Set(c *gin.Context) {
 	var req SetConfigReq
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, err.Error())
@@ -106,8 +127,30 @@ func (h *ConfigHandler) Set(c *gin.Context) {
 	response.OKJSON(c, nil)
 }
 
-func (h *ConfigHandler) Delete(c *gin.Context) {
+func (h *// @Produce json
+// @Security BearerAuth
+// @Param key path string true "配置键"
+// @Success 200 {object} response.Response "删除成功"
+ConfigHandler) Delete(c *gin.Context) {
 	_ = h.svc.Delete(c.Request.Context(), c.Param("key"))
+	response.OKJSON(c, nil)
+}
+
+// batchKeysReq 配置批量删除请求体（按 key）
+type batchKeysReq struct {
+	Keys []string `json:"keys" binding:"required,min=1"`
+}
+
+func (h *ConfigHandler) BatchDelete(c *gin.Context) {
+	var req batchKeysReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	if err := h.svc.BatchDelete(c.Request.Context(), req.Keys); err != nil {
+		response.InternalError(c)
+		return
+	}
 	response.OKJSON(c, nil)
 }
 
@@ -119,7 +162,10 @@ func NewConfigGroupHandler(svc *app.ConfigGroupService) *ConfigGroupHandler { re
 // @Summary 配置分组列表
 // @Tags Config
 // @Router /api/v1/config-groups [get]
-func (h *ConfigGroupHandler) List(c *gin.Context) {
+func (h *// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} response.Response{data=[]domain.ConfigGroup} "分组列表"
+ConfigGroupHandler) List(c *gin.Context) {
 	groups, err := h.svc.List(c.Request.Context())
 	if err != nil {
 		response.InternalError(c)
@@ -133,7 +179,13 @@ type ConfigGroupReq struct {
 	Sort int    `json:"sort"`
 }
 
-func (h *ConfigGroupHandler) Create(c *gin.Context) {
+func (h *// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param body body ConfigGroupReq true "创建请求"
+// @Success 200 {object} response.Response{object} "创建成功"
+// @Failure 400 {object} response.Response "参数错误"
+ConfigGroupHandler) Create(c *gin.Context) {
 	var req ConfigGroupReq
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, err.Error())
@@ -147,7 +199,14 @@ func (h *ConfigGroupHandler) Create(c *gin.Context) {
 	response.OKJSON(c, g)
 }
 
-func (h *ConfigGroupHandler) Update(c *gin.Context) {
+func (h *// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "分组ID"
+// @Param body body ConfigGroupReq true "更新请求"
+// @Success 200 {object} response.Response "更新成功"
+// @Failure 400 {object} response.Response "参数错误"
+ConfigGroupHandler) Update(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		response.BadRequest(c, "invalid id")
@@ -165,7 +224,12 @@ func (h *ConfigGroupHandler) Update(c *gin.Context) {
 	response.OKJSON(c, nil)
 }
 
-func (h *ConfigGroupHandler) Delete(c *gin.Context) {
+func (h *// @Produce json
+// @Security BearerAuth
+// @Param id path int true "分组ID"
+// @Success 200 {object} response.Response "删除成功"
+// @Failure 400 {object} response.Response "参数错误"
+ConfigGroupHandler) Delete(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		response.BadRequest(c, "invalid id")

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Modal, Form, Input, Tree, Tabs, Checkbox, Row, Col, App, Popconfirm, Badge, AutoComplete, Tag } from 'antd';
-import { PlusOutlined, SafetyOutlined, AppstoreOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { Button, Modal, Form, Input, Tree, Tabs, Checkbox, Row, Col, App, Popconfirm, Badge, AutoComplete, Tag, Dropdown } from 'antd';
+import { PlusOutlined, SafetyOutlined, AppstoreOutlined, EditOutlined, DeleteOutlined, DownOutlined } from '@ant-design/icons';
 import DataTable, { SearchField } from '../../components/DataTable';
 import { useAuthStore } from '../../stores/auth';
 import { roleApi } from '../../api/role';
@@ -19,7 +19,7 @@ interface RoleRow {
 }
 
 const RoleList: React.FC = () => {
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Record<string, unknown> | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -197,6 +197,47 @@ const RoleList: React.FC = () => {
         searchFields={searchFields}
         headerTitle="角色管理"
         reloadKey={refreshKey}
+        selectable={perms.includes('role:update') || perms.includes('role:delete')}
+        batchBarRender={(keys, clear) => {
+          const ids = keys as number[];
+          const runStatus = async (status: number, label: string) => {
+            await roleApi.batchUpdateStatus(ids, status);
+            message.success(`已${label}`);
+            clear();
+            setRefreshKey((k) => k + 1);
+          };
+          return (
+            <Dropdown
+              menu={{
+                items: [
+                  ...(perms.includes('role:update') ? [{ key: 'enable', label: '批量启用' }] : []),
+                  ...(perms.includes('role:update') ? [{ key: 'disable', label: '批量禁用' }] : []),
+                  ...(perms.includes('role:delete') ? [{ key: 'delete', label: '批量删除', danger: true }] : []),
+                ],
+                onClick: ({ key }) => {
+                  if (key === 'enable') void runStatus(1, '批量启用');
+                  else if (key === 'disable') void runStatus(0, '批量禁用');
+                  else if (key === 'delete') {
+                    modal.confirm({
+                      title: '批量删除',
+                      content: `确定删除选中的 ${ids.length} 个角色吗？（admin 角色不可删除）`,
+                      onOk: async () => {
+                        await roleApi.batchDelete(ids);
+                        message.success('已删除');
+                        clear();
+                        setRefreshKey((k) => k + 1);
+                      },
+                    });
+                  }
+                },
+              }}
+            >
+              <Button size="small">
+                批量操作 <DownOutlined />
+              </Button>
+            </Dropdown>
+          );
+        }}
         toolBarRender={
           perms.includes('role:create') ? (
             <Button

@@ -14,6 +14,7 @@ type ConfigRepository interface {
 	GetPublicByKey(ctx context.Context, key string) (*domain.SystemConfig, error)
 	Set(ctx context.Context, key, value string, isPublic bool, version, render, renderOptions string, groupID uint) error
 	Delete(ctx context.Context, key string) error
+	DeleteBatch(ctx context.Context, keys []string) error
 }
 
 type ConfigGroupRepository interface {

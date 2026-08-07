@@ -18,10 +18,12 @@ import (
 	"kingfisher/core/database"
 	"kingfisher/core/jwt"
 	"kingfisher/core/logger"
+	"kingfisher/core/middleware"
 	"kingfisher/core/router"
 
 	auditTransport "kingfisher/extends/audit/transport"
 	configTransport "kingfisher/extends/config/transport"
+	dictTransport "kingfisher/extends/dict/transport"
 	menuTransport "kingfisher/extends/menu/transport"
 	rbacTransport "kingfisher/extends/rbac/transport"
 	userTransport "kingfisher/extends/user/transport"
@@ -31,6 +33,8 @@ func setupTestServer(t *testing.T) (*gin.Engine, *jwt.JWTManager) {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 	t.Setenv("JWT_SECRET", "test-secret-abc123")
+	// 注册自定义校验器（password 等），与 cmd/server/main.go 一致
+	middleware.InitValidator()
 
 	cfg := &config.Config{
 		Server:   config.ServerConfig{Port: 9999, Mode: "test"},
@@ -59,6 +63,7 @@ func setupTestServer(t *testing.T) (*gin.Engine, *jwt.JWTManager) {
 		"menu:list": true, "menu:create": true, "menu:update": true, "menu:delete": true,
 		"role:list": true, "role:create": true, "role:update": true, "role:delete": true,
 		"config:list": true, "config:update": true, "audit:list": true,
+		"dict:list": true, "dict:create": true, "dict:update": true, "dict:delete": true,
 	}
 	rbacMw := func(c *gin.Context) {
 		c.Set("permissions", allPerms)
@@ -90,6 +95,7 @@ func setupTestServer(t *testing.T) (*gin.Engine, *jwt.JWTManager) {
 		rbacTransport.NewRBACModule(db, nil),
 		menuTransport.NewMenuModule(db, nil),
 		configTransport.NewConfigModule(db, nil),
+		dictTransport.NewDictModule(db, nil),
 		auditTransport.NewAuditModule(db),
 	}
 	for _, m := range mods {
@@ -883,4 +889,116 @@ func TestGetMyLoginLogs(t *testing.T) {
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, doRequest("GET", "/api/v1/users/me/login-logs", tok, nil))
 	assertCode(t, w, 0)
+}
+
+// ---- 批量操作（batch）----
+
+func TestBatchUserStatusAndDelete(t *testing.T) {
+	s, _ := setupTestServer(t)
+	tok := login(t, s)
+
+	// 创建两个用户，取 id
+	var ids []int
+	for _, name := range []string{"batch1", "batch2"} {
+		w := httptest.NewRecorder()
+		s.ServeHTTP(w, doRequest("POST", "/api/v1/users", tok, map[string]string{"username": name, "password": "Abcd1234"}))
+		m := assertCode(t, w, 0)
+		ids = append(ids, int(m["data"].(map[string]any)["id"].(float64)))
+	}
+
+	// 批量禁用
+	w := httptest.NewRecorder()
+	s.ServeHTTP(w, doRequest("POST", "/api/v1/users/batch-status", tok, map[string]any{"ids": ids, "status": 0}))
+	assertCode(t, w, 0)
+
+	// 验证禁用生效
+	w = httptest.NewRecorder()
+	s.ServeHTTP(w, doRequest("GET", "/api/v1/users?filter="+url.QueryEscape(`{"username":"batch1"}`), tok, nil))
+	m := assertCode(t, w, 0)
+	items := m["data"].(map[string]any)["items"].([]any)
+	if len(items) != 1 || int(items[0].(map[string]any)["status"].(float64)) != 0 {
+		t.Error("want status=0 after batch disable")
+	}
+
+	// 批量删除
+	w = httptest.NewRecorder()
+	s.ServeHTTP(w, doRequest("POST", "/api/v1/users/batch-delete", tok, map[string]any{"ids": ids}))
+	assertCode(t, w, 0)
+
+	// 验证软删除后列表不再包含
+	w = httptest.NewRecorder()
+	s.ServeHTTP(w, doRequest("GET", "/api/v1/users?filter="+url.QueryEscape(`{"username":"batch1"}`), tok, nil))
+	m = assertCode(t, w, 0)
+	if total := int(m["data"].(map[string]any)["total"].(float64)); total != 0 {
+		t.Errorf("want 0 users after batch delete, got %d", total)
+	}
+}
+
+func TestBatchRoleAdminProtected(t *testing.T) {
+	s, _ := setupTestServer(t)
+	tok := login(t, s)
+	w := httptest.NewRecorder()
+	s.ServeHTTP(w, doRequest("POST", "/api/v1/roles/batch-delete", tok, map[string]any{"ids": []int{1}}))
+	if w.Code != 400 {
+		t.Errorf("want 400 deleting admin role, got %d", w.Code)
+	}
+}
+
+func TestBatchMenuChildrenProtected(t *testing.T) {
+	s, _ := setupTestServer(t)
+	tok := login(t, s)
+	// 系统管理(id=2)含子节点 → 批量删除被拒
+	w := httptest.NewRecorder()
+	s.ServeHTTP(w, doRequest("POST", "/api/v1/menus/batch-delete", tok, map[string]any{"ids": []int{2}}))
+	if w.Code != 400 {
+		t.Errorf("want 400 deleting parent menu, got %d", w.Code)
+	}
+	// 批量状态切换无子节点限制
+	w = httptest.NewRecorder()
+	s.ServeHTTP(w, doRequest("POST", "/api/v1/menus/batch-status", tok, map[string]any{"ids": []int{2}, "status": 0}))
+	assertCode(t, w, 0)
+}
+
+func TestBatchDictTypeEntriesProtected(t *testing.T) {
+	s, _ := setupTestServer(t)
+	tok := login(t, s)
+	// 创建类型 + 条目
+	w := httptest.NewRecorder()
+	s.ServeHTTP(w, doRequest("POST", "/api/v1/dict-types", tok, map[string]any{"code": "bt", "name": "批量", "status": 1}))
+	m := assertCode(t, w, 0)
+	typeID := int(m["data"].(map[string]any)["id"].(float64))
+	w = httptest.NewRecorder()
+	s.ServeHTTP(w, doRequest("POST", fmt.Sprintf("/api/v1/dict-types/%d/entries", typeID), tok, map[string]any{"label": "x", "value": "y", "status": 1}))
+	m = assertCode(t, w, 0)
+	entryID := int(m["data"].(map[string]any)["id"].(float64))
+	// 批量删除含条目的类型 → 拒绝 10504
+	w = httptest.NewRecorder()
+	s.ServeHTTP(w, doRequest("POST", "/api/v1/dict-types/batch-delete", tok, map[string]any{"ids": []int{typeID}}))
+	assertCode(t, w, 10504)
+	// 条目的批量状态切换 + 批量删除
+	w = httptest.NewRecorder()
+	s.ServeHTTP(w, doRequest("POST", fmt.Sprintf("/api/v1/dict-types/%d/entries/batch-status", typeID), tok, map[string]any{"ids": []int{entryID}, "status": 0}))
+	assertCode(t, w, 0)
+	w = httptest.NewRecorder()
+	s.ServeHTTP(w, doRequest("POST", fmt.Sprintf("/api/v1/dict-types/%d/entries/batch-delete", typeID), tok, map[string]any{"ids": []int{entryID}}))
+	assertCode(t, w, 0)
+}
+
+func TestBatchConfigDelete(t *testing.T) {
+	s, _ := setupTestServer(t)
+	tok := login(t, s)
+	for _, k := range []string{"batch_key1", "batch_key2"} {
+		w := httptest.NewRecorder()
+		s.ServeHTTP(w, doRequest("PUT", "/api/v1/configs/"+k, tok, map[string]string{"value": "1"}))
+		assertCode(t, w, 0)
+	}
+	w := httptest.NewRecorder()
+	s.ServeHTTP(w, doRequest("POST", "/api/v1/configs/batch-delete", tok, map[string]any{"keys": []string{"batch_key1", "batch_key2"}}))
+	assertCode(t, w, 0)
+	w = httptest.NewRecorder()
+	s.ServeHTTP(w, doRequest("GET", "/api/v1/configs?filter="+url.QueryEscape(`{"key":"batch_key1"}`), tok, nil))
+	m := assertCode(t, w, 0)
+	if total := int(m["data"].(map[string]any)["total"].(float64)); total != 0 {
+		t.Errorf("want 0 configs after batch delete, got %d", total)
+	}
 }

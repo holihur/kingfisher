@@ -171,14 +171,14 @@ func SeedData(db *gorm.DB) error {
 
 		// Menus (navigation only — permissions managed in role_permissions)
 		menus := []MenuPO{
-			{ID: 1, ParentID: 0, Name: "仪表盘", Path: "/dashboard", Component: "pages/Dashboard", Icon: "DashboardOutlined", Sort: 0},
-			{ID: 2, ParentID: 0, Name: "系统管理", Path: "/system", Icon: "SettingOutlined", Sort: 1},
-			{ID: 3, ParentID: 2, Name: "用户管理", Path: "/system/users", Component: "pages/User/UserList", Icon: "UserOutlined", Sort: 1, Permission: "user:list"},
-			{ID: 7, ParentID: 2, Name: "菜单管理", Path: "/system/menus", Component: "pages/Menu/MenuManage", Icon: "MenuOutlined", Sort: 2, Permission: "menu:list"},
-			{ID: 11, ParentID: 2, Name: "角色管理", Path: "/system/roles", Component: "pages/Role/RoleList", Icon: "SafetyOutlined", Sort: 3, Permission: "role:list"},
-			{ID: 15, ParentID: 2, Name: "系统配置", Path: "/system/configs", Component: "pages/Config/ConfigManage", Icon: "ControlOutlined", Sort: 4, Permission: "config:list"},
-			{ID: 16, ParentID: 2, Name: "审计日志", Path: "/system/audit", Component: "pages/Audit/AuditLogList", Icon: "AuditOutlined", Sort: 5, Permission: "audit:list"},
-			{ID: 17, ParentID: 2, Name: "字典管理", Path: "/system/dicts", Component: "pages/Dict/DictManage", Icon: "BookOutlined", Sort: 6, Permission: "dict:list"},
+			{ID: 1, ParentID: 0, Name: "仪表盘", Path: "/dashboard", Component: "pages/Dashboard", Icon: "DashboardOutlined", Sort: 0, Version: "1.0.0"},
+			{ID: 2, ParentID: 0, Name: "系统管理", Path: "/system", Icon: "SettingOutlined", Sort: 1, Version: "1.0.0"},
+			{ID: 3, ParentID: 2, Name: "用户管理", Path: "/system/users", Component: "pages/User/UserList", Icon: "UserOutlined", Sort: 1, Permission: "user:list", Version: "1.0.0"},
+			{ID: 7, ParentID: 2, Name: "菜单管理", Path: "/system/menus", Component: "pages/Menu/MenuManage", Icon: "MenuOutlined", Sort: 2, Permission: "menu:list", Version: "1.0.0"},
+			{ID: 11, ParentID: 2, Name: "角色管理", Path: "/system/roles", Component: "pages/Role/RoleList", Icon: "SafetyOutlined", Sort: 3, Permission: "role:list", Version: "1.0.0"},
+			{ID: 15, ParentID: 2, Name: "系统配置", Path: "/system/configs", Component: "pages/Config/ConfigManage", Icon: "ControlOutlined", Sort: 4, Permission: "config:list", Version: "1.0.0"},
+			{ID: 16, ParentID: 2, Name: "审计日志", Path: "/system/audit", Component: "pages/Audit/AuditLogList", Icon: "AuditOutlined", Sort: 5, Permission: "audit:list", Version: "1.0.0"},
+			{ID: 17, ParentID: 2, Name: "字典管理", Path: "/system/dicts", Component: "pages/Dict/DictManage", Icon: "BookOutlined", Sort: 6, Permission: "dict:list", Version: "1.0.0"},
 		}
 		if err := tx.Create(&menus).Error; err != nil {
 			return fmt.Errorf("seed menus: %w", err)
@@ -206,7 +206,7 @@ func SeedData(db *gorm.DB) error {
 
 		// System Configs
 		configs := []SystemConfigPO{
-			{Key: "site_name", Value: "Kingfisher Admin", Remark: "系统名称", IsPublic: true, Version: "1.0.0", Render: "text", GroupID: 1},
+			{Key: "site_name", Value: "Kingfisher", Remark: "系统名称", IsPublic: true, Version: "1.0.0", Render: "text", GroupID: 1},
 			{Key: "site_description", Value: "后台管理系统", Remark: "系统描述", IsPublic: true, Version: "1.0.0", Render: "textarea", GroupID: 1},
 			{Key: "site_logo", Value: "", Remark: "Logo（留空则显示站点名首字母）", IsPublic: true, Version: "1.0.0", Render: "text", GroupID: 1},
 			{Key: "max_login_attempts", Value: "5", Remark: "最大登录失败次数", Version: "1.0.0", Render: "number", GroupID: 2},
@@ -221,15 +221,15 @@ func SeedData(db *gorm.DB) error {
 
 		// Dictionary Types + Entries
 		dictTypes := []DictTypePO{
-			{ID: 1, Code: "gender", Name: "性别", IsPublic: true, Status: 1},
+			{ID: 1, Code: "gender", Name: "性别", IsPublic: true, Status: 1, Version: "1.0.0"},
 		}
 		if err := tx.Create(&dictTypes).Error; err != nil {
 			return fmt.Errorf("seed dict types: %w", err)
 		}
 		dictEntries := []DictEntryPO{
-			{TypeID: 1, Label: "男", Value: "male", Sort: 1, Status: 1},
-			{TypeID: 1, Label: "女", Value: "female", Sort: 2, Status: 1},
-			{TypeID: 1, Label: "未知", Value: "unknown", Sort: 3, Status: 1},
+			{TypeID: 1, Label: "男", Value: "male", Sort: 1, Status: 1, Version: "1.0.0"},
+			{TypeID: 1, Label: "女", Value: "female", Sort: 2, Status: 1, Version: "1.0.0"},
+			{TypeID: 1, Label: "未知", Value: "unknown", Sort: 3, Status: 1, Version: "1.0.0"},
 		}
 		if err := tx.Create(&dictEntries).Error; err != nil {
 			return fmt.Errorf("seed dict entries: %w", err)

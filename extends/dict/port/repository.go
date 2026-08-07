@@ -12,9 +12,11 @@ type DictTypeRepository interface {
 	List(ctx context.Context, q *query.Query) ([]domain.DictType, int64, error)
 	GetByID(ctx context.Context, id uint) (*domain.DictType, error)
 	GetByCode(ctx context.Context, code string) (*domain.DictType, error)
-	Create(ctx context.Context, code, name string, isPublic bool, status int, remark string) (*domain.DictType, error)
-	Update(ctx context.Context, id uint, code, name string, isPublic bool, status int, remark string) error
+	Create(ctx context.Context, code, name string, isPublic bool, status int, remark, version string) (*domain.DictType, error)
+	Update(ctx context.Context, id uint, code, name string, isPublic bool, status int, remark, version string) error
 	Delete(ctx context.Context, id uint) error
+	DeleteBatch(ctx context.Context, ids []uint) error
+	UpdateStatusBatch(ctx context.Context, ids []uint, status int) error
 }
 
 // DictEntryRepository 字典条目仓库接口
@@ -22,8 +24,10 @@ type DictEntryRepository interface {
 	ListByTypeID(ctx context.Context, typeID uint, q *query.Query) ([]domain.DictEntry, int64, error)
 	ListByTypeCode(ctx context.Context, code string) ([]domain.DictEntry, error)
 	GetByID(ctx context.Context, id uint) (*domain.DictEntry, error)
-	Create(ctx context.Context, typeID uint, label, value string, sort, status int, remark string) (*domain.DictEntry, error)
-	Update(ctx context.Context, id uint, typeID uint, label, value string, sort, status int, remark string) error
+	Create(ctx context.Context, typeID uint, label, value string, sort, status int, remark, version string) (*domain.DictEntry, error)
+	Update(ctx context.Context, id uint, typeID uint, label, value string, sort, status int, remark, version string) error
 	Delete(ctx context.Context, id uint) error
+	DeleteBatch(ctx context.Context, ids []uint) error
+	UpdateStatusBatch(ctx context.Context, ids []uint, status int) error
 	DeleteByTypeID(ctx context.Context, typeID uint) error
 }

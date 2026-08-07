@@ -13,7 +13,9 @@ type Menu struct {
 	Type       int       `json:"type"`
 	Permission string    `json:"permission"`
 	Status     int       `json:"status"`
-	Children   []Menu    `json:"children,omitempty"`
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
+	// Version 表示该菜单由哪个版本新增
+	Version   string    `json:"version"`
+	Children  []Menu    `json:"children,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }

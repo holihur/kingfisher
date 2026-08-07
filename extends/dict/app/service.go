@@ -37,20 +37,20 @@ func (s *DictTypeService) GetByCode(ctx context.Context, code string) (*domain.D
 	return s.repo.GetByCode(ctx, code)
 }
 
-func (s *DictTypeService) Create(ctx context.Context, code, name string, isPublic bool, status int, remark string) (*domain.DictType, error) {
+func (s *DictTypeService) Create(ctx context.Context, code, name string, isPublic bool, status int, remark, version string) (*domain.DictType, error) {
 	_, err := s.repo.GetByCode(ctx, code)
 	if err == nil {
 		return nil, &Error{Code: errcode.ErrDictTypeCodeExists}
 	}
-	return s.repo.Create(ctx, code, name, isPublic, status, remark)
+	return s.repo.Create(ctx, code, name, isPublic, status, remark, version)
 }
 
-func (s *DictTypeService) Update(ctx context.Context, id uint, code, name string, isPublic bool, status int, remark string) error {
+func (s *DictTypeService) Update(ctx context.Context, id uint, code, name string, isPublic bool, status int, remark, version string) error {
 	existing, err := s.repo.GetByCode(ctx, code)
 	if err == nil && existing.ID != id {
 		return &Error{Code: errcode.ErrDictTypeCodeExists}
 	}
-	return s.repo.Update(ctx, id, code, name, isPublic, status, remark)
+	return s.repo.Update(ctx, id, code, name, isPublic, status, remark, version)
 }
 
 func (s *DictTypeService) Delete(ctx context.Context, id uint) error {
@@ -62,6 +62,24 @@ func (s *DictTypeService) Delete(ctx context.Context, id uint) error {
 		return &Error{Code: errcode.ErrDictTypeHasEntries}
 	}
 	return s.repo.Delete(ctx, id)
+}
+
+// BatchDelete 批量删除字典类型：任一类型下存在条目则整批拒绝
+func (s *DictTypeService) BatchDelete(ctx context.Context, ids []uint) error {
+	for _, id := range ids {
+		_, total, err := s.entryRepo.ListByTypeID(ctx, id, &query.Query{Page: 1, PageSize: 1})
+		if err != nil {
+			return err
+		}
+		if total > 0 {
+			return &Error{Code: errcode.ErrDictTypeHasEntries}
+		}
+	}
+	return s.repo.DeleteBatch(ctx, ids)
+}
+
+func (s *DictTypeService) BatchUpdateStatus(ctx context.Context, ids []uint, status int) error {
+	return s.repo.UpdateStatusBatch(ctx, ids, status)
 }
 
 // ---- DictEntryService ----
@@ -95,14 +113,22 @@ func (s *DictEntryService) GetByID(ctx context.Context, id uint) (*domain.DictEn
 	return s.repo.GetByID(ctx, id)
 }
 
-func (s *DictEntryService) Create(ctx context.Context, typeID uint, label, value string, sort, status int, remark string) (*domain.DictEntry, error) {
-	return s.repo.Create(ctx, typeID, label, value, sort, status, remark)
+func (s *DictEntryService) Create(ctx context.Context, typeID uint, label, value string, sort, status int, remark, version string) (*domain.DictEntry, error) {
+	return s.repo.Create(ctx, typeID, label, value, sort, status, remark, version)
 }
 
-func (s *DictEntryService) Update(ctx context.Context, id uint, typeID uint, label, value string, sort, status int, remark string) error {
-	return s.repo.Update(ctx, id, typeID, label, value, sort, status, remark)
+func (s *DictEntryService) Update(ctx context.Context, id uint, typeID uint, label, value string, sort, status int, remark, version string) error {
+	return s.repo.Update(ctx, id, typeID, label, value, sort, status, remark, version)
 }
 
 func (s *DictEntryService) Delete(ctx context.Context, id uint) error {
 	return s.repo.Delete(ctx, id)
+}
+
+func (s *DictEntryService) BatchDelete(ctx context.Context, ids []uint) error {
+	return s.repo.DeleteBatch(ctx, ids)
+}
+
+func (s *DictEntryService) BatchUpdateStatus(ctx context.Context, ids []uint, status int) error {
+	return s.repo.UpdateStatusBatch(ctx, ids, status)
 }

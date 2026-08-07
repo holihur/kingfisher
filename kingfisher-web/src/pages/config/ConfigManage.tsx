@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Modal, Form, Input, InputNumber, Switch, Select, App, Tag, Popconfirm, Button, Empty } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { Modal, Form, Input, InputNumber, Switch, Select, App, Tag, Popconfirm, Button, Empty, Dropdown } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, DownOutlined } from '@ant-design/icons';
 import DataTable, { SearchField } from '../../components/DataTable';
 import { useAuthStore } from '../../stores/auth';
 import { configApi, configGroupApi } from '../../api/config';
@@ -76,7 +76,7 @@ interface ConfigRow {
 }
 
 const ConfigManage: React.FC = () => {
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const { urlParams, updateUrl } = useTableUrlQuery();
   const [editModal, setEditModal] = useState<{ open: boolean; config: Record<string, unknown> | null }>({
     open: false,
@@ -331,6 +331,33 @@ const ConfigManage: React.FC = () => {
           searchFields={searchFields}
           reloadKey={refreshKey}
           headerTitle={`系统配置${selectedGroupId ? `（${groups.find(g => g.id === selectedGroupId)?.name ?? ''}）` : ''}`}
+          selectable={perms.includes('config:update')}
+          batchBarRender={(keys, clear) => {
+            const k = keys as string[];
+            return (
+              <Dropdown
+                menu={{
+                  items: [{ key: 'delete', label: '批量删除', danger: true }],
+                  onClick: () => {
+                    modal.confirm({
+                      title: '批量删除',
+                      content: `确定删除选中的 ${k.length} 个配置吗？`,
+                      onOk: async () => {
+                        await configApi.batchDelete(k);
+                        message.success('已删除');
+                        clear();
+                        setRefreshKey((n) => n + 1);
+                      },
+                    });
+                  },
+                }}
+              >
+                <Button size="small">
+                  批量操作 <DownOutlined />
+                </Button>
+              </Dropdown>
+            );
+          }}
         />
       </div>
 

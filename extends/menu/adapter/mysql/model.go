@@ -13,6 +13,7 @@ type menuPO struct {
 	Type       int
 	Permission string
 	Status     int
+	Version    string
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
 }

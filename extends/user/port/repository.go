@@ -14,6 +14,8 @@ type UserRepository interface {
 	Create(ctx context.Context, user *domain.User) error
 	Update(ctx context.Context, id uint, updates map[string]any) error
 	Delete(ctx context.Context, id uint) error
+	DeleteBatch(ctx context.Context, ids []uint) error
+	UpdateStatusBatch(ctx context.Context, ids []uint, status int) error
 	IncrementSessionVersion(ctx context.Context, id uint) error
 	GetSessionVersion(ctx context.Context, id uint) (int, error)
 }

@@ -72,6 +72,17 @@ func (m *mockRoleRepo) Delete(ctx context.Context, id uint) error {
 	return nil
 }
 
+func (m *mockRoleRepo) DeleteBatch(ctx context.Context, ids []uint) error {
+	for _, id := range ids {
+		delete(m.roles, id)
+	}
+	return nil
+}
+
+func (m *mockRoleRepo) UpdateStatusBatch(ctx context.Context, ids []uint, status int) error {
+	return nil
+}
+
 func (m *mockRoleRepo) AssignPermissions(ctx context.Context, roleID uint, permIDs []uint) error {
 	return nil
 }

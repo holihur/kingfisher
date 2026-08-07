@@ -60,6 +60,13 @@ func (m *mockConfigRepo) Delete(ctx context.Context, key string) error {
 	return nil
 }
 
+func (m *mockConfigRepo) DeleteBatch(ctx context.Context, keys []string) error {
+	for _, k := range keys {
+		delete(m.configs, k)
+	}
+	return nil
+}
+
 func TestConfigGetAll(t *testing.T) {
 	repo := &mockConfigRepo{
 		configs: map[string]*domain.SystemConfig{

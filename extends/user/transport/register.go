@@ -81,6 +81,8 @@ func (m *UserModule) RegisterProtected(r *gin.RouterGroup) {
 	users.GET("/:id", rbacTransport.RequirePerm("user:list"), m.userHandler.GetByID)
 	users.PUT("/:id", rbacTransport.RequirePerm("user:update"), m.userHandler.Update)
 	users.GET("", rbacTransport.RequirePerm("user:list"), m.userHandler.List)
+	users.POST("/batch-delete", rbacTransport.RequirePerm("user:delete"), m.userHandler.BatchDelete)
+	users.POST("/batch-status", rbacTransport.RequirePerm("user:update"), m.userHandler.BatchUpdateStatus)
 	users.DELETE("/:id", rbacTransport.RequirePerm("user:delete"), m.userHandler.Delete)
 	users.DELETE("/:id/sessions", rbacTransport.RequirePerm("user:update"), m.userHandler.RevokeSessions)
 }

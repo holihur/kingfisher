@@ -10,6 +10,8 @@ type DictType struct {
 	IsPublic  bool      `json:"is_public"` // 是否公开（公开项可通过公共 API 读取）
 	Status    int       `json:"status"`    // 1=启用, 0=禁用
 	Remark    string    `json:"remark"`
+	// Version 表示该字典类型由哪个版本新增
+	Version   string    `json:"version"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -23,6 +25,8 @@ type DictEntry struct {
 	Sort      int       `json:"sort"`    // 排序
 	Status    int       `json:"status"`  // 1=启用, 0=禁用
 	Remark    string    `json:"remark"`
+	// Version 表示该字典条目由哪个版本新增
+	Version   string    `json:"version"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }

@@ -53,6 +53,12 @@ func (r *RoleRepo) Update(ctx context.Context, id uint, updates map[string]any) 
 func (r *RoleRepo) Delete(ctx context.Context, id uint) error {
 	return r.db.WithContext(ctx).Delete(&rolePO{}, id).Error
 }
+func (r *RoleRepo) DeleteBatch(ctx context.Context, ids []uint) error {
+	return r.db.WithContext(ctx).Where("id IN ?", ids).Delete(&rolePO{}).Error
+}
+func (r *RoleRepo) UpdateStatusBatch(ctx context.Context, ids []uint, status int) error {
+	return r.db.WithContext(ctx).Model(&rolePO{}).Where("id IN ?", ids).Update("status", status).Error
+}
 func (r *RoleRepo) AssignPermissions(ctx context.Context, roleID uint, permIDs []uint) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("role_id = ?", roleID).Delete(&rolePermissionPO{}).Error; err != nil {

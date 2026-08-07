@@ -9,6 +9,7 @@ type dictTypePO struct {
 	IsPublic  bool
 	Status    int
 	Remark    string
+	Version   string
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
@@ -23,6 +24,7 @@ type dictEntryPO struct {
 	Sort      int
 	Status    int
 	Remark    string
+	Version   string
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }

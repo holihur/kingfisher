@@ -45,11 +45,15 @@ func (m *DictModule) RegisterProtected(r *gin.RouterGroup) {
 	types.GET("/:id", rbacTransport.RequirePerm("dict:list"), m.typeHandler.GetByID)
 	types.POST("", rbacTransport.RequirePerm("dict:create"), m.typeHandler.Create)
 	types.PUT("/:id", rbacTransport.RequirePerm("dict:update"), m.typeHandler.Update)
+	types.POST("/batch-delete", rbacTransport.RequirePerm("dict:delete"), m.typeHandler.BatchDelete)
+	types.POST("/batch-status", rbacTransport.RequirePerm("dict:update"), m.typeHandler.BatchUpdateStatus)
 	types.DELETE("/:id", rbacTransport.RequirePerm("dict:delete"), m.typeHandler.Delete)
 
 	entries := r.Group("/dict-types/:id/entries")
 	entries.GET("", rbacTransport.RequirePerm("dict:list"), m.entryHandler.ListByTypeID)
 	entries.POST("", rbacTransport.RequirePerm("dict:create"), m.entryHandler.Create)
+	entries.POST("/batch-delete", rbacTransport.RequirePerm("dict:delete"), m.entryHandler.BatchDelete)
+	entries.POST("/batch-status", rbacTransport.RequirePerm("dict:update"), m.entryHandler.BatchUpdateStatus)
 	entries.PUT("/:entryId", rbacTransport.RequirePerm("dict:update"), m.entryHandler.Update)
 	entries.DELETE("/:entryId", rbacTransport.RequirePerm("dict:delete"), m.entryHandler.Delete)
 }

@@ -13,4 +13,6 @@ export const userApi = {
   create: (data: { username: string; password: string; email?: string }) => request.post('/users', data),
   update: (id: number, data: Record<string, unknown>) => request.put(`/users/${id}`, data),
   delete: (id: number) => request.delete(`/users/${id}`),
+  batchDelete: (ids: number[]) => request.post('/users/batch-delete', { ids }),
+  batchUpdateStatus: (ids: number[], status: number) => request.post('/users/batch-status', { ids, status }),
 };

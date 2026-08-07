@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Modal, Form, Input, InputNumber, Switch, Select, App, Tag, Popconfirm, Button, Empty } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { Modal, Form, Input, InputNumber, Switch, Select, App, Tag, Popconfirm, Button, Empty, Checkbox, Dropdown } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, DownOutlined } from '@ant-design/icons';
 import DataTable, { SearchField } from '../../components/DataTable';
 import { useAuthStore } from '../../stores/auth';
 import { dictTypeApi, dictEntryApi } from '../../api/dict';
@@ -13,6 +13,7 @@ interface DictType {
   is_public: boolean;
   status: number;
   remark: string;
+  version: string;
 }
 
 interface DictEntry {
@@ -23,12 +24,13 @@ interface DictEntry {
   sort: number;
   status: number;
   remark: string;
+  version: string;
   created_at: string;
   updated_at: string;
 }
 
 const DictManage: React.FC = () => {
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const perms = useAuthStore((s) => s.permissions);
 
   // 字典类型状态
@@ -45,7 +47,11 @@ const DictManage: React.FC = () => {
     is_public: boolean;
     status: number;
     remark: string;
+    version: string;
   }>();
+
+  // 类型批量勾选状态
+  const [checkedTypeIds, setCheckedTypeIds] = useState<number[]>([]);
 
   // 条目状态
   const [entryModal, setEntryModal] = useState<{ open: boolean; editing: DictEntry | null }>({
@@ -58,6 +64,7 @@ const DictManage: React.FC = () => {
     sort: number;
     status: number;
     remark: string;
+    version: string;
   }>();
 
   const loadTypes = useCallback(async () => {
@@ -88,6 +95,7 @@ const DictManage: React.FC = () => {
       is_public: !!t.is_public,
       status: t.status,
       remark: t.remark,
+      version: t.version,
     });
     setTypeModal({ open: true, editing: t });
   };
@@ -101,6 +109,7 @@ const DictManage: React.FC = () => {
         is_public: Boolean(v.is_public),
         status: v.status ?? 1,
         remark: v.remark ?? '',
+        version: v.version ?? '',
       });
       message.success('字典类型已更新');
     } else {
@@ -110,6 +119,7 @@ const DictManage: React.FC = () => {
         is_public: Boolean(v.is_public),
         status: v.status ?? 1,
         remark: v.remark ?? '',
+        version: v.version ?? '1.0.0',
       });
       message.success('字典类型已创建');
     }
@@ -139,6 +149,7 @@ const DictManage: React.FC = () => {
       sort: e.sort,
       status: e.status,
       remark: e.remark,
+      version: e.version,
     });
     setEntryModal({ open: true, editing: e });
   };
@@ -153,6 +164,7 @@ const DictManage: React.FC = () => {
         sort: v.sort ?? 0,
         status: v.status ?? 1,
         remark: v.remark ?? '',
+        version: v.version ?? '',
       });
       message.success('条目已更新');
     } else {
@@ -162,6 +174,7 @@ const DictManage: React.FC = () => {
         sort: v.sort ?? 0,
         status: v.status ?? 1,
         remark: v.remark ?? '',
+        version: v.version ?? '1.0.0',
       });
       message.success('条目已创建');
     }
@@ -190,6 +203,7 @@ const DictManage: React.FC = () => {
         r.status === 1 ? <Tag color="green">启用</Tag> : <Tag color="red">禁用</Tag>,
     },
     { title: '备注', dataIndex: 'remark', ellipsis: true },
+    { title: '版本', dataIndex: 'version', width: 90, render: (v: unknown) => (v ? <Tag>{v as string}</Tag> : '-') },
     { title: '更新时间', dataIndex: 'updated_at', width: 150, render: (v: unknown) => formatTime(v) },
     {
       title: '操作',
@@ -241,6 +255,50 @@ const DictManage: React.FC = () => {
             </Button>
           )}
         </div>
+        {checkedTypeIds.length > 0 && (perms.includes('dict:update') || perms.includes('dict:delete')) ? (
+          <div style={{ display: 'flex', gap: 4, marginBottom: 8, alignItems: 'center' }}>
+            <span style={{ fontSize: 12, color: '#8c8c8c' }}>已选 {checkedTypeIds.length} 项</span>
+            <Dropdown
+              menu={{
+                items: [
+                  ...(perms.includes('dict:update') ? [{ key: 'enable', label: '批量启用' }] : []),
+                  ...(perms.includes('dict:update') ? [{ key: 'disable', label: '批量禁用' }] : []),
+                  ...(perms.includes('dict:delete') ? [{ key: 'delete', label: '批量删除', danger: true }] : []),
+                ],
+                onClick: ({ key }) => {
+                  if (key === 'enable') void dictTypeApi.batchUpdateStatus(checkedTypeIds, 1).then(() => {
+                    message.success('已批量启用');
+                    setCheckedTypeIds([]);
+                    loadTypes();
+                  });
+                  else if (key === 'disable') void dictTypeApi.batchUpdateStatus(checkedTypeIds, 0).then(() => {
+                    message.success('已批量禁用');
+                    setCheckedTypeIds([]);
+                    loadTypes();
+                  });
+                  else if (key === 'delete') {
+                    modal.confirm({
+                      title: '批量删除',
+                      content: `确定删除选中的 ${checkedTypeIds.length} 个类型吗？（含条目的类型不可删除）`,
+                      onOk: async () => {
+                        await dictTypeApi.batchDelete(checkedTypeIds);
+                        message.success('已删除');
+                        if (selectedType && checkedTypeIds.includes(selectedType.id)) setSelectedType(null);
+                        setCheckedTypeIds([]);
+                        loadTypes();
+                        setEntryRefreshKey((k) => k + 1);
+                      },
+                    });
+                  }
+                },
+              }}
+            >
+              <Button size="small">
+                批量操作 <DownOutlined />
+              </Button>
+            </Dropdown>
+          </div>
+        ) : null}
         {types.length === 0 ? (
           <Empty description="暂无字典类型" image={Empty.PRESENTED_IMAGE_SIMPLE} />
         ) : (
@@ -264,6 +322,15 @@ const DictManage: React.FC = () => {
                   border: selectedType?.id === t.id ? '1px solid #91caff' : '1px solid transparent',
                 }}
               >
+                <Checkbox
+                  checked={checkedTypeIds.includes(t.id)}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setCheckedTypeIds((prev) => (checked ? [...prev, t.id] : prev.filter((id) => id !== t.id)));
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  style={{ marginRight: 2 }}
+                />
                 <div>
                   <div style={{ fontWeight: 500 }}>{t.name}</div>
                   <div style={{ fontSize: 12, color: '#888' }}>
@@ -310,6 +377,50 @@ const DictManage: React.FC = () => {
               </Button>
             ) : null
           }
+          selectable={!!selectedType && (perms.includes('dict:update') || perms.includes('dict:delete'))}
+          batchBarRender={(keys, clear) => {
+            const ids = keys as number[];
+            const typeId = selectedType?.id;
+            const runStatus = async (status: number, label: string) => {
+              if (!typeId) return;
+              await dictEntryApi.batchUpdateStatus(typeId, ids, status);
+              message.success(`已${label}`);
+              clear();
+              setEntryRefreshKey((k) => k + 1);
+            };
+            return (
+              <Dropdown
+                menu={{
+                  items: [
+                    ...(perms.includes('dict:update') ? [{ key: 'enable', label: '批量启用' }] : []),
+                    ...(perms.includes('dict:update') ? [{ key: 'disable', label: '批量禁用' }] : []),
+                    ...(perms.includes('dict:delete') ? [{ key: 'delete', label: '批量删除', danger: true }] : []),
+                  ],
+                  onClick: ({ key }) => {
+                    if (key === 'enable') void runStatus(1, '批量启用');
+                    else if (key === 'disable') void runStatus(0, '批量禁用');
+                    else if (key === 'delete') {
+                      modal.confirm({
+                        title: '批量删除',
+                        content: `确定删除选中的 ${ids.length} 个条目吗？`,
+                        onOk: async () => {
+                          if (!typeId) return;
+                          await dictEntryApi.batchDelete(typeId, ids);
+                          message.success('已删除');
+                          clear();
+                          setEntryRefreshKey((k) => k + 1);
+                        },
+                      });
+                    }
+                  },
+                }}
+              >
+                <Button size="small">
+                  批量操作 <DownOutlined />
+                </Button>
+              </Dropdown>
+            );
+          }}
         />
       </div>
 
@@ -341,6 +452,9 @@ const DictManage: React.FC = () => {
           <Form.Item name="remark" label="备注">
             <Input.TextArea rows={2} />
           </Form.Item>
+          <Form.Item name="version" label="版本（表示该字典类型由哪个版本新增）">
+            <Input placeholder="如 1.0.0" />
+          </Form.Item>
         </Form>
       </Modal>
 
@@ -371,6 +485,9 @@ const DictManage: React.FC = () => {
           </Form.Item>
           <Form.Item name="remark" label="备注">
             <Input.TextArea rows={2} />
+          </Form.Item>
+          <Form.Item name="version" label="版本（表示该字典条目由哪个版本新增）">
+            <Input placeholder="如 1.0.0" />
           </Form.Item>
         </Form>
       </Modal>

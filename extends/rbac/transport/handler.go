@@ -19,12 +19,24 @@ type AssignPermReq struct {
 type AssignMenuReq struct {
 	MenuIDs []uint `json:"menu_ids"`
 }
+type batchIDsReq struct {
+	IDs []uint `json:"ids" binding:"required,min=1"`
+}
+type batchStatusReq struct {
+	IDs    []uint `json:"ids" binding:"required,min=1"`
+	Status *int   `json:"status" binding:"required"`
+}
 
 func NewRoleHandler(svc *app.RoleService) *RoleHandler { return &RoleHandler{svc: svc} }
 func NewPermHandler(svc *app.PermService) *PermHandler { return &PermHandler{svc: svc} }
 
 // @Summary 角色列表
 // @Tags Role
+// @Produce json
+// @Security BearerAuth
+// @Param page query int false "页码" default(1)
+// @Param page_size query int false "每页数量" default(20)
+// @Success 200 {object} response.Response{data=response.PageData} "角色列表"
 // @Router /api/v1/roles [get]
 // roleQueryDefs 角色列表可查询字段白名单
 var roleQueryDefs = query.Defs{
@@ -117,6 +129,32 @@ func (h *RoleHandler) Delete(c *gin.Context) {
 	response.OKJSON(c, nil)
 }
 
+func (h *RoleHandler) BatchDelete(c *gin.Context) {
+	var req batchIDsReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	if err := h.svc.BatchDelete(c.Request.Context(), req.IDs); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	response.OKJSON(c, nil)
+}
+
+func (h *RoleHandler) BatchUpdateStatus(c *gin.Context) {
+	var req batchStatusReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	if err := h.svc.BatchUpdateStatus(c.Request.Context(), req.IDs, *req.Status); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	response.OKJSON(c, nil)
+}
+
 func (h *RoleHandler) GetPermissions(c *gin.Context) {
 	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
 	perms, _ := h.svc.GetRolePermissions(c.Request.Context(), uint(id))
@@ -159,6 +197,9 @@ func (h *RoleHandler) AssignMenus(c *gin.Context) {
 
 // @Summary 权限列表
 // @Tags Role
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} response.Response "权限列表"
 // @Router /api/v1/permissions [get]
 func (h *PermHandler) List(c *gin.Context) {
 	perms, err := h.svc.List(c.Request.Context())

@@ -83,6 +83,17 @@ func (s *ConfigService) Delete(ctx context.Context, key string) error {
 	return nil
 }
 
+// BatchDelete 批量删除配置
+func (s *ConfigService) BatchDelete(ctx context.Context, keys []string) error {
+	if err := s.repo.DeleteBatch(ctx, keys); err != nil {
+		return err
+	}
+	if s.cache != nil {
+		_ = s.cache.Delete(ctx, "config:all")
+	}
+	return nil
+}
+
 // ConfigGroupService 配置分组 CRUD
 type ConfigGroupService struct {
 	groupRepo port.ConfigGroupRepository

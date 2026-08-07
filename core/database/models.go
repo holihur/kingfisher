@@ -66,8 +66,10 @@ type MenuPO struct {
 	Type       int    `gorm:"default:2"`
 	Permission string `gorm:"size:64"`
 	Status     int    `gorm:"default:1"`
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
+	// Version 表示该菜单由哪个版本新增
+	Version   string `gorm:"size:32"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 func (MenuPO) TableName() string { return "menus" }
@@ -140,6 +142,8 @@ type DictTypePO struct {
 	IsPublic  bool   `gorm:"default:false;not null"`
 	Status    int    `gorm:"default:1"`
 	Remark    string `gorm:"size:255"`
+	// Version 表示该字典类型由哪个版本新增
+	Version   string `gorm:"size:32"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
@@ -154,6 +158,8 @@ type DictEntryPO struct {
 	Sort      int    `gorm:"default:0"`
 	Status    int    `gorm:"default:1"`
 	Remark    string `gorm:"size:255"`
+	// Version 表示该字典条目由哪个版本新增
+	Version   string `gorm:"size:32"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }

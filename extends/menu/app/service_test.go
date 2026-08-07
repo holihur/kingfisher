@@ -71,6 +71,17 @@ func (m *mockMenuRepo) Delete(ctx context.Context, id uint) error {
 	return nil
 }
 
+func (m *mockMenuRepo) DeleteBatch(ctx context.Context, ids []uint) error {
+	for _, id := range ids {
+		delete(m.menus, id)
+	}
+	return nil
+}
+
+func (m *mockMenuRepo) UpdateStatusBatch(ctx context.Context, ids []uint, status int) error {
+	return nil
+}
+
 func (m *mockMenuRepo) HasChildren(ctx context.Context, id uint) (bool, error) {
 	return m.children != nil && m.children[id], nil
 }

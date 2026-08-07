@@ -42,26 +42,35 @@ func (r *DictTypeRepo) GetByCode(ctx context.Context, code string) (*domain.Dict
 	return toDictType(&po), nil
 }
 
-func (r *DictTypeRepo) Create(ctx context.Context, code, name string, isPublic bool, status int, remark string) (*domain.DictType, error) {
-	po := dictTypePO{Code: code, Name: name, IsPublic: isPublic, Status: status, Remark: remark}
+func (r *DictTypeRepo) Create(ctx context.Context, code, name string, isPublic bool, status int, remark, version string) (*domain.DictType, error) {
+	po := dictTypePO{Code: code, Name: name, IsPublic: isPublic, Status: status, Remark: remark, Version: version}
 	if err := r.db.WithContext(ctx).Create(&po).Error; err != nil {
 		return nil, err
 	}
 	return toDictType(&po), nil
 }
 
-func (r *DictTypeRepo) Update(ctx context.Context, id uint, code, name string, isPublic bool, status int, remark string) error {
+func (r *DictTypeRepo) Update(ctx context.Context, id uint, code, name string, isPublic bool, status int, remark, version string) error {
 	return r.db.WithContext(ctx).Model(&dictTypePO{}).Where("id = ?", id).Updates(map[string]any{
 		"code":      code,
 		"name":      name,
 		"is_public": isPublic,
 		"status":    status,
 		"remark":    remark,
+		"version":   version,
 	}).Error
 }
 
 func (r *DictTypeRepo) Delete(ctx context.Context, id uint) error {
 	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&dictTypePO{}).Error
+}
+
+func (r *DictTypeRepo) DeleteBatch(ctx context.Context, ids []uint) error {
+	return r.db.WithContext(ctx).Where("id IN ?", ids).Delete(&dictTypePO{}).Error
+}
+
+func (r *DictTypeRepo) UpdateStatusBatch(ctx context.Context, ids []uint, status int) error {
+	return r.db.WithContext(ctx).Model(&dictTypePO{}).Where("id IN ?", ids).Update("status", status).Error
 }
 
 // ---- DictEntry repo ----
@@ -105,15 +114,15 @@ func (r *DictEntryRepo) GetByID(ctx context.Context, id uint) (*domain.DictEntry
 	return toDictEntry(&po), nil
 }
 
-func (r *DictEntryRepo) Create(ctx context.Context, typeID uint, label, value string, sort, status int, remark string) (*domain.DictEntry, error) {
-	po := dictEntryPO{TypeID: typeID, Label: label, Value: value, Sort: sort, Status: status, Remark: remark}
+func (r *DictEntryRepo) Create(ctx context.Context, typeID uint, label, value string, sort, status int, remark, version string) (*domain.DictEntry, error) {
+	po := dictEntryPO{TypeID: typeID, Label: label, Value: value, Sort: sort, Status: status, Remark: remark, Version: version}
 	if err := r.db.WithContext(ctx).Create(&po).Error; err != nil {
 		return nil, err
 	}
 	return toDictEntry(&po), nil
 }
 
-func (r *DictEntryRepo) Update(ctx context.Context, id uint, typeID uint, label, value string, sort, status int, remark string) error {
+func (r *DictEntryRepo) Update(ctx context.Context, id uint, typeID uint, label, value string, sort, status int, remark, version string) error {
 	return r.db.WithContext(ctx).Model(&dictEntryPO{}).Where("id = ?", id).Updates(map[string]any{
 		"type_id": typeID,
 		"label":   label,
@@ -121,11 +130,20 @@ func (r *DictEntryRepo) Update(ctx context.Context, id uint, typeID uint, label,
 		"sort":    sort,
 		"status":  status,
 		"remark":  remark,
+		"version": version,
 	}).Error
 }
 
 func (r *DictEntryRepo) Delete(ctx context.Context, id uint) error {
 	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&dictEntryPO{}).Error
+}
+
+func (r *DictEntryRepo) DeleteBatch(ctx context.Context, ids []uint) error {
+	return r.db.WithContext(ctx).Where("id IN ?", ids).Delete(&dictEntryPO{}).Error
+}
+
+func (r *DictEntryRepo) UpdateStatusBatch(ctx context.Context, ids []uint, status int) error {
+	return r.db.WithContext(ctx).Model(&dictEntryPO{}).Where("id IN ?", ids).Update("status", status).Error
 }
 
 func (r *DictEntryRepo) DeleteByTypeID(ctx context.Context, typeID uint) error {
@@ -142,6 +160,7 @@ func toDictType(p *dictTypePO) *domain.DictType {
 		IsPublic:  p.IsPublic,
 		Status:    p.Status,
 		Remark:    p.Remark,
+		Version:   p.Version,
 		CreatedAt: p.CreatedAt,
 		UpdatedAt: p.UpdatedAt,
 	}
@@ -164,6 +183,7 @@ func toDictEntry(p *dictEntryPO) *domain.DictEntry {
 		Sort:      p.Sort,
 		Status:    p.Status,
 		Remark:    p.Remark,
+		Version:   p.Version,
 		CreatedAt: p.CreatedAt,
 		UpdatedAt: p.UpdatedAt,
 	}

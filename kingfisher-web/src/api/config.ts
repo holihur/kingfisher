@@ -5,6 +5,7 @@ export const configApi = {
   set: (key: string, value: string, isPublic?: boolean, version?: string, render?: string, renderOptions?: string, groupId?: number) =>
     request.put(`/configs/${key}`, { value, is_public: isPublic, version, render, render_options: renderOptions, group_id: groupId }),
   delete: (key: string) => request.delete(`/configs/${key}`),
+  batchDelete: (keys: string[]) => request.post('/configs/batch-delete', { keys }),
   // 公开配置：无需登录可读
   getPublicAll: () => request.get('/public/configs'),
   getPublic: (key: string) => request.get(`/public/configs/${key}`),

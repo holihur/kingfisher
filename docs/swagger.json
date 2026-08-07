@@ -11,29 +11,206 @@
     "paths": {
         "/api/v1/auth/login": {
             "post": {
+                "description": "使用用户名和密码登录，成功后返回 access/refresh token",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
                 "tags": [
                     "Auth"
                 ],
                 "summary": "用户登录",
-                "responses": {}
+                "parameters": [
+                    {
+                        "description": "登录请求",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/extends_user_transport.LoginReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "10103": {
+                        "description": "用户名或密码错误",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    },
+                    "200": {
+                        "description": "登录成功",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/kingfisher_core_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/extends_user_transport.LoginResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/logout": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "撤销当前 Bearer token",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "退出登录",
+                "responses": {
+                    "200": {
+                        "description": "退出成功",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "未认证",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    }
+                }
             }
         },
         "/api/v1/auth/refresh": {
             "post": {
+                "description": "使用 refresh_token 换取新的 access_token",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
                 "tags": [
                     "Auth"
                 ],
                 "summary": "刷新Token",
-                "responses": {}
+                "parameters": [
+                    {
+                        "description": "刷新请求",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/extends_user_transport.RefreshReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "10105": {
+                        "description": "Token 无效",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    },
+                    "200": {
+                        "description": "刷新成功",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/kingfisher_core_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "access_token": {
+                                                    "type": "string"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
             }
         },
         "/api/v1/auth/register": {
             "post": {
+                "description": "使用用户名、密码、邮箱注册新账号；受注册开关控制",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
                 "tags": [
                     "Auth"
                 ],
                 "summary": "用户注册",
-                "responses": {}
+                "parameters": [
+                    {
+                        "description": "注册请求",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/extends_user_transport.RegisterReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "10101": {
+                        "description": "用户已存在",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    },
+                    "200": {
+                        "description": "注册成功",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/kingfisher_core_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/kingfisher_extends_user_domain.User"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    }
+                }
             }
         },
         "/api/v1/config-groups": {
@@ -47,170 +224,1582 @@
         },
         "/api/v1/configs": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
                 "tags": [
                     "Config"
                 ],
                 "summary": "配置列表",
-                "responses": {}
+                "responses": {
+                    "200": {
+                        "description": "配置列表",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    }
+                }
             }
         },
         "/api/v1/dict-types": {
-            "get": {
-                "tags": [
-                    "Dict"
-                ],
-                "summary": "字典类型列表",
-                "responses": {}
-            },
             "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
                 "tags": [
                     "Dict"
                 ],
                 "summary": "创建字典类型",
-                "responses": {}
+                "parameters": [
+                    {
+                        "description": "创建请求",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/extends_dict_transport.DictTypeReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "10502": {
+                        "description": "编码已存在",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    },
+                    "200": {
+                        "description": "创建成功",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    }
+                }
             }
         },
         "/api/v1/dict-types/:id": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
                 "tags": [
                     "Dict"
                 ],
                 "summary": "字典类型详情",
-                "responses": {}
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "类型ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "10501": {
+                        "description": "字典类型不存在",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    },
+                    "200": {
+                        "description": "字典类型详情",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    }
+                }
             },
             "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
                 "tags": [
                     "Dict"
                 ],
                 "summary": "更新字典类型",
-                "responses": {}
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "类型ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "更新请求",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/extends_dict_transport.DictTypeReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "10502": {
+                        "description": "编码已存在",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    },
+                    "200": {
+                        "description": "更新成功",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    }
+                }
             },
             "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
                 "tags": [
                     "Dict"
                 ],
                 "summary": "删除字典类型",
-                "responses": {}
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "类型ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "10504": {
+                        "description": "存在条目不可删除",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    },
+                    "200": {
+                        "description": "删除成功",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    }
+                }
             }
         },
         "/api/v1/dict-types/:id/entries": {
-            "get": {
-                "tags": [
-                    "Dict"
-                ],
-                "summary": "字典条目列表（按类型）",
-                "responses": {}
-            },
             "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
                 "tags": [
                     "Dict"
                 ],
                 "summary": "创建字典条目",
-                "responses": {}
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "类型ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "创建请求",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/extends_dict_transport.DictEntryReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "创建成功",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    }
+                }
             }
         },
         "/api/v1/dict-types/:id/entries/:entryId": {
             "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
                 "tags": [
                     "Dict"
                 ],
                 "summary": "更新字典条目",
-                "responses": {}
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "类型ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "条目ID",
+                        "name": "entryId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "更新请求",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/extends_dict_transport.DictEntryReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "更新成功",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    }
+                }
             },
             "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
                 "tags": [
                     "Dict"
                 ],
                 "summary": "删除字典条目",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "类型ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "条目ID",
+                        "name": "entryId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "删除成功",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/dict-types/:id/entries/batch-delete": {
+            "post": {
+                "tags": [
+                    "Dict"
+                ],
+                "summary": "批量删除字典条目",
+                "responses": {}
+            }
+        },
+        "/api/v1/dict-types/:id/entries/batch-status": {
+            "post": {
+                "tags": [
+                    "Dict"
+                ],
+                "summary": "批量启用/禁用字典条目",
+                "responses": {}
+            }
+        },
+        "/api/v1/dict-types/batch-delete": {
+            "post": {
+                "tags": [
+                    "Dict"
+                ],
+                "summary": "批量删除字典类型",
+                "responses": {}
+            }
+        },
+        "/api/v1/dict-types/batch-status": {
+            "post": {
+                "tags": [
+                    "Dict"
+                ],
+                "summary": "批量启用/禁用字典类型",
                 "responses": {}
             }
         },
         "/api/v1/menus": {
             "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
                 "tags": [
                     "Menu"
                 ],
                 "summary": "创建菜单",
-                "responses": {}
+                "parameters": [
+                    {
+                        "description": "创建请求",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "创建成功",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    }
+                }
             }
         },
         "/api/v1/menus/tree": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
                 "tags": [
                     "Menu"
                 ],
                 "summary": "菜单树（导航结构，权限校验在业务接口层）",
-                "responses": {}
+                "responses": {
+                    "200": {
+                        "description": "完整菜单树",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    }
+                }
             }
         },
         "/api/v1/permissions": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
                 "tags": [
                     "Role"
                 ],
                 "summary": "权限列表",
-                "responses": {}
+                "responses": {
+                    "200": {
+                        "description": "权限列表",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    }
+                }
             }
         },
         "/api/v1/public/configs": {
             "get": {
+                "produces": [
+                    "application/json"
+                ],
                 "tags": [
                     "Config"
                 ],
                 "summary": "公开配置列表",
-                "responses": {}
+                "responses": {
+                    "200": {
+                        "description": "公开配置列表",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    }
+                }
             }
         },
         "/api/v1/public/configs/:key": {
             "get": {
+                "produces": [
+                    "application/json"
+                ],
                 "tags": [
                     "Config"
                 ],
                 "summary": "公开配置单条",
-                "responses": {}
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "配置键",
+                        "name": "key",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "10401": {
+                        "description": "不存在",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    },
+                    "200": {
+                        "description": "配置详情",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    }
+                }
             }
         },
         "/api/v1/public/dicts/:code/entries": {
             "get": {
+                "produces": [
+                    "application/json"
+                ],
                 "tags": [
                     "Dict"
                 ],
                 "summary": "公开字典条目（无需登录）",
-                "responses": {}
-            }
-        },
-        "/api/v1/roles": {
-            "get": {
-                "tags": [
-                    "Role"
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "类型编码",
+                        "name": "code",
+                        "in": "path",
+                        "required": true
+                    }
                 ],
-                "summary": "角色列表",
-                "responses": {}
+                "responses": {
+                    "10501": {
+                        "description": "类型不存在",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    },
+                    "10505": {
+                        "description": "类型未公开",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    },
+                    "200": {
+                        "description": "条目列表",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    }
+                }
             }
         },
         "/api/v1/users": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "查询用户列表，支持关键词搜索和字段过滤",
+                "produces": [
+                    "application/json"
+                ],
                 "tags": [
                     "User"
                 ],
-                "summary": "用户列表",
-                "responses": {}
+                "summary": "用户列表（分页）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "页码",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "每页数量",
+                        "name": "page_size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "关键词（搜索 username/email）",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "default": "-created_at",
+                        "description": "排序",
+                        "name": "sort",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "用户列表",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/kingfisher_core_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/kingfisher_core_response.PageData"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
             },
             "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "管理员创建新用户",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
                 "tags": [
                     "User"
                 ],
                 "summary": "创建用户",
-                "responses": {}
+                "parameters": [
+                    {
+                        "description": "创建请求",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/extends_user_transport.RegisterReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "10101": {
+                        "description": "用户已存在",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    },
+                    "200": {
+                        "description": "创建成功",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/kingfisher_core_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/kingfisher_extends_user_domain.User"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/users/batch-delete": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "软删除多个用户",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "User"
+                ],
+                "summary": "批量删除用户",
+                "parameters": [
+                    {
+                        "description": "批量删除请求",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/extends_user_transport.BatchUserOp"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "删除成功",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/users/batch-status": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "批量启用/禁用用户",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "User"
+                ],
+                "summary": "批量更新用户状态",
+                "parameters": [
+                    {
+                        "description": "批量更新请求",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/extends_user_transport.BatchStatusReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "更新成功",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/users/me": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "User"
+                ],
+                "summary": "获取当前用户信息",
+                "responses": {
+                    "200": {
+                        "description": "用户信息",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/kingfisher_core_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/kingfisher_extends_user_domain.User"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "用户不存在",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "当前用户更新自己的邮箱、昵称、头像",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "User"
+                ],
+                "summary": "更新个人资料",
+                "parameters": [
+                    {
+                        "description": "资料更新请求",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/extends_user_transport.UpdateMeReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "更新后的用户信息",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/kingfisher_core_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/kingfisher_extends_user_domain.User"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/users/me/avatar": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "上传当前用户的头像图片（png/jpg/jpeg/gif/webp，最大 2MB）",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "User"
+                ],
+                "summary": "上传头像",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "头像图片",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "头像URL",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/kingfisher_core_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "url": {
+                                                    "type": "string"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "文件类型或大小不符合要求",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/users/me/login-logs": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "查询当前用户的历史登录记录（分页）",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "User"
+                ],
+                "summary": "我的登录日志",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "页码",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "每页数量",
+                        "name": "page_size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "default": "-created_at",
+                        "description": "排序",
+                        "name": "sort",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "登录日志列表",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/kingfisher_core_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/kingfisher_core_response.PageData"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/users/me/password": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "当前用户修改自己的登录密码",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "User"
+                ],
+                "summary": "修改密码",
+                "parameters": [
+                    {
+                        "description": "修改密码请求",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/extends_user_transport.ChangePwdReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "10103": {
+                        "description": "旧密码错误",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    },
+                    "200": {
+                        "description": "修改成功",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/users/me/permissions": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "User"
+                ],
+                "summary": "获取当前用户权限列表",
+                "responses": {
+                    "200": {
+                        "description": "权限代码列表",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/kingfisher_core_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
             }
         },
         "/api/v1/users/{id}": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "根据 ID 获取用户信息",
+                "produces": [
+                    "application/json"
+                ],
                 "tags": [
                     "User"
                 ],
                 "summary": "获取用户",
-                "responses": {}
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "用户ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "用户信息",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/kingfisher_core_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/kingfisher_extends_user_domain.User"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "用户不存在",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "管理员更新指定用户的邮箱、状态、角色",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "User"
+                ],
+                "summary": "更新用户",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "用户ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "更新请求",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/extends_user_transport.UpdateUserReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "更新成功",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "软删除指定用户（不可删除自己）",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "User"
+                ],
+                "summary": "删除用户",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "用户ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "删除成功",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/users/{id}/sessions": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "使指定用户的全部 session 失效",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "User"
+                ],
+                "summary": "踢下线",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "用户ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "操作成功",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "extends_dict_transport.DictEntryReq": {
+            "type": "object",
+            "required": [
+                "label",
+                "value"
+            ],
+            "properties": {
+                "label": {
+                    "type": "string"
+                },
+                "remark": {
+                    "type": "string"
+                },
+                "sort": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "integer"
+                },
+                "value": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
+        "extends_dict_transport.DictTypeReq": {
+            "type": "object",
+            "required": [
+                "code",
+                "name"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "is_public": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "remark": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "integer"
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
+        "extends_user_transport.BatchStatusReq": {
+            "type": "object",
+            "required": [
+                "ids",
+                "status"
+            ],
+            "properties": {
+                "ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "status": {
+                    "type": "integer",
+                    "example": 1
+                }
+            }
+        },
+        "extends_user_transport.BatchUserOp": {
+            "type": "object",
+            "required": [
+                "ids"
+            ],
+            "properties": {
+                "ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
+        "extends_user_transport.ChangePwdReq": {
+            "type": "object",
+            "required": [
+                "new_password",
+                "old_password"
+            ],
+            "properties": {
+                "new_password": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "minLength": 8,
+                    "example": "NewPass123"
+                },
+                "old_password": {
+                    "type": "string",
+                    "example": "Abcd1234"
+                }
+            }
+        },
+        "extends_user_transport.LoginReq": {
+            "type": "object",
+            "required": [
+                "password",
+                "username"
+            ],
+            "properties": {
+                "password": {
+                    "type": "string",
+                    "example": "Abcd1234"
+                },
+                "username": {
+                    "type": "string",
+                    "example": "admin"
+                }
+            }
+        },
+        "extends_user_transport.LoginResp": {
+            "type": "object",
+            "properties": {
+                "access_token": {
+                    "type": "string"
+                },
+                "landing_page": {
+                    "type": "string"
+                },
+                "refresh_token": {
+                    "type": "string"
+                },
+                "user": {
+                    "$ref": "#/definitions/kingfisher_extends_user_domain.User"
+                }
+            }
+        },
+        "extends_user_transport.RefreshReq": {
+            "type": "object",
+            "required": [
+                "refresh_token"
+            ],
+            "properties": {
+                "refresh_token": {
+                    "type": "string"
+                }
+            }
+        },
+        "extends_user_transport.RegisterReq": {
+            "type": "object",
+            "required": [
+                "password",
+                "username"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "example": "user@example.com"
+                },
+                "password": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "minLength": 8,
+                    "example": "Abcd1234"
+                },
+                "username": {
+                    "type": "string",
+                    "maxLength": 32,
+                    "minLength": 3,
+                    "example": "newuser"
+                }
+            }
+        },
+        "extends_user_transport.UpdateMeReq": {
+            "type": "object",
+            "properties": {
+                "avatar": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string",
+                    "example": "admin@example.com"
+                },
+                "nickname": {
+                    "type": "string",
+                    "example": "管理员"
+                }
+            }
+        },
+        "extends_user_transport.UpdateUserReq": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "role_id": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "integer"
+                }
+            }
+        },
+        "kingfisher_core_response.PageData": {
+            "type": "object",
+            "properties": {
+                "items": {},
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "kingfisher_core_response.Response": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer"
+                },
+                "data": {},
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "kingfisher_extends_user_domain.Role": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "kingfisher_extends_user_domain.User": {
+            "type": "object",
+            "properties": {
+                "avatar": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "nickname": {
+                    "type": "string"
+                },
+                "role": {
+                    "$ref": "#/definitions/kingfisher_extends_user_domain.Role"
+                },
+                "role_id": {
+                    "type": "integer"
+                },
+                "status": {
+                    "description": "1=启用 0=禁用",
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
             }
         }
     },

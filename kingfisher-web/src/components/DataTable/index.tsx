@@ -32,6 +32,10 @@ interface DataTableProps<T = Record<string, unknown>> {
   tableParams?: Record<string, unknown>;
   /** 外部触发刷新：增删改后递增此值 */
   reloadKey?: number;
+  /** 开启行选择（用于批量操作）；配合 batchBarRender 使用 */
+  selectable?: boolean;
+  /** 选中行后渲染的批量操作条：传入选中 keys 与清除选择的方法 */
+  batchBarRender?: (selectedRowKeys: React.Key[], clearSelection: () => void) => React.ReactNode;
 }
 
 /**
@@ -49,6 +53,8 @@ export default function DataTable<T = Record<string, unknown>>({
   toolBarRender,
   tableParams,
   reloadKey = 0,
+  selectable,
+  batchBarRender,
 }: DataTableProps<T>) {
   const { urlParams, page, pageSize, syncFormFromUrl, onPageChange } = useTableUrlQuery();
   const [, setSearchParams] = useSearchParams();
@@ -57,6 +63,7 @@ export default function DataTable<T = Record<string, unknown>>({
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 
   const isStatic = !request;
   const hasSearch = searchFields.length > 0;
@@ -80,6 +87,8 @@ export default function DataTable<T = Record<string, unknown>>({
     if (!requestRef.current) return;
     let cancelled = false;
     setLoading(true);
+    // 数据重载（翻页/搜索/刷新）时清空行选择，避免跨页残留
+    setSelectedRowKeys([]);
     // URL 参数去分页键后作为筛选条件，与分页合并
     const { page: _p, page_size: _ps, ...search } = urlParams;
     const loadParams = { current: page, pageSize, ...search, ...tableParams };
@@ -182,6 +191,12 @@ export default function DataTable<T = Record<string, unknown>>({
                 </Form.Item>
               </Form>
             )}
+            {selectable && selectedRowKeys.length > 0 && batchBarRender ? (
+              <Space size={8}>
+                <span style={{ color: '#8c8c8c', fontSize: 13 }}>已选 {selectedRowKeys.length} 项</span>
+                {batchBarRender(selectedRowKeys, () => setSelectedRowKeys([]))}
+              </Space>
+            ) : null}
             {toolBarRender}
           </div>
         </div>
@@ -209,6 +224,14 @@ export default function DataTable<T = Record<string, unknown>>({
         rowKey={rowKey}
         dataSource={isStatic ? dataSource : data}
         loading={loading}
+        rowSelection={
+          selectable
+            ? {
+                selectedRowKeys,
+                onChange: setSelectedRowKeys,
+              }
+            : undefined
+        }
         pagination={pagination}
         scroll={{ x: 'max-content' }}
         size="middle"

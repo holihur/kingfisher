@@ -36,6 +36,8 @@ func (m *RBACModule) RegisterProtected(r *gin.RouterGroup) {
 	roles.POST("", RequirePerm("role:create"), m.roleHandler.Create)
 	roles.PUT("/:id", RequirePerm("role:update"), m.roleHandler.Update)
 	roles.DELETE("/:id", RequirePerm("role:delete"), m.roleHandler.Delete)
+	roles.POST("/batch-delete", RequirePerm("role:delete"), m.roleHandler.BatchDelete)
+	roles.POST("/batch-status", RequirePerm("role:update"), m.roleHandler.BatchUpdateStatus)
 	roles.GET("/:id/permissions", RequirePerm("role:list"), m.roleHandler.GetPermissions)
 	roles.PUT("/:id/permissions", RequirePerm("role:update"), m.roleHandler.AssignPerms)
 	roles.GET("/:id/menus", RequirePerm("role:list"), m.roleHandler.GetMenus)

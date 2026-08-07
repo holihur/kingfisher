@@ -30,5 +30,7 @@ func (m *MenuModule) RegisterProtected(r *gin.RouterGroup) {
 	menus.GET("/:id", rbacTransport.RequirePerm("menu:list"), m.handler.GetByID)
 	menus.POST("", rbacTransport.RequirePerm("menu:create"), m.handler.Create)
 	menus.PUT("/:id", rbacTransport.RequirePerm("menu:update"), m.handler.Update)
+	menus.POST("/batch-delete", rbacTransport.RequirePerm("menu:delete"), m.handler.BatchDelete)
+	menus.POST("/batch-status", rbacTransport.RequirePerm("menu:update"), m.handler.BatchUpdateStatus)
 	menus.DELETE("/:id", rbacTransport.RequirePerm("menu:delete"), m.handler.Delete)
 }

@@ -14,5 +14,7 @@ type MenuRepository interface {
 	Create(ctx context.Context, menu *domain.Menu) error
 	Update(ctx context.Context, id uint, updates map[string]any) error
 	Delete(ctx context.Context, id uint) error
+	DeleteBatch(ctx context.Context, ids []uint) error
+	UpdateStatusBatch(ctx context.Context, ids []uint, status int) error
 	HasChildren(ctx context.Context, parentID uint) (bool, error)
 }

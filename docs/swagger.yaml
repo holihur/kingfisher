@@ -1,4 +1,197 @@
 basePath: /api/v1
+definitions:
+  extends_dict_transport.DictEntryReq:
+    properties:
+      label:
+        type: string
+      remark:
+        type: string
+      sort:
+        type: integer
+      status:
+        type: integer
+      value:
+        type: string
+      version:
+        type: string
+    required:
+    - label
+    - value
+    type: object
+  extends_dict_transport.DictTypeReq:
+    properties:
+      code:
+        type: string
+      is_public:
+        type: boolean
+      name:
+        type: string
+      remark:
+        type: string
+      status:
+        type: integer
+      version:
+        type: string
+    required:
+    - code
+    - name
+    type: object
+  extends_user_transport.BatchStatusReq:
+    properties:
+      ids:
+        items:
+          type: integer
+        type: array
+      status:
+        example: 1
+        type: integer
+    required:
+    - ids
+    - status
+    type: object
+  extends_user_transport.BatchUserOp:
+    properties:
+      ids:
+        items:
+          type: integer
+        type: array
+    required:
+    - ids
+    type: object
+  extends_user_transport.ChangePwdReq:
+    properties:
+      new_password:
+        example: NewPass123
+        maxLength: 64
+        minLength: 8
+        type: string
+      old_password:
+        example: Abcd1234
+        type: string
+    required:
+    - new_password
+    - old_password
+    type: object
+  extends_user_transport.LoginReq:
+    properties:
+      password:
+        example: Abcd1234
+        type: string
+      username:
+        example: admin
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  extends_user_transport.LoginResp:
+    properties:
+      access_token:
+        type: string
+      landing_page:
+        type: string
+      refresh_token:
+        type: string
+      user:
+        $ref: '#/definitions/kingfisher_extends_user_domain.User'
+    type: object
+  extends_user_transport.RefreshReq:
+    properties:
+      refresh_token:
+        type: string
+    required:
+    - refresh_token
+    type: object
+  extends_user_transport.RegisterReq:
+    properties:
+      email:
+        example: user@example.com
+        type: string
+      password:
+        example: Abcd1234
+        maxLength: 64
+        minLength: 8
+        type: string
+      username:
+        example: newuser
+        maxLength: 32
+        minLength: 3
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  extends_user_transport.UpdateMeReq:
+    properties:
+      avatar:
+        type: string
+      email:
+        example: admin@example.com
+        type: string
+      nickname:
+        example: 管理员
+        type: string
+    type: object
+  extends_user_transport.UpdateUserReq:
+    properties:
+      email:
+        type: string
+      role_id:
+        type: integer
+      status:
+        type: integer
+    type: object
+  kingfisher_core_response.PageData:
+    properties:
+      items: {}
+      page:
+        type: integer
+      page_size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  kingfisher_core_response.Response:
+    properties:
+      code:
+        type: integer
+      data: {}
+      message:
+        type: string
+    type: object
+  kingfisher_extends_user_domain.Role:
+    properties:
+      code:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
+  kingfisher_extends_user_domain.User:
+    properties:
+      avatar:
+        type: string
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: integer
+      nickname:
+        type: string
+      role:
+        $ref: '#/definitions/kingfisher_extends_user_domain.Role'
+      role_id:
+        type: integer
+      status:
+        description: 1=启用 0=禁用
+        type: integer
+      updated_at:
+        type: string
+      username:
+        type: string
+    type: object
 host: localhost:8080
 info:
   contact: {}
@@ -8,19 +201,124 @@ info:
 paths:
   /api/v1/auth/login:
     post:
-      responses: {}
+      consumes:
+      - application/json
+      description: 使用用户名和密码登录，成功后返回 access/refresh token
+      parameters:
+      - description: 登录请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/extends_user_transport.LoginReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 登录成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/kingfisher_core_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/extends_user_transport.LoginResp'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+        "10103":
+          description: 用户名或密码错误
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
       summary: 用户登录
+      tags:
+      - Auth
+  /api/v1/auth/logout:
+    post:
+      description: 撤销当前 Bearer token
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 退出成功
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+        "401":
+          description: 未认证
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+      security:
+      - BearerAuth: []
+      summary: 退出登录
       tags:
       - Auth
   /api/v1/auth/refresh:
     post:
-      responses: {}
+      consumes:
+      - application/json
+      description: 使用 refresh_token 换取新的 access_token
+      parameters:
+      - description: 刷新请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/extends_user_transport.RefreshReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 刷新成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/kingfisher_core_response.Response'
+            - properties:
+                data:
+                  properties:
+                    access_token:
+                      type: string
+                  type: object
+              type: object
+        "10105":
+          description: Token 无效
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
       summary: 刷新Token
       tags:
       - Auth
   /api/v1/auth/register:
     post:
-      responses: {}
+      consumes:
+      - application/json
+      description: 使用用户名、密码、邮箱注册新账号；受注册开关控制
+      parameters:
+      - description: 注册请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/extends_user_transport.RegisterReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 注册成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/kingfisher_core_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/kingfisher_extends_user_domain.User'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+        "10101":
+          description: 用户已存在
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
       summary: 用户注册
       tags:
       - Auth
@@ -32,116 +330,795 @@ paths:
       - Config
   /api/v1/configs:
     get:
-      responses: {}
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 配置列表
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+      security:
+      - BearerAuth: []
       summary: 配置列表
       tags:
       - Config
   /api/v1/dict-types:
-    get:
-      responses: {}
-      summary: 字典类型列表
-      tags:
-      - Dict
     post:
-      responses: {}
+      consumes:
+      - application/json
+      parameters:
+      - description: 创建请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/extends_dict_transport.DictTypeReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 创建成功
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+        "10502":
+          description: 编码已存在
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+      security:
+      - BearerAuth: []
       summary: 创建字典类型
       tags:
       - Dict
   /api/v1/dict-types/:id:
     delete:
-      responses: {}
+      parameters:
+      - description: 类型ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+        "10504":
+          description: 存在条目不可删除
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+      security:
+      - BearerAuth: []
       summary: 删除字典类型
       tags:
       - Dict
     get:
-      responses: {}
+      parameters:
+      - description: 类型ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 字典类型详情
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+        "10501":
+          description: 字典类型不存在
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+      security:
+      - BearerAuth: []
       summary: 字典类型详情
       tags:
       - Dict
     put:
-      responses: {}
+      consumes:
+      - application/json
+      parameters:
+      - description: 类型ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/extends_dict_transport.DictTypeReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+        "10502":
+          description: 编码已存在
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+      security:
+      - BearerAuth: []
       summary: 更新字典类型
       tags:
       - Dict
   /api/v1/dict-types/:id/entries:
-    get:
-      responses: {}
-      summary: 字典条目列表（按类型）
-      tags:
-      - Dict
     post:
-      responses: {}
+      consumes:
+      - application/json
+      parameters:
+      - description: 类型ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 创建请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/extends_dict_transport.DictEntryReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 创建成功
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+      security:
+      - BearerAuth: []
       summary: 创建字典条目
       tags:
       - Dict
   /api/v1/dict-types/:id/entries/:entryId:
     delete:
-      responses: {}
+      parameters:
+      - description: 类型ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 条目ID
+        in: path
+        name: entryId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+      security:
+      - BearerAuth: []
       summary: 删除字典条目
       tags:
       - Dict
     put:
-      responses: {}
+      consumes:
+      - application/json
+      parameters:
+      - description: 类型ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 条目ID
+        in: path
+        name: entryId
+        required: true
+        type: integer
+      - description: 更新请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/extends_dict_transport.DictEntryReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+      security:
+      - BearerAuth: []
       summary: 更新字典条目
+      tags:
+      - Dict
+  /api/v1/dict-types/:id/entries/batch-delete:
+    post:
+      responses: {}
+      summary: 批量删除字典条目
+      tags:
+      - Dict
+  /api/v1/dict-types/:id/entries/batch-status:
+    post:
+      responses: {}
+      summary: 批量启用/禁用字典条目
+      tags:
+      - Dict
+  /api/v1/dict-types/batch-delete:
+    post:
+      responses: {}
+      summary: 批量删除字典类型
+      tags:
+      - Dict
+  /api/v1/dict-types/batch-status:
+    post:
+      responses: {}
+      summary: 批量启用/禁用字典类型
       tags:
       - Dict
   /api/v1/menus:
     post:
-      responses: {}
+      consumes:
+      - application/json
+      parameters:
+      - description: 创建请求
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 创建成功
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+      security:
+      - BearerAuth: []
       summary: 创建菜单
       tags:
       - Menu
   /api/v1/menus/tree:
     get:
-      responses: {}
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 完整菜单树
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+      security:
+      - BearerAuth: []
       summary: 菜单树（导航结构，权限校验在业务接口层）
       tags:
       - Menu
   /api/v1/permissions:
     get:
-      responses: {}
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 权限列表
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+      security:
+      - BearerAuth: []
       summary: 权限列表
       tags:
       - Role
   /api/v1/public/configs:
     get:
-      responses: {}
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 公开配置列表
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
       summary: 公开配置列表
       tags:
       - Config
   /api/v1/public/configs/:key:
     get:
-      responses: {}
+      parameters:
+      - description: 配置键
+        in: path
+        name: key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 配置详情
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+        "10401":
+          description: 不存在
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
       summary: 公开配置单条
       tags:
       - Config
   /api/v1/public/dicts/:code/entries:
     get:
-      responses: {}
+      parameters:
+      - description: 类型编码
+        in: path
+        name: code
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 条目列表
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+        "10501":
+          description: 类型不存在
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+        "10505":
+          description: 类型未公开
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
       summary: 公开字典条目（无需登录）
       tags:
       - Dict
-  /api/v1/roles:
-    get:
-      responses: {}
-      summary: 角色列表
-      tags:
-      - Role
   /api/v1/users:
     get:
-      responses: {}
-      summary: 用户列表
+      description: 查询用户列表，支持关键词搜索和字段过滤
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页数量
+        in: query
+        name: page_size
+        type: integer
+      - description: 关键词（搜索 username/email）
+        in: query
+        name: q
+        type: string
+      - default: -created_at
+        description: 排序
+        in: query
+        name: sort
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 用户列表
+          schema:
+            allOf:
+            - $ref: '#/definitions/kingfisher_core_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/kingfisher_core_response.PageData'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 用户列表（分页）
       tags:
       - User
     post:
-      responses: {}
+      consumes:
+      - application/json
+      description: 管理员创建新用户
+      parameters:
+      - description: 创建请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/extends_user_transport.RegisterReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 创建成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/kingfisher_core_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/kingfisher_extends_user_domain.User'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+        "10101":
+          description: 用户已存在
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+      security:
+      - BearerAuth: []
       summary: 创建用户
       tags:
       - User
   /api/v1/users/{id}:
+    delete:
+      description: 软删除指定用户（不可删除自己）
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+      security:
+      - BearerAuth: []
+      summary: 删除用户
+      tags:
+      - User
     get:
-      responses: {}
+      description: 根据 ID 获取用户信息
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 用户信息
+          schema:
+            allOf:
+            - $ref: '#/definitions/kingfisher_core_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/kingfisher_extends_user_domain.User'
+              type: object
+        "404":
+          description: 用户不存在
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+      security:
+      - BearerAuth: []
       summary: 获取用户
+      tags:
+      - User
+    put:
+      consumes:
+      - application/json
+      description: 管理员更新指定用户的邮箱、状态、角色
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/extends_user_transport.UpdateUserReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+      security:
+      - BearerAuth: []
+      summary: 更新用户
+      tags:
+      - User
+  /api/v1/users/{id}/sessions:
+    delete:
+      description: 使指定用户的全部 session 失效
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 操作成功
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+      security:
+      - BearerAuth: []
+      summary: 踢下线
+      tags:
+      - User
+  /api/v1/users/batch-delete:
+    post:
+      consumes:
+      - application/json
+      description: 软删除多个用户
+      parameters:
+      - description: 批量删除请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/extends_user_transport.BatchUserOp'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+      security:
+      - BearerAuth: []
+      summary: 批量删除用户
+      tags:
+      - User
+  /api/v1/users/batch-status:
+    post:
+      consumes:
+      - application/json
+      description: 批量启用/禁用用户
+      parameters:
+      - description: 批量更新请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/extends_user_transport.BatchStatusReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+      security:
+      - BearerAuth: []
+      summary: 批量更新用户状态
+      tags:
+      - User
+  /api/v1/users/me:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 用户信息
+          schema:
+            allOf:
+            - $ref: '#/definitions/kingfisher_core_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/kingfisher_extends_user_domain.User'
+              type: object
+        "404":
+          description: 用户不存在
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取当前用户信息
+      tags:
+      - User
+    put:
+      consumes:
+      - application/json
+      description: 当前用户更新自己的邮箱、昵称、头像
+      parameters:
+      - description: 资料更新请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/extends_user_transport.UpdateMeReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新后的用户信息
+          schema:
+            allOf:
+            - $ref: '#/definitions/kingfisher_core_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/kingfisher_extends_user_domain.User'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+      security:
+      - BearerAuth: []
+      summary: 更新个人资料
+      tags:
+      - User
+  /api/v1/users/me/avatar:
+    post:
+      consumes:
+      - multipart/form-data
+      description: 上传当前用户的头像图片（png/jpg/jpeg/gif/webp，最大 2MB）
+      parameters:
+      - description: 头像图片
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 头像URL
+          schema:
+            allOf:
+            - $ref: '#/definitions/kingfisher_core_response.Response'
+            - properties:
+                data:
+                  properties:
+                    url:
+                      type: string
+                  type: object
+              type: object
+        "400":
+          description: 文件类型或大小不符合要求
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+      security:
+      - BearerAuth: []
+      summary: 上传头像
+      tags:
+      - User
+  /api/v1/users/me/login-logs:
+    get:
+      description: 查询当前用户的历史登录记录（分页）
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页数量
+        in: query
+        name: page_size
+        type: integer
+      - default: -created_at
+        description: 排序
+        in: query
+        name: sort
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 登录日志列表
+          schema:
+            allOf:
+            - $ref: '#/definitions/kingfisher_core_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/kingfisher_core_response.PageData'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 我的登录日志
+      tags:
+      - User
+  /api/v1/users/me/password:
+    put:
+      consumes:
+      - application/json
+      description: 当前用户修改自己的登录密码
+      parameters:
+      - description: 修改密码请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/extends_user_transport.ChangePwdReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 修改成功
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+        "10103":
+          description: 旧密码错误
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+      security:
+      - BearerAuth: []
+      summary: 修改密码
+      tags:
+      - User
+  /api/v1/users/me/permissions:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 权限代码列表
+          schema:
+            allOf:
+            - $ref: '#/definitions/kingfisher_core_response.Response'
+            - properties:
+                data:
+                  items:
+                    type: string
+                  type: array
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 获取当前用户权限列表
       tags:
       - User
 securityDefinitions:

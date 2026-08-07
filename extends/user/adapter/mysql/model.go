@@ -3,6 +3,8 @@ package adapter
 import (
 	"time"
 
+	"gorm.io/gorm"
+
 	"kingfisher/extends/user/domain"
 )
 
@@ -15,10 +17,11 @@ type userPO struct {
 	Avatar         string
 	Status         int
 	RoleID         uint
-	Role           rolePO  `gorm:"foreignKey:RoleID;references:ID"`
+	Role           rolePO        `gorm:"foreignKey:RoleID;references:ID"`
 	SessionVersion int
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
+	DeletedAt      gorm.DeletedAt `gorm:"index"`
 }
 
 func (userPO) TableName() string { return "users" }

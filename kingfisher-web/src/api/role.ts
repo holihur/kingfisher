@@ -11,4 +11,6 @@ export const roleApi = {
   getMenus: (id: number) => request.get(`/roles/${id}/menus`),
   assignMenus: (id: number, menuIds: number[]) => request.put(`/roles/${id}/menus`, { menu_ids: menuIds }),
   getAllPermissions: () => request.get('/permissions'),
+  batchDelete: (ids: number[]) => request.post('/roles/batch-delete', { ids }),
+  batchUpdateStatus: (ids: number[], status: number) => request.post('/roles/batch-status', { ids, status }),
 };

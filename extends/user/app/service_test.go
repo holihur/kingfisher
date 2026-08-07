@@ -77,6 +77,14 @@ func (m *mockUserRepo) Delete(ctx context.Context, id uint) error {
 	return nil
 }
 
+func (m *mockUserRepo) DeleteBatch(ctx context.Context, ids []uint) error {
+	return nil
+}
+
+func (m *mockUserRepo) UpdateStatusBatch(ctx context.Context, ids []uint, status int) error {
+	return nil
+}
+
 func (m *mockUserRepo) IncrementSessionVersion(ctx context.Context, id uint) error {
 	return nil
 }

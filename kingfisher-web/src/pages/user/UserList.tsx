@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Modal, Form, App, Popconfirm, Badge, Avatar, Tag, Space } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { Button, Modal, Form, App, Popconfirm, Badge, Avatar, Tag, Space, Dropdown } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, DownOutlined } from '@ant-design/icons';
 import DataTable, { SearchField } from '../../components/DataTable';
 import { useAuthStore } from '../../stores/auth';
 import { userApi } from '../../api/user';
@@ -21,7 +21,7 @@ interface UserRow {
 }
 
 const UserList: React.FC = () => {
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Record<string, unknown> | null>(null);
   const [form] = Form.useForm<Record<string, unknown>>();
@@ -158,6 +158,47 @@ const UserList: React.FC = () => {
         searchFields={searchFields}
         headerTitle="用户管理"
         reloadKey={refreshKey}
+        selectable={hasPerm('user:update') || hasPerm('user:delete')}
+        batchBarRender={(keys, clear) => {
+          const ids = keys as number[];
+          const runStatus = async (status: number, label: string) => {
+            await userApi.batchUpdateStatus(ids, status);
+            message.success(`已${label}`);
+            clear();
+            setRefreshKey((k) => k + 1);
+          };
+          return (
+            <Dropdown
+              menu={{
+                items: [
+                  ...(hasPerm('user:update') ? [{ key: 'enable', label: '批量启用' }] : []),
+                  ...(hasPerm('user:update') ? [{ key: 'disable', label: '批量禁用' }] : []),
+                  ...(hasPerm('user:delete') ? [{ key: 'delete', label: '批量删除', danger: true }] : []),
+                ],
+                onClick: ({ key }) => {
+                  if (key === 'enable') void runStatus(1, '批量启用');
+                  else if (key === 'disable') void runStatus(0, '批量禁用');
+                  else if (key === 'delete') {
+                    modal.confirm({
+                      title: '批量删除',
+                      content: `确定删除选中的 ${ids.length} 个用户吗？`,
+                      onOk: async () => {
+                        await userApi.batchDelete(ids);
+                        message.success('已删除');
+                        clear();
+                        setRefreshKey((k) => k + 1);
+                      },
+                    });
+                  }
+                },
+              }}
+            >
+              <Button size="small">
+                批量操作 <DownOutlined />
+              </Button>
+            </Dropdown>
+          );
+        }}
         toolBarRender={
           hasPerm('user:create') ? (
             <Button

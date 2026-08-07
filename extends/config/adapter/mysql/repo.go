@@ -80,6 +80,11 @@ func (r *ConfigRepo) Delete(ctx context.Context, key string) error {
 	return r.db.WithContext(ctx).Where("key = ?", key).Delete(&configPO{}).Error
 }
 
+// DeleteBatch 批量删除配置（按 key）
+func (r *ConfigRepo) DeleteBatch(ctx context.Context, keys []string) error {
+	return r.db.WithContext(ctx).Where("key IN ?", keys).Delete(&configPO{}).Error
+}
+
 // ConfigGroupRepo 配置分组 CRUD
 type ConfigGroupRepo struct{ db *gorm.DB }
 

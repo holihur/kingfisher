@@ -90,6 +90,29 @@ func (s *MenuService) Delete(ctx context.Context, id uint) error {
 	return nil
 }
 
+// BatchDelete 批量删除：任一菜单含子节点则整批拒绝
+func (s *MenuService) BatchDelete(ctx context.Context, ids []uint) error {
+	for _, id := range ids {
+		hasChildren, _ := s.repo.HasChildren(ctx, id)
+		if hasChildren {
+			return fmt.Errorf("menu has children")
+		}
+	}
+	if err := s.repo.DeleteBatch(ctx, ids); err != nil {
+		return err
+	}
+	_ = s.invalidateTreeCache(ctx)
+	return nil
+}
+
+func (s *MenuService) BatchUpdateStatus(ctx context.Context, ids []uint, status int) error {
+	if err := s.repo.UpdateStatusBatch(ctx, ids, status); err != nil {
+		return err
+	}
+	_ = s.invalidateTreeCache(ctx)
+	return nil
+}
+
 func (s *MenuService) invalidateTreeCache(ctx context.Context) error {
 	if s.cache == nil {
 		return nil

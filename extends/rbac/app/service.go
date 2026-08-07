@@ -58,6 +58,30 @@ func (s *RoleService) Delete(ctx context.Context, id uint) error {
 	}
 	return s.repo.Delete(ctx, id)
 }
+func (s *RoleService) BatchDelete(ctx context.Context, ids []uint) error {
+	for _, id := range ids {
+		role, err := s.repo.FindByID(ctx, id)
+		if err != nil {
+			return err
+		}
+		if role.Code == "admin" {
+			return fmt.Errorf("cannot delete admin role")
+		}
+	}
+	return s.repo.DeleteBatch(ctx, ids)
+}
+func (s *RoleService) BatchUpdateStatus(ctx context.Context, ids []uint, status int) error {
+	for _, id := range ids {
+		role, err := s.repo.FindByID(ctx, id)
+		if err != nil {
+			return err
+		}
+		if role.Code == "admin" {
+			return fmt.Errorf("cannot modify admin role")
+		}
+	}
+	return s.repo.UpdateStatusBatch(ctx, ids, status)
+}
 func (s *RoleService) AssignPermissions(ctx context.Context, roleID uint, permIDs []uint) error {
 	if err := s.repo.AssignPermissions(ctx, roleID, permIDs); err != nil {
 		return err

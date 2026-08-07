@@ -71,6 +71,17 @@ func (r *UserRepo) Delete(ctx context.Context, id uint) error {
 	return r.db.WithContext(ctx).Model(&userPO{}).Where("id = ?", id).Update("deleted_at", &now).Error
 }
 
+// DeleteBatch 批量软删除（与 Delete 一致，置 deleted_at）
+func (r *UserRepo) DeleteBatch(ctx context.Context, ids []uint) error {
+	now := time.Now()
+	return r.db.WithContext(ctx).Model(&userPO{}).Where("id IN ?", ids).Update("deleted_at", &now).Error
+}
+
+// UpdateStatusBatch 批量启用/禁用
+func (r *UserRepo) UpdateStatusBatch(ctx context.Context, ids []uint, status int) error {
+	return r.db.WithContext(ctx).Model(&userPO{}).Where("id IN ?", ids).Update("status", status).Error
+}
+
 func (r *UserRepo) IncrementSessionVersion(ctx context.Context, id uint) error {
 	return r.db.WithContext(ctx).Model(&userPO{}).Where("id = ?", id).
 		Update("session_version", gorm.Expr("session_version + 1")).Error
