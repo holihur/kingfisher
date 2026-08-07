@@ -280,3 +280,97 @@ func TestStrSliceRoundTrip(t *testing.T) {
 		}
 	}
 }
+
+// ---- 未覆盖方法补充：GetRoleLandingPage / 受保护角色的写保护 ----
+
+func TestRoleGetLandingPage(t *testing.T) {
+	repo := &mockRoleRepo{
+		roles: map[uint]*domain.Role{1: {ID: 1, Code: "admin", LandingPage: "/dashboard"}},
+	}
+	svc := NewRoleService(repo, nil)
+	page, err := svc.GetRoleLandingPage(context.Background(), 1)
+	if err != nil || page != "/dashboard" {
+		t.Fatalf("landing page: err=%v page=%q", err, page)
+	}
+	if _, err := svc.GetRoleLandingPage(context.Background(), 999); err == nil {
+		t.Error("missing role should error")
+	}
+}
+
+func TestRoleUpdateAdminProtected(t *testing.T) {
+	repo := &mockRoleRepo{
+		roles: map[uint]*domain.Role{
+			1: {ID: 1, Code: "admin", Name: "管理员"},
+			2: {ID: 2, Code: "editor", Name: "编辑"},
+		},
+	}
+	svc := NewRoleService(repo, nil)
+	if err := svc.Update(context.Background(), 1, map[string]any{"name": "x"}); err == nil {
+		t.Error("admin role must not be modifiable")
+	}
+	if err := svc.Update(context.Background(), 2, map[string]any{"name": "编辑2"}); err != nil {
+		t.Fatal("update non-admin:", err)
+	}
+	if repo.roles[2].Name != "编辑2" {
+		t.Error("non-admin update not applied")
+	}
+}
+
+func TestRoleDeleteAdminProtected(t *testing.T) {
+	repo := &mockRoleRepo{
+		roles: map[uint]*domain.Role{
+			1: {ID: 1, Code: "admin"},
+			2: {ID: 2, Code: "editor"},
+		},
+	}
+	svc := NewRoleService(repo, nil)
+	if err := svc.Delete(context.Background(), 1); err == nil {
+		t.Error("admin role must not be deletable")
+	}
+	if err := svc.Delete(context.Background(), 2); err != nil {
+		t.Fatal("delete non-admin:", err)
+	}
+	if err := svc.Delete(context.Background(), 999); err == nil {
+		t.Error("missing role delete should error")
+	}
+}
+
+func TestRoleBatchDeleteAdminProtected(t *testing.T) {
+	repo := &mockRoleRepo{
+		roles: map[uint]*domain.Role{
+			1: {ID: 1, Code: "admin"},
+			2: {ID: 2, Code: "editor"},
+		},
+	}
+	svc := NewRoleService(repo, nil)
+	// 任一含 admin 则整批拒绝
+	if err := svc.BatchDelete(context.Background(), []uint{1, 2}); err == nil {
+		t.Error("batch delete containing admin should fail")
+	}
+	if len(repo.roles) != 2 {
+		t.Error("nothing should be deleted on rejection")
+	}
+	// 全是非 admin 则成功
+	if err := svc.BatchDelete(context.Background(), []uint{2}); err != nil {
+		t.Fatal("batch delete non-admin:", err)
+	}
+	if len(repo.roles) != 1 {
+		t.Error("editor should be gone")
+	}
+}
+
+func TestRoleBatchUpdateStatusAdminProtected(t *testing.T) {
+	repo := &mockRoleRepo{
+		roles: map[uint]*domain.Role{
+			1: {ID: 1, Code: "admin"},
+			2: {ID: 2, Code: "editor"},
+		},
+	}
+	svc := NewRoleService(repo, nil)
+	if err := svc.BatchUpdateStatus(context.Background(), []uint{1}, 0); err == nil {
+		t.Error("admin batch status must be blocked")
+	}
+	if err := svc.BatchUpdateStatus(context.Background(), []uint{2}, 0); err != nil {
+		t.Fatal("batch status:", err)
+	}
+}

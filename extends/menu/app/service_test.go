@@ -183,3 +183,65 @@ func TestBuildTree(t *testing.T) {
 		t.Errorf("want 2 children, got %d", len(tree[0].Children))
 	}
 }
+
+func TestMenuGetTreeForRole(t *testing.T) {
+	repo := &mockMenuRepo{
+		menus: map[uint]*domain.Menu{
+			1: {ID: 1, Name: "系统", Path: "/system"},
+			2: {ID: 2, ParentID: 1, Name: "用户", Path: "/system/user"},
+			3: {ID: 3, Name: "其他"},
+		},
+	}
+	svc := NewMenuService(repo, nil)
+	tree, err := svc.GetTreeForRole(context.Background(), 5)
+	if err != nil {
+		t.Fatal("get tree for role:", err)
+	}
+	if len(tree) != 2 {
+		t.Fatalf("want 2 root nodes, got %d", len(tree))
+	}
+	for _, n := range tree {
+		if n.ID == 1 && len(n.Children) != 1 {
+			t.Errorf("node 1 should nest child 2, got %d children", len(n.Children))
+		}
+	}
+}
+
+func TestMenuUpdateInvalidatesCache(t *testing.T) {
+	repo := &mockMenuRepo{menus: map[uint]*domain.Menu{1: {ID: 1, Name: "a"}}}
+	svc := NewMenuService(repo, nil)
+	if err := svc.Update(context.Background(), 1, map[string]any{"name": "b"}); err != nil {
+		t.Fatal("update:", err)
+	}
+}
+
+func TestMenuBatchDeleteRejectsParent(t *testing.T) {
+	repo := &mockMenuRepo{
+		menus:    map[uint]*domain.Menu{1: {ID: 1, Name: "parent"}, 2: {ID: 2, Name: "leaf"}},
+		children: map[uint]bool{1: true},
+	}
+	svc := NewMenuService(repo, nil)
+	// 任一含子节点则整批拒绝
+	if err := svc.BatchDelete(context.Background(), []uint{1, 2}); err == nil {
+		t.Error("batch delete with a parent node should fail")
+	}
+	if len(repo.menus) != 2 {
+		t.Error("nothing should be deleted on rejection")
+	}
+	// 全部叶子则成功
+	repo.children = nil
+	if err := svc.BatchDelete(context.Background(), []uint{1, 2}); err != nil {
+		t.Fatal("batch delete leaves:", err)
+	}
+	if len(repo.menus) != 0 {
+		t.Error("menus should be gone after batch delete")
+	}
+}
+
+func TestMenuBatchUpdateStatus(t *testing.T) {
+	repo := &mockMenuRepo{menus: map[uint]*domain.Menu{1: {ID: 1, Name: "a"}, 2: {ID: 2, Name: "b"}}}
+	svc := NewMenuService(repo, nil)
+	if err := svc.BatchUpdateStatus(context.Background(), []uint{1, 2}, 0); err != nil {
+		t.Fatal("batch status:", err)
+	}
+}

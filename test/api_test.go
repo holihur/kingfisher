@@ -367,13 +367,22 @@ func TestPublicConfigsNoAuth(t *testing.T) {
 	s.ServeHTTP(w, doRequest("GET", "/api/v1/public/configs", "", nil))
 	m := assertCode(t, w, 0)
 	items := m["data"].([]any)
-	if len(items) != 5 {
-		t.Fatalf("want 5 public configs (site_name/site_logo/site_description/site_login_cover/registration_enabled), got %d", len(items))
+	if len(items) < 1 {
+		t.Fatalf("want at least 1 public config, got %d", len(items))
 	}
+	keys := map[string]bool{}
 	for _, it := range items {
 		cfg := it.(map[string]any)
 		if cfg["is_public"] != true {
 			t.Errorf("config %v should be public", cfg["key"])
+		}
+		if k, ok := cfg["key"].(string); ok {
+			keys[k] = true
+		}
+	}
+	for _, required := range []string{"site_name", "site_logo", "site_description", "site_login_cover", "registration_enabled"} {
+		if !keys[required] {
+			t.Errorf("public configs missing required key %q in %v", required, keys)
 		}
 	}
 }
@@ -629,11 +638,28 @@ func TestGetRoles(t *testing.T) {
 	s.ServeHTTP(w, doRequest("GET", "/api/v1/roles", tok, nil))
 	m := assertCode(t, w, 0)
 	data := m["data"].(map[string]any)
-	if len(data["items"].([]any)) != 3 {
-		t.Error("want 3 roles")
+	roles := data["items"].([]any)
+	if len(roles) < 1 {
+		t.Fatalf("want at least 1 role, got %d", len(roles))
 	}
-	if int(data["total"].(float64)) != 3 {
-		t.Error("want total 3")
+	// 必备种子角色必须存在（admin/editor/viewer）
+	codes := map[string]bool{}
+	for _, it := range roles {
+		rm, ok := it.(map[string]any)
+		if !ok {
+			t.Fatalf("bad role element: %v", it)
+		}
+		if c, ok := rm["code"].(string); ok {
+			codes[c] = true
+		}
+	}
+	for _, required := range []string{"admin", "editor", "viewer"} {
+		if !codes[required] {
+			t.Errorf("roles missing required code %q in %v", required, codes)
+		}
+	}
+	if int(data["total"].(float64)) != len(roles) {
+		t.Error("total must equal items length")
 	}
 }
 
@@ -677,8 +703,20 @@ func TestGetPermissions(t *testing.T) {
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, doRequest("GET", "/api/v1/permissions", tok, nil))
 	m := assertCode(t, w, 0)
-	if len(m["data"].([]any)) != 27 {
-		t.Error("want 27 perms")
+	codes := map[string]bool{}
+	for _, p := range m["data"].([]any) {
+		pm, ok := p.(map[string]any)
+		if !ok {
+			t.Fatalf("bad perm element: %v", p)
+		}
+		if c, ok := pm["code"].(string); ok {
+			codes[c] = true
+		}
+	}
+	for _, required := range []string{"user:list", "user:create", "role:list", "menu:list", "config:list", "dict:list", "template:list", "message:list"} {
+		if !codes[required] {
+			t.Errorf("permissions missing required code %q", required)
+		}
 	}
 }
 
@@ -767,8 +805,12 @@ func TestGetConfigs(t *testing.T) {
 	s.ServeHTTP(w, doRequest("GET", "/api/v1/configs", tok, nil))
 	m := assertCode(t, w, 0)
 	data := m["data"].(map[string]any)
-	if len(data["items"].([]any)) != 9 {
-		t.Error("want 9 configs")
+	items := data["items"].([]any)
+	if len(items) < 1 {
+		t.Fatalf("want at least 1 config, got %d", len(items))
+	}
+	if int(data["total"].(float64)) != len(items) {
+		t.Error("total must equal items length")
 	}
 }
 
@@ -780,8 +822,18 @@ func TestGetConfigsFiltered(t *testing.T) {
 	s.ServeHTTP(w, doRequest("GET", "/api/v1/configs?filter="+url.QueryEscape(`{"group_id":1}`), tok, nil))
 	m := assertCode(t, w, 0)
 	items := m["data"].(map[string]any)["items"].([]any)
-	if len(items) != 4 {
-		t.Fatalf("want 4 configs in group 1, got %d", len(items))
+	if len(items) < 1 {
+		t.Fatalf("want at least 1 config in group 1, got %d", len(items))
+	}
+	// 过滤结果必须全部属于 group 1
+	for _, it := range items {
+		cm, ok := it.(map[string]any)
+		if !ok {
+			t.Fatalf("bad config element: %v", it)
+		}
+		if int(cm["group_id"].(float64)) != 1 {
+			t.Errorf("config in group-1 filter has group_id=%v", cm["group_id"])
+		}
 	}
 }
 

@@ -289,3 +289,148 @@ func TestUserCreate(t *testing.T) {
 		t.Error("password should be empty in response")
 	}
 }
+
+func TestUserCreateDuplicate(t *testing.T) {
+	repo := &mockUserRepo{users: map[string]*mockUserData{}}
+	svc := NewUserService(repo, nil)
+	if _, err := svc.CreateUser(context.Background(), "dup", "Abcd1234", "a@b.com"); err != nil {
+		t.Fatal("create:", err)
+	}
+	if _, err := svc.CreateUser(context.Background(), "dup", "Abcd1234", "a@b.com"); err == nil {
+		t.Error("duplicate username should fail")
+	}
+}
+
+func TestUserGetByIDAndList(t *testing.T) {
+	repo := &mockUserRepo{users: map[string]*mockUserData{}}
+	svc := NewUserService(repo, nil)
+	if _, err := svc.CreateUser(context.Background(), "u1", "Abcd1234", "a@b.com"); err != nil {
+		t.Fatal(err)
+	}
+	// GetByID
+	u, err := svc.GetByID(context.Background(), 1)
+	if err != nil || u.Username != "u1" {
+		t.Fatalf("get by id: err=%v %+v", err, u)
+	}
+	if _, err := svc.GetByID(context.Background(), 999); err == nil {
+		t.Error("missing user should error")
+	}
+	// List
+	_, _, err = svc.List(context.Background(), &query.Query{Page: 1, PageSize: 20})
+	if err != nil {
+		t.Fatal("list:", err)
+	}
+}
+
+func TestUserDeleteBatchStatus(t *testing.T) {
+	repo := &mockUserRepo{users: map[string]*mockUserData{}}
+	svc := NewUserService(repo, nil)
+	if err := svc.Delete(context.Background(), 1); err != nil {
+		t.Fatal("delete:", err)
+	}
+	if err := svc.BatchDelete(context.Background(), []uint{1, 2}); err != nil {
+		t.Fatal("batch delete:", err)
+	}
+	if err := svc.BatchUpdateStatus(context.Background(), []uint{1}, 0); err != nil {
+		t.Fatal("batch status:", err)
+	}
+	// Update（角色变更时清理权限缓存——传 cache nil 走无缓存分支）
+	if err := svc.Update(context.Background(), 1, map[string]any{"role_id": 3}); err != nil {
+		t.Fatal("update:", err)
+	}
+	// 无 role_id 的普通更新
+	if err := svc.Update(context.Background(), 1, map[string]any{"nickname": "n"}); err != nil {
+		t.Fatal("update:", err)
+	}
+}
+
+func TestChangePasswordSuccess(t *testing.T) {
+	repo := &mockUserRepo{
+		users: map[string]*mockUserData{
+			"admin": {id: 1, username: "admin", password: "$2a$12$jDyI8HZp/TVxUrplIqdgNOV/iahF.i3l0YoPHuNLD5kus./WsPTzO", status: 1, sessionVer: 1},
+		},
+		idCounter: 1,
+	}
+	svc := NewUserService(repo, nil)
+	err := svc.ChangePassword(context.Background(), 1, "Abcd1234", "NewPass123")
+	if err != nil {
+		t.Fatal("change password:", err)
+	}
+	if err := svc.ChangePassword(context.Background(), 999, "Abcd1234", "NewPass123"); err == nil {
+		t.Error("missing user change password should fail")
+	}
+}
+
+func TestRevokeSessionsAndUpdateProfile(t *testing.T) {
+	repo := &mockUserRepo{users: map[string]*mockUserData{}}
+	svc := NewUserService(repo, nil)
+	if err := svc.RevokeSessions(context.Background(), 1); err != nil {
+		t.Fatal("revoke:", err)
+	}
+	// UpdateProfile：有字段走 Update；无字段直接返回 nil
+	if err := svc.UpdateProfile(context.Background(), 1, "new@x.com", "昵称", "avatar.png"); err != nil {
+		t.Fatal("update profile:", err)
+	}
+	if err := svc.UpdateProfile(context.Background(), 1, "", "", ""); err != nil {
+		t.Fatal("empty update profile should be no-op:", err)
+	}
+}
+
+func TestRegisterDisabledByConfig(t *testing.T) {
+	repo := &mockUserRepo{users: map[string]*mockUserData{}}
+	mgr := jwt.NewJWTManager(config.JWTConfig{Secret: "test", AccessTTL: 1e12, RefreshTTL: 2e12, Issuer: "test"}, nil)
+	svc := NewAuthService(repo, nil, mgr)
+	svc.SetConfigProvider(func(ctx context.Context, key string) (string, error) {
+		return "false", nil // registration_enabled=false
+	})
+	if _, err := svc.Register(context.Background(), "newuser", "Abcd1234", "a@b.com"); err == nil {
+		t.Error("registration should be disabled")
+	}
+}
+
+func TestRegisterWithDefaultRoleConfig(t *testing.T) {
+	repo := &mockUserRepo{users: map[string]*mockUserData{}}
+	mgr := jwt.NewJWTManager(config.JWTConfig{Secret: "test", AccessTTL: 1e12, RefreshTTL: 2e12, Issuer: "test"}, nil)
+	svc := NewAuthService(repo, nil, mgr)
+	svc.SetConfigProvider(func(ctx context.Context, key string) (string, error) {
+		switch key {
+		case "registration_enabled":
+			return "true", nil
+		case "default_register_role_id":
+			return "3", nil // editor
+		}
+		return "", nil
+	})
+	u, err := svc.Register(context.Background(), "editoruser", "Abcd1234", "a@b.com")
+	if err != nil {
+		t.Fatal("register:", err)
+	}
+	if u.RoleID != 3 {
+		t.Errorf("default register role should be 3 (editor), got %d", u.RoleID)
+	}
+}
+
+func TestLoginDisabledAndLandingPage(t *testing.T) {
+	repo := &mockUserRepo{users: map[string]*mockUserData{}}
+	mgr := jwt.NewJWTManager(config.JWTConfig{Secret: "test", AccessTTL: 1e12, RefreshTTL: 2e12, Issuer: "test"}, nil)
+	svc := NewAuthService(repo, nil, mgr)
+	// 注入落地页 provider
+	svc.SetLandingPageProvider(func(ctx context.Context, roleID uint) (string, error) {
+		return "/dashboard", nil
+	})
+	if _, err := svc.Register(context.Background(), "u", "Abcd1234", "a@b.com"); err != nil {
+		t.Fatal("register:", err)
+	}
+	_, _, _, landing, err := svc.Login(context.Background(), "u", "Abcd1234")
+	if err != nil {
+		t.Fatal("login:", err)
+	}
+	if landing != "/dashboard" {
+		t.Errorf("landing page: want /dashboard, got %q", landing)
+	}
+	// 禁用用户无法登录
+	repo.users["u"].status = 0
+	if _, _, _, _, err := svc.Login(context.Background(), "u", "Abcd1234"); err == nil {
+		t.Error("disabled user should not log in")
+	}
+}

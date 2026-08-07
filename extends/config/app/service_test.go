@@ -218,6 +218,35 @@ func TestConfigDelete(t *testing.T) {
 
 // ---- 配置分组 ----
 
+// TestConfigListAndBatchDelete 覆盖 service 层的 List / BatchDelete 与删除空 key。
+func TestConfigListAndBatchDelete(t *testing.T) {
+	repo := &mockConfigRepo{
+		configs: map[string]*domain.SystemConfig{
+			"a": {Key: "a", Value: "1"},
+			"b": {Key: "b", Value: "2"},
+			"c": {Key: "c", Value: "3"},
+		},
+	}
+	svc := NewConfigService(repo, nil)
+
+	// List
+	items, total, err := svc.List(context.Background(), &query.Query{Page: 1, PageSize: 20})
+	if err != nil || total != 3 || len(items) != 3 {
+		t.Fatalf("list: err=%v total=%d n=%d", err, total, len(items))
+	}
+
+	// BatchDelete
+	if err := svc.BatchDelete(context.Background(), []string{"a", "b"}); err != nil {
+		t.Fatal("batch delete:", err)
+	}
+	if len(repo.configs) != 1 {
+		t.Fatalf("want only c left, got %v", repo.configs)
+	}
+	if _, ok := repo.configs["c"]; !ok {
+		t.Error("config c should remain")
+	}
+}
+
 type mockGroupRepo struct {
 	groups []domain.ConfigGroup
 }

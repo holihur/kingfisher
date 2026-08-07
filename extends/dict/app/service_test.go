@@ -306,3 +306,80 @@ func TestDictPublicEntries(t *testing.T) {
 		t.Error("should fail for non-existent type")
 	}
 }
+
+func TestDictTypeGetByCodeAndError(t *testing.T) {
+	typeRepo := &mockDictTypeRepo{types: map[uint]*domain.DictType{
+		1: {ID: 1, Code: "gender", Name: "性别"},
+	}}
+	entryRepo := &mockDictEntryRepo{entries: map[uint]*domain.DictEntry{}}
+	svc := NewDictTypeService(typeRepo, entryRepo)
+	ctx := context.Background()
+
+	got, err := svc.GetByCode(ctx, "gender")
+	if err != nil || got.ID != 1 {
+		t.Fatalf("get by code: err=%v %+v", err, got)
+	}
+	if _, err := svc.GetByCode(ctx, "missing"); err == nil {
+		t.Error("missing code should error")
+	}
+
+	// Error 类型携带 errcode
+	e := &Error{Code: 10101}
+	if e.Error() == "" {
+		t.Error("Error.Error() should return message")
+	}
+}
+
+func TestDictTypeBatchOperations(t *testing.T) {
+	typeRepo := &mockDictTypeRepo{types: map[uint]*domain.DictType{
+		1: {ID: 1, Code: "a"},
+		2: {ID: 2, Code: "b"},
+	}}
+	entryRepo := &mockDictEntryRepo{entries: map[uint]*domain.DictEntry{}}
+	svc := NewDictTypeService(typeRepo, entryRepo)
+	ctx := context.Background()
+
+	// 有条目时整批拒绝
+	_, _ = entryRepo.Create(ctx, 1, "x", "y", 1, 1, "", "")
+	if err := svc.BatchDelete(ctx, []uint{1, 2}); err == nil {
+		t.Error("batch delete with entries should fail")
+	}
+	if len(typeRepo.types) != 2 {
+		t.Error("nothing should be deleted on rejection")
+	}
+	// 清空条目后批量删除成功
+	_ = entryRepo.DeleteByTypeID(ctx, 1)
+	if err := svc.BatchDelete(ctx, []uint{1, 2}); err != nil {
+		t.Fatal("batch delete:", err)
+	}
+	if len(typeRepo.types) != 0 {
+		t.Error("types should be gone")
+	}
+
+	// BatchUpdateStatus
+	if err := svc.BatchUpdateStatus(ctx, []uint{999}, 0); err != nil {
+		t.Fatal("batch status:", err)
+	}
+}
+
+func TestDictEntryBatchOperations(t *testing.T) {
+	typeRepo := &mockDictTypeRepo{types: map[uint]*domain.DictType{
+		1: {ID: 1, Code: "gender", IsPublic: true},
+	}}
+	entryRepo := &mockDictEntryRepo{entries: map[uint]*domain.DictEntry{
+		1: {ID: 1, TypeID: 1, Label: "男", Value: "male", Status: 1},
+		2: {ID: 2, TypeID: 1, Label: "女", Value: "female", Status: 1},
+	}}
+	svc := NewDictEntryService(entryRepo, typeRepo)
+	ctx := context.Background()
+
+	if err := svc.BatchDelete(ctx, []uint{1, 2}); err != nil {
+		t.Fatal("batch delete entries:", err)
+	}
+	if len(entryRepo.entries) != 0 {
+		t.Error("entries should be gone")
+	}
+	if err := svc.BatchUpdateStatus(ctx, []uint{1}, 0); err != nil {
+		t.Fatal("batch status entries:", err)
+	}
+}
