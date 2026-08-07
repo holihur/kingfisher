@@ -165,3 +165,38 @@ type DictEntryPO struct {
 }
 
 func (DictEntryPO) TableName() string { return "dict_entries" }
+
+// MessagePO 站内信消息
+type MessagePO struct {
+	ID          uint      `gorm:"primaryKey"`
+	SenderID    uint      `gorm:"index"`
+	SenderType  string    `gorm:"size:16;default:admin"` // admin | system
+	RecipientID uint      `gorm:"index;not null"`
+	Title       string    `gorm:"size:128;not null"`
+	Content     string    `gorm:"type:text"`
+	Status      string    `gorm:"size:16;default:sent"` // draft | sent
+	IsRead      bool      `gorm:"default:false;index"`
+	ReadAt      *time.Time
+	CreatedAt   time.Time `gorm:"index"`
+	UpdatedAt   time.Time
+}
+
+func (MessagePO) TableName() string { return "messages" }
+
+// TemplatePO 模版（消息/通知/通用，通过 TemplateType 区分）
+type TemplatePO struct {
+	ID           uint   `gorm:"primaryKey"`
+	Name         string `gorm:"size:64;not null"`
+	Code         string `gorm:"size:64;uniqueIndex;not null"`
+	TemplateType string `gorm:"size:32;default:general;index"`
+	Title        string `gorm:"size:255;not null"`
+	Content      string `gorm:"type:text"`
+	Status       int    `gorm:"default:1"`
+	Remark       string `gorm:"size:255"`
+	// Version 表示该模版由哪个版本新增
+	Version   string `gorm:"size:32"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+func (TemplatePO) TableName() string { return "templates" }

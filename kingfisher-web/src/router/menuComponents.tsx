@@ -13,6 +13,8 @@ const componentMap: Record<string, React.LazyExoticComponent<React.ComponentType
   'pages/Config/ConfigManage': lazy(() => import('../pages/config/ConfigManage')),
   'pages/Audit/AuditLogList': lazy(() => import('../pages/audit/AuditLogList')),
   'pages/Dict/DictManage': lazy(() => import('../pages/dict/DictManage')),
+  'pages/Message/MessageManage': lazy(() => import('../pages/message/MessageManage')),
+  'pages/Template/TemplateManage': lazy(() => import('../pages/template/TemplateManage')),
   // 特殊：仪表盘2 这类测试菜单若 component 为 pages/Dashboard 也能复用
   'pages/Profile': lazy(() => import('../pages/profile')),
 };

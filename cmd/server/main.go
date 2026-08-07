@@ -42,7 +42,9 @@ import (
 	configTransport "kingfisher/extends/config/transport"
 	dictTransport "kingfisher/extends/dict/transport"
 	menuTransport "kingfisher/extends/menu/transport"
+	messageTransport "kingfisher/extends/message/transport"
 	rbacTransport "kingfisher/extends/rbac/transport"
+	templateTransport "kingfisher/extends/template/transport"
 	userAdapter "kingfisher/extends/user/adapter/mysql"
 	userTransport "kingfisher/extends/user/transport"
 )
@@ -150,6 +152,8 @@ func main() {
 		menuTransport.NewMenuModule(db, redisCache),
 		configTransport.NewConfigModule(db, redisCache),
 		dictTransport.NewDictModule(db, redisCache),
+		messageTransport.NewMessageModule(db, redisCache),
+		templateTransport.NewTemplateModule(db, redisCache),
 		auditMod,
 	}
 	r.Use(auditMod.Middleware()) // audit all write operations

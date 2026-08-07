@@ -48,6 +48,10 @@ const (
 	ErrDictEntryNotFound  = 10503
 	ErrDictTypeHasEntries = 10504
 	ErrDictTypeNotPublic  = 10505
+
+	// Template 10600-10699
+	ErrTemplateNotFound   = 10601
+	ErrTemplateCodeExists = 10602
 )
 
 //nolint:gosec // false positive — Chinese error messages
@@ -85,6 +89,8 @@ var errMsg = map[int]string{
 	ErrDictEntryNotFound:   "字典条目不存在",
 	ErrDictTypeHasEntries:  "字典类型下存在条目，不可删除",
 	ErrDictTypeNotPublic:   "字典类型未公开",
+	ErrTemplateNotFound:    "模版不存在",
+	ErrTemplateCodeExists:  "模版编码已存在",
 }
 
 func Msg(code int) string {
@@ -110,7 +116,7 @@ func HTTPStatus(code int) int {
 		return 404
 	case code == 10008:
 		return 405
-	case code == 10001 || (code >= 10100 && code < 10600):
+	case code == 10001 || (code >= 10100 && code < 10700):
 		return 400
 	default:
 		return 500

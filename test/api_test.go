@@ -28,6 +28,7 @@ import (
 	configTransport "kingfisher/extends/config/transport"
 	dictTransport "kingfisher/extends/dict/transport"
 	menuTransport "kingfisher/extends/menu/transport"
+	messageTransport "kingfisher/extends/message/transport"
 	rbacTransport "kingfisher/extends/rbac/transport"
 	userTransport "kingfisher/extends/user/transport"
 )
@@ -67,6 +68,7 @@ func setupTestServer(t *testing.T) (*gin.Engine, *jwt.JWTManager) {
 		"role:list": true, "role:create": true, "role:update": true, "role:delete": true,
 		"config:list": true, "config:update": true, "audit:list": true,
 		"dict:list": true, "dict:create": true, "dict:update": true, "dict:delete": true,
+		"message:list": true, "message:create": true, "message:update": true, "message:delete": true,
 	}
 	rbacMw := func(c *gin.Context) {
 		c.Set("permissions", allPerms)
@@ -99,6 +101,7 @@ func setupTestServer(t *testing.T) (*gin.Engine, *jwt.JWTManager) {
 		menuTransport.NewMenuModule(db, nil),
 		configTransport.NewConfigModule(db, nil),
 		dictTransport.NewDictModule(db, nil),
+		messageTransport.NewMessageModule(db, nil),
 		auditTransport.NewAuditModule(db),
 	}
 	for _, m := range mods {
@@ -128,6 +131,22 @@ func login(t *testing.T, s *gin.Engine) string {
 	s.ServeHTTP(w, doRequest("POST", "/api/v1/auth/login", "", map[string]string{"username": "admin", "password": "Abcd1234"}))
 	if w.Code != 200 {
 		t.Fatalf("login failed: %d", w.Code)
+	}
+	var resp struct {
+		Data struct {
+			AccessToken string `json:"access_token"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &resp)
+	return resp.Data.AccessToken
+}
+
+func loginAs(t *testing.T, s *gin.Engine, username string) string {
+	t.Helper()
+	w := httptest.NewRecorder()
+	s.ServeHTTP(w, doRequest("POST", "/api/v1/auth/login", "", map[string]string{"username": username, "password": "Abcd1234"}))
+	if w.Code != 200 {
+		t.Fatalf("login as %s failed: %d", username, w.Code)
 	}
 	var resp struct {
 		Data struct {
@@ -658,8 +677,8 @@ func TestGetPermissions(t *testing.T) {
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, doRequest("GET", "/api/v1/permissions", tok, nil))
 	m := assertCode(t, w, 0)
-	if len(m["data"].([]any)) != 19 {
-		t.Error("want 19 perms")
+	if len(m["data"].([]any)) != 27 {
+		t.Error("want 27 perms")
 	}
 }
 
@@ -1030,5 +1049,116 @@ func TestConfigUploadImage(t *testing.T) {
 	url, ok := m["data"].(map[string]any)["url"].(string)
 	if !ok || !strings.HasPrefix(url, "/uploads/configs/") {
 		t.Errorf("want upload url under /uploads/configs/, got %v", m["data"])
+	}
+}
+
+// 站内信：发送 → 收件箱 → 未读数 → 标记已读 → 批量删除
+func TestMessageInbox(t *testing.T) {
+	s, _ := setupTestServer(t)
+	adminTok := login(t, s)
+
+	// 发送给 viewer 用户（id=3）
+	w := httptest.NewRecorder()
+	s.ServeHTTP(w, doRequest("POST", "/api/v1/messages", adminTok, map[string]any{"recipient_id": 3, "title": "测试消息", "content": "hello"}))
+	m := assertCode(t, w, 0)
+	msgID := int(m["data"].(map[string]any)["id"].(float64))
+
+	// viewer 登录，查收件箱
+	viewerTok := loginAs(t, s, "viewer")
+	w = httptest.NewRecorder()
+	s.ServeHTTP(w, doRequest("GET", "/api/v1/me/messages", viewerTok, nil))
+	m = assertCode(t, w, 0)
+	items := m["data"].(map[string]any)["items"].([]any)
+	if len(items) != 1 {
+		t.Fatalf("want 1 message, got %d", len(items))
+	}
+	if int(items[0].(map[string]any)["id"].(float64)) != msgID {
+		t.Error("unexpected message id")
+	}
+
+	// 未读数 = 1
+	w = httptest.NewRecorder()
+	s.ServeHTTP(w, doRequest("GET", "/api/v1/me/messages/unread-count", viewerTok, nil))
+	m = assertCode(t, w, 0)
+	if int(m["data"].(map[string]any)["unread_count"].(float64)) != 1 {
+		t.Error("want unread_count 1")
+	}
+
+	// 标记已读
+	w = httptest.NewRecorder()
+	s.ServeHTTP(w, doRequest("PUT", fmt.Sprintf("/api/v1/me/messages/%d/read", msgID), viewerTok, nil))
+	assertCode(t, w, 0)
+
+	// 未读数 = 0
+	w = httptest.NewRecorder()
+	s.ServeHTTP(w, doRequest("GET", "/api/v1/me/messages/unread-count", viewerTok, nil))
+	m = assertCode(t, w, 0)
+	if int(m["data"].(map[string]any)["unread_count"].(float64)) != 0 {
+		t.Error("want unread_count 0 after read")
+	}
+
+	// 越权校验：admin 不能删 viewer 的消息（recipient_id 不匹配 → 删不到）
+	w = httptest.NewRecorder()
+	s.ServeHTTP(w, doRequest("POST", "/api/v1/me/messages/batch-delete", adminTok, map[string]any{"ids": []int{msgID}}))
+	assertCode(t, w, 0)
+	w = httptest.NewRecorder()
+	s.ServeHTTP(w, doRequest("GET", "/api/v1/me/messages", viewerTok, nil))
+	m = assertCode(t, w, 0)
+	if len(m["data"].(map[string]any)["items"].([]any)) != 1 {
+		t.Error("admin should not be able to delete viewer's message")
+	}
+
+	// viewer 自己批量删除
+	w = httptest.NewRecorder()
+	s.ServeHTTP(w, doRequest("POST", "/api/v1/me/messages/batch-delete", viewerTok, map[string]any{"ids": []int{msgID}}))
+	assertCode(t, w, 0)
+	w = httptest.NewRecorder()
+	s.ServeHTTP(w, doRequest("GET", "/api/v1/me/messages", viewerTok, nil))
+	m = assertCode(t, w, 0)
+	if len(m["data"].(map[string]any)["items"].([]any)) != 0 {
+		t.Error("viewer's inbox should be empty after delete")
+	}
+}
+
+// 站内信详情接口
+func TestMessageDetail(t *testing.T) {
+	s, _ := setupTestServer(t)
+	adminTok := login(t, s)
+
+	// 管理员发信给 viewer(3)
+	w := httptest.NewRecorder()
+	s.ServeHTTP(w, doRequest("POST", "/api/v1/messages", adminTok, map[string]any{"recipient_id": 3, "title": "详情测试", "content": "完整内容"}))
+	m := assertCode(t, w, 0)
+	msgID := int(m["data"].(map[string]any)["id"].(float64))
+
+	// viewer 查详情
+	viewerTok := loginAs(t, s, "viewer")
+	w = httptest.NewRecorder()
+	s.ServeHTTP(w, doRequest("GET", fmt.Sprintf("/api/v1/me/messages/%d", msgID), viewerTok, nil))
+	m = assertCode(t, w, 0)
+	data := m["data"].(map[string]any)
+	if data["title"] != "详情测试" || data["content"] != "完整内容" {
+		t.Errorf("unexpected detail: %v", data)
+	}
+	if data["is_read"] != false {
+		t.Error("want is_read=false initially")
+	}
+
+	// 越权：admin 不能查 viewer 的消息 → 404
+	w = httptest.NewRecorder()
+	s.ServeHTTP(w, doRequest("GET", fmt.Sprintf("/api/v1/me/messages/%d", msgID), adminTok, nil))
+	if w.Code != 404 {
+		t.Errorf("admin should not read viewer's message, got %d", w.Code)
+	}
+
+	// 标读后详情 is_read=true
+	w = httptest.NewRecorder()
+	s.ServeHTTP(w, doRequest("PUT", fmt.Sprintf("/api/v1/me/messages/%d/read", msgID), viewerTok, nil))
+	assertCode(t, w, 0)
+	w = httptest.NewRecorder()
+	s.ServeHTTP(w, doRequest("GET", fmt.Sprintf("/api/v1/me/messages/%d", msgID), viewerTok, nil))
+	m = assertCode(t, w, 0)
+	if m["data"].(map[string]any)["is_read"] != true {
+		t.Error("want is_read=true after mark read")
 	}
 }

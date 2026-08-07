@@ -1,9 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Card, Form, Input, Button, App, Descriptions, Tag, Menu, Upload, Table } from 'antd';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Card, Form, Input, Button, App, Descriptions, Tag, Menu, Upload, Table, Popconfirm, Dropdown, Spin, Empty, Space } from 'antd';
 import type { TableProps, UploadProps } from 'antd';
-import { UserOutlined, MailOutlined, LockOutlined, UploadOutlined, SolutionOutlined, KeyOutlined, FileTextOutlined } from '@ant-design/icons';
+import { UserOutlined, MailOutlined, LockOutlined, UploadOutlined, SolutionOutlined, KeyOutlined, FileTextOutlined, DownOutlined } from '@ant-design/icons';
 import { userApi } from '../../api/user';
+import { messageApi } from '../../api/message';
 import { useAuthStore } from '../../stores/auth';
+import { formatTime } from '../../utils/format';
 
 interface LoginLog {
   id: number;
@@ -13,19 +16,43 @@ interface LoginLog {
   created_at: string;
 }
 
+interface MessageRow {
+  id: number;
+  sender_id: number;
+  sender_type: string;
+  title: string;
+  content: string;
+  is_read: boolean;
+  created_at: string;
+}
+
 const Profile: React.FC = () => {
   const { message } = App.useApp();
   const { userInfo, fetchUserInfo, token } = useAuthStore();
   const [profileForm] = Form.useForm();
   const [pwdForm] = Form.useForm();
   const [avatarUrl, setAvatarUrl] = useState<string>('');
-  // 左侧菜单当前选中项
-  const [activeKey, setActiveKey] = useState('profile');
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  // 左侧菜单当前选中项（支持 ?tab=inbox 直达收件箱）
+  const [activeKey, setActiveKey] = useState(searchParams.get('tab') || 'profile');
+  // 消息详情 id（?tab=inbox&id= 直达详情）
+  const msgDetailId = searchParams.get('id');
   // 登录日志本地分页
   const [logs, setLogs] = useState<LoginLog[]>([]);
   const [logTotal, setLogTotal] = useState(0);
   const [logPage, setLogPage] = useState(1);
   const [logLoading, setLogLoading] = useState(false);
+  // 收件箱
+  const [msgs, setMsgs] = useState<MessageRow[]>([]);
+  const [msgTotal, setMsgTotal] = useState(0);
+  const [msgPage, setMsgPage] = useState(1);
+  const [msgLoading, setMsgLoading] = useState(false);
+  const [msgRefresh, setMsgRefresh] = useState(0);
+  const [selectedMsgKeys, setSelectedMsgKeys] = useState<React.Key[]>([]);
+  // 消息详情
+  const [msgDetail, setMsgDetail] = useState<MessageRow | null>(null);
+  const [msgDetailLoading, setMsgDetailLoading] = useState(false);
 
   useEffect(() => {
     if (userInfo) {
@@ -37,6 +64,107 @@ const Profile: React.FC = () => {
       });
     }
   }, [userInfo, profileForm]);
+
+  // 加载收件箱
+  useEffect(() => {
+    let cancelled = false;
+    setMsgLoading(true);
+    messageApi
+      .list({ page: msgPage, page_size: 10, sort: '-created_at' })
+      .then((r) => {
+        if (cancelled) return;
+        const data = r.data as Record<string, unknown>;
+        setMsgs((data?.items as MessageRow[]) || []);
+        setMsgTotal((data?.total as number) || 0);
+      })
+      .catch(() => { if (cancelled) return; setMsgs([]); setMsgTotal(0); })
+      .finally(() => { if (!cancelled) setMsgLoading(false); });
+    return () => { cancelled = true; };
+  }, [msgPage, msgRefresh]);
+
+  // 加载消息详情（有 id 时），未读则自动标记已读
+  useEffect(() => {
+    if (!msgDetailId) { setMsgDetail(null); return; }
+    let cancelled = false;
+    setMsgDetailLoading(true);
+    messageApi.getById(Number(msgDetailId))
+      .then(async (r) => {
+        if (cancelled) return;
+        const m = r.data as MessageRow;
+        setMsgDetail(m);
+        if (!m.is_read) {
+          await messageApi.markRead(m.id);
+          setMsgRefresh((k) => k + 1);
+        }
+      })
+      .catch(() => { if (cancelled) return; setMsgDetail(null); })
+      .finally(() => { if (!cancelled) setMsgDetailLoading(false); });
+    return () => { cancelled = true; };
+  }, [msgDetailId]);
+
+  const inboxColumns: TableProps<MessageRow>['columns'] = [
+    {
+      title: '标题',
+      dataIndex: 'title',
+      render: (v: unknown, r: MessageRow) => (
+        <a
+          onClick={() => navigate(`/profile?tab=inbox&id=${r.id}`)}
+          style={{ fontWeight: r.is_read ? 400 : 600 }}
+        >
+          {v as string}
+        </a>
+      ),
+    },
+    {
+      title: '发件人',
+      dataIndex: 'sender_type',
+      width: 90,
+      render: (v: unknown) => (v === 'system' ? <Tag color="blue">系统</Tag> : <Tag>管理员</Tag>),
+    },
+    { title: '时间', dataIndex: 'created_at', width: 160, render: (v: unknown) => formatTime(v) },
+    {
+      title: '操作',
+      key: 'action',
+      render: (_: unknown, r: MessageRow) => [
+        !r.is_read ? (
+          <a
+            key="read"
+            onClick={async () => {
+              await messageApi.markRead(r.id);
+              message.success('已标记为已读');
+              setMsgRefresh((k) => k + 1);
+            }}
+          >
+            标记已读
+          </a>
+        ) : null,
+        <Popconfirm
+          key="del"
+          title="删除消息？"
+          onConfirm={async () => {
+            await messageApi.batchDelete([r.id]);
+            message.success('已删除');
+            setMsgRefresh((k) => k + 1);
+          }}
+        >
+          <a style={{ color: 'red' }}>删除</a>
+        </Popconfirm>,
+      ],
+    },
+  ];
+
+  const handleInboxBatch = async (key: string) => {
+    const ids = selectedMsgKeys as number[];
+    if (key === 'read') {
+      for (const id of ids) await messageApi.markRead(id);
+      message.success('已标记为已读');
+    } else {
+      await messageApi.batchDelete(ids);
+      message.success('已删除');
+    }
+    setSelectedMsgKeys([]);
+    setMsgRefresh((k) => k + 1);
+  };
 
   const handleProfileSave = useCallback(async () => {
     let v: Record<string, unknown>;
@@ -157,6 +285,7 @@ const Profile: React.FC = () => {
           items={[
             { key: 'profile', icon: <SolutionOutlined />, label: '用户资料' },
             { key: 'password', icon: <KeyOutlined />, label: '修改密码' },
+            { key: 'inbox', icon: <MailOutlined />, label: '收件箱' },
             { key: 'logs', icon: <FileTextOutlined />, label: '登录日志' },
           ]}
         />
@@ -238,6 +367,70 @@ const Profile: React.FC = () => {
               </Form.Item>
             </Form>
           </Card>
+        )}
+
+        {activeKey === 'inbox' && (
+          msgDetailId ? (
+            <Card
+              title="消息详情"
+              style={{ borderRadius: 8, border: 'none', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}
+              extra={<Button size="small" onClick={() => navigate('/profile?tab=inbox')}>返回列表</Button>}
+            >
+              {msgDetailLoading ? <Spin /> : msgDetail ? (
+                <>
+                  <h2 style={{ fontSize: 20, fontWeight: 600, marginBottom: 12 }}>{msgDetail.title}</h2>
+                  <Space size={16} style={{ marginBottom: 20, color: '#999', fontSize: 13 }}>
+                    <span>{msgDetail.sender_type === 'system' ? <Tag color="blue">系统</Tag> : <Tag>管理员</Tag>}</span>
+                    <span>{formatTime(msgDetail.created_at)}</span>
+                  </Space>
+                  <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.8, color: '#333' }}>
+                    {msgDetail.content || '（无内容）'}
+                  </div>
+                </>
+              ) : (
+                <Empty description="消息不存在或已被删除" />
+              )}
+            </Card>
+          ) : (
+            <Card
+              title="收件箱"
+              style={{ borderRadius: 8, border: 'none', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}
+              extra={
+                selectedMsgKeys.length > 0 ? (
+                  <Dropdown
+                    menu={{
+                      items: [
+                        { key: 'read', label: '标记已读' },
+                        { key: 'delete', label: '批量删除', danger: true },
+                      ],
+                      onClick: ({ key }) => void handleInboxBatch(key),
+                    }}
+                  >
+                    <Button size="small">批量操作（{selectedMsgKeys.length}）<DownOutlined /></Button>
+                  </Dropdown>
+                ) : null
+              }
+            >
+              <Table<MessageRow>
+                columns={inboxColumns}
+                rowKey="id"
+                dataSource={msgs}
+                loading={msgLoading}
+                rowSelection={{
+                  selectedRowKeys: selectedMsgKeys,
+                  onChange: setSelectedMsgKeys,
+                }}
+                pagination={{
+                  current: msgPage,
+                  pageSize: 10,
+                  total: msgTotal,
+                  showSizeChanger: false,
+                  onChange: (p) => setMsgPage(p),
+                }}
+                size="middle"
+              />
+            </Card>
+          )
         )}
 
         {activeKey === 'logs' && (

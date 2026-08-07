@@ -263,7 +263,7 @@ func TestSessionVersionProvider(t *testing.T) {
 
 	// Generate token with old version
 	mgr := jwt.NewJWTManager(config.JWTConfig{Secret: "test-secret", AccessTTL: 1e12, RefreshTTL: 2e12, Issuer: "test"}, nil)
-	access, _, _ := mgr.GenerateToken(context.Background(), 1, 1, "admin", 1)
+	access, _, _ := mgr.GenerateToken(context.Background(), 1, 1, "admin", "admin", 1)
 	claims, _ := mgr.ParseToken(context.Background(), access)
 
 	// Token version (1) < DB version (3) = should reject

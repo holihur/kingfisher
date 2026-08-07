@@ -109,6 +109,8 @@ func autoMigrate(db *gorm.DB) error {
 		&AuditLogPO{},
 		&DictTypePO{},
 		&DictEntryPO{},
+		&MessagePO{},
+		&TemplatePO{},
 	)
 }
 
@@ -141,6 +143,14 @@ func SeedData(db *gorm.DB) error {
 			{ID: 17, Name: "创建字典", Code: "dict:create", Resource: "dict", Action: "create"},
 			{ID: 18, Name: "更新字典", Code: "dict:update", Resource: "dict", Action: "update"},
 			{ID: 19, Name: "删除字典", Code: "dict:delete", Resource: "dict", Action: "delete"},
+			{ID: 20, Name: "查看站内信", Code: "message:list", Resource: "message", Action: "read"},
+			{ID: 21, Name: "发送站内信", Code: "message:create", Resource: "message", Action: "create"},
+			{ID: 22, Name: "更新站内信", Code: "message:update", Resource: "message", Action: "update"},
+			{ID: 23, Name: "删除站内信", Code: "message:delete", Resource: "message", Action: "delete"},
+			{ID: 24, Name: "查看模版", Code: "template:list", Resource: "template", Action: "read"},
+			{ID: 25, Name: "创建模版", Code: "template:create", Resource: "template", Action: "create"},
+			{ID: 26, Name: "更新模版", Code: "template:update", Resource: "template", Action: "update"},
+			{ID: 27, Name: "删除模版", Code: "template:delete", Resource: "template", Action: "delete"},
 		}
 		if err := tx.Create(&perms).Error; err != nil {
 			return fmt.Errorf("seed permissions: %w", err)
@@ -162,6 +172,8 @@ func SeedData(db *gorm.DB) error {
 			{1, 1}, {1, 2}, {1, 3}, {1, 4}, {1, 5}, {1, 6}, {1, 7}, {1, 8},
 			{1, 9}, {1, 10}, {1, 11}, {1, 12}, {1, 13}, {1, 14}, {1, 15},
 			{1, 16}, {1, 17}, {1, 18}, {1, 19},
+			{1, 20}, {1, 21}, {1, 22}, {1, 23},
+			{1, 24}, {1, 25}, {1, 26}, {1, 27},
 			{3, 1}, {3, 2}, {3, 3}, {3, 5}, {3, 6}, {3, 7}, {3, 9}, {3, 13}, {3, 16},
 			{4, 1}, {4, 5}, {4, 9}, {4, 13}, {4, 16},
 		}
@@ -179,6 +191,8 @@ func SeedData(db *gorm.DB) error {
 			{ID: 15, ParentID: 2, Name: "系统配置", Path: "/system/configs", Component: "pages/Config/ConfigManage", Icon: "ControlOutlined", Sort: 4, Permission: "config:list", Version: "1.0.0"},
 			{ID: 16, ParentID: 2, Name: "审计日志", Path: "/system/audit", Component: "pages/Audit/AuditLogList", Icon: "AuditOutlined", Sort: 5, Permission: "audit:list", Version: "1.0.0"},
 			{ID: 17, ParentID: 2, Name: "字典管理", Path: "/system/dicts", Component: "pages/Dict/DictManage", Icon: "BookOutlined", Sort: 6, Permission: "dict:list", Version: "1.0.0"},
+			{ID: 18, ParentID: 2, Name: "站内信管理", Path: "/system/messages", Component: "pages/Message/MessageManage", Icon: "MailOutlined", Sort: 7, Permission: "message:list", Version: "1.0.0"},
+			{ID: 19, ParentID: 2, Name: "模版管理", Path: "/system/templates", Component: "pages/Template/TemplateManage", Icon: "FileTextOutlined", Sort: 8, Permission: "template:list", Version: "1.0.0"},
 		}
 		if err := tx.Create(&menus).Error; err != nil {
 			return fmt.Errorf("seed menus: %w", err)
@@ -187,7 +201,7 @@ func SeedData(db *gorm.DB) error {
 		// Role-Menu links (admin sees all, editor sees Dashboard+Users+Menus, viewer sees Dashboard only)
 		type RM struct{ RoleID, MenuID uint }
 		rm := []RM{
-			{1, 1}, {1, 2}, {1, 3}, {1, 7}, {1, 11}, {1, 15}, {1, 16}, {1, 17},
+			{1, 1}, {1, 2}, {1, 3}, {1, 7}, {1, 11}, {1, 15}, {1, 16}, {1, 17}, {1, 18}, {1, 19},
 			{3, 1}, {3, 3}, {3, 7},
 			{4, 1},
 		}
@@ -243,7 +257,24 @@ func SeedData(db *gorm.DB) error {
 			{ID: 2, Username: "editor", Nickname: "editor", Password: pwHash, Email: "editor@example.com", Status: 1, RoleID: 3},
 			{ID: 3, Username: "viewer", Nickname: "viewer", Password: pwHash, Email: "viewer@example.com", Status: 1, RoleID: 4},
 		}
-		return tx.Create(&users).Error
+		if err := tx.Create(&users).Error; err != nil {
+			return fmt.Errorf("seed users: %w", err)
+		}
+
+		// Messages（示例：系统发给 admin 一条欢迎消息）
+		messages := []MessagePO{
+			{ID: 1, SenderID: 0, SenderType: "system", RecipientID: 1, Title: "欢迎使用 Kingfisher", Content: "这是一个站内信示例。管理员可发送站内信，收件人可在个人中心-收件箱查看。", Status: "sent", IsRead: false},
+		}
+		if err := tx.Create(&messages).Error; err != nil {
+			return fmt.Errorf("seed messages: %w", err)
+		}
+
+		// Templates（示例模版）
+		templates := []TemplatePO{
+			{ID: 1, Name: "欢迎消息", Code: "welcome_message", TemplateType: "message", Title: "欢迎 {{nickname}}", Content: "你好 {{nickname}}，欢迎使用 Kingfisher！", Status: 1, Version: "1.0.0"},
+			{ID: 2, Name: "密码重置通知", Code: "password_reset", TemplateType: "message", Title: "密码重置", Content: "您的密码已重置，请登录后修改。", Status: 1, Version: "1.0.0"},
+		}
+		return tx.Create(&templates).Error
 	})
 }
 

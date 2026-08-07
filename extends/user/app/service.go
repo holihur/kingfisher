@@ -113,7 +113,7 @@ func (s *AuthService) Login(ctx context.Context, username, password string) (str
 	if user.RoleID == 3 {
 		roleCode = "editor"
 	}
-	access, refresh, err := s.jwtMgr.GenerateToken(ctx, user.ID, user.RoleID, roleCode, user.SessionVersion)
+	access, refresh, err := s.jwtMgr.GenerateToken(ctx, user.ID, user.RoleID, roleCode, user.Username, user.SessionVersion)
 	if err != nil {
 		return "", "", nil, "", err
 	}

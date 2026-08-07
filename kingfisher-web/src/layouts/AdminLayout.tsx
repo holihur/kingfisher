@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { Layout, Menu, Breadcrumb, Avatar, Dropdown, Spin, Drawer } from 'antd';
+import { Layout, Menu, Breadcrumb, Avatar, Dropdown, Spin, Drawer, Badge } from 'antd';
 import { findBreadcrumb } from '../utils/menu';
 import {
   MenuFoldOutlined,
@@ -14,11 +14,14 @@ import {
   BookOutlined,
   MenuOutlined,
   QuestionOutlined,
+  InboxOutlined,
+  MailOutlined,
 } from '@ant-design/icons';
 import { useAuthStore } from '../stores/auth';
 import { useMenuStore } from '../stores/menu';
 import { clearTokens } from '../utils/token';
 import { configApi } from '../api/config';
+import { messageApi } from '../api/message';
 
 const icons: Record<string, React.ReactNode> = {
   DashboardOutlined: <DashboardOutlined />,
@@ -29,6 +32,7 @@ const icons: Record<string, React.ReactNode> = {
   ControlOutlined: <ControlOutlined />,
   AuditOutlined: <AuditOutlined />,
   BookOutlined: <BookOutlined />,
+  MailOutlined: <MailOutlined />,
 };
 
 const MOBILE_BREAKPOINT = 768;
@@ -40,6 +44,7 @@ const AdminLayout: React.FC = () => {
   const [openKeys, setOpenKeys] = useState<string[]>([]);
   const [siteName, setSiteName] = useState('Kingfisher');
   const [siteLogo, setSiteLogo] = useState('');
+  const [unreadCount, setUnreadCount] = useState(0);
   const { menuTree, fetchMenus, loading } = useMenuStore();
   const { userInfo } = useAuthStore();
   const navigate = useNavigate();
@@ -62,6 +67,19 @@ const AdminLayout: React.FC = () => {
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // 未读站内信轮询
+  useEffect(() => {
+    const load = () => {
+      messageApi.unreadCount().then((r) => {
+        const n = ((r.data as Record<string, unknown>)?.unread_count as number) || 0;
+        setUnreadCount(n);
+      }).catch(() => {});
+    };
+    load();
+    const timer = setInterval(load, 30000);
+    return () => clearInterval(timer);
   }, []);
 
   // 菜单由路由层 AppRoutes 加载（驱动动态路由），此处不再重复请求
@@ -215,19 +233,27 @@ const AdminLayout: React.FC = () => {
               return [{ title: '首页' }, { title: location.pathname.split('/').pop() }];
             })()} />
           </div>
-          <Dropdown
-            menu={{
-                items: [
-                  { key: 'profile', icon: <UserOutlined />, label: '个人中心', onClick: () => navigate('/profile') },
-                  { key: 'logout', icon: <LogoutOutlined />, label: '退出登录', onClick: handleLogout },
-                ],
-              }}
-          >
-            <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Avatar src={(userInfo as Record<string, unknown>)?.avatar as string} />
-              <span>{(userInfo as Record<string, unknown>)?.username as string}</span>
-            </div>
-          </Dropdown>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <Badge count={unreadCount} size="small" offset={[-2, 2]}>
+              <InboxOutlined
+                style={{ fontSize: 18, cursor: 'pointer', color: '#666' }}
+                onClick={() => navigate('/profile?tab=inbox')}
+              />
+            </Badge>
+            <Dropdown
+              menu={{
+                  items: [
+                    { key: 'profile', icon: <UserOutlined />, label: '个人中心', onClick: () => navigate('/profile') },
+                    { key: 'logout', icon: <LogoutOutlined />, label: '退出登录', onClick: handleLogout },
+                  ],
+                }}
+            >
+              <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Avatar src={(userInfo as Record<string, unknown>)?.avatar as string} />
+                <span>{(userInfo as Record<string, unknown>)?.username as string}</span>
+              </div>
+            </Dropdown>
+          </div>
         </Layout.Header>
         <Layout.Content
           style={{
