@@ -20,7 +20,7 @@ export class LoginPage {
   }
 
   submitButton(): Locator {
-    return this.page.getByRole('button', { name: '登 录' });
+    return this.page.getByRole('button', { name: '登录' });
   }
 
   registerLink(): Locator {

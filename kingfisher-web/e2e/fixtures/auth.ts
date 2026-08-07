@@ -54,7 +54,7 @@ export async function loginViaUI(page: Page, role: 'admin' | 'editor' | 'viewer'
   await page.goto('/login');
   await page.getByPlaceholder('用户名').fill(creds.username);
   await page.getByPlaceholder('密码').fill(creds.password);
-  await page.getByRole('button', { name: '登 录' }).click();
+  await page.getByRole('button', { name: '登录' }).click();
   await page.waitForURL('**/dashboard');
 }
 

@@ -1,22 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Form, Input, Button, Card, App, AutoComplete, Checkbox, Tag } from 'antd';
+import { Form, Input, Button, App, AutoComplete, Checkbox, Tag } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useAuthStore } from '../../stores/auth';
-import {
-  type SavedAccount,
-  loadAccounts,
-  saveAccount,
-  getAccountPassword,
-  removeAccount,
-} from '../../utils/remember';
+import { loadAccounts, saveAccount, getAccountPassword, removeAccount } from '../../utils/remember';
+import type { SavedAccount } from '../../utils/remember';
 
 const LoginPage: React.FC = () => {
   const { message } = App.useApp();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
-  const [siteName, setSiteName] = useState('Kingfisher');
-  const [siteDescription, setSiteDescription] = useState('后台管理系统');
+  const [siteName, setSiteName] = useState('');
+  const [siteDescription, setSiteDescription] = useState('');
   const [rememberAccount, setRememberAccount] = useState(true);
   const [rememberPwd, setRememberPwd] = useState(false);
   const [accounts, setAccounts] = useState<SavedAccount[]>(() => loadAccounts());
@@ -27,7 +22,7 @@ const LoginPage: React.FC = () => {
   useEffect(() => {
     import('../../api/config').then((m) => {
       m.configApi.getPublic('site_name').then(r => setSiteName((r.data as any)?.value || 'Kingfisher')).catch(() => {});
-      m.configApi.getPublic('site_description').then(r => setSiteDescription((r.data as any)?.value || '后台管理系统')).catch(() => {});
+      m.configApi.getPublic('site_description').then(r => setSiteDescription((r.data as any)?.value || '')).catch(() => {});
     });
   }, []);
 
@@ -39,84 +34,77 @@ const LoginPage: React.FC = () => {
       await login(values.username, values.password);
       message.success('登录成功');
       saveAccount(values.username, values.password, rememberAccount, rememberPwd);
-      const landing = useAuthStore.getState().landingPage;
-      navigate(redirectTo || landing || '/dashboard');
+      navigate(redirectTo || useAuthStore.getState().landingPage || '/dashboard');
     } catch {
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSelectAccount = (username: string) => {
-    form.setFieldsValue({ username });
-    const pwd = getAccountPassword(username);
-    if (pwd) form.setFieldsValue({ password: pwd });
-  };
-
-  const handleRemoveAccount = (username: string) => {
-    removeAccount(username);
-    setAccounts(loadAccounts());
-  };
-
-  const autoCompleteOptions = useMemo(() =>
-    accounts.map(a => ({
-      value: a.username,
-      label: (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0' }}>
-          <span><UserOutlined style={{ marginRight: 8 }} />{a.username}</span>
-          <span style={{ color: '#999', fontSize: 12 }} onMouseDown={e => { e.stopPropagation(); e.preventDefault(); handleRemoveAccount(a.username); }}>删除</span>
-        </div>
-      ),
-    })), [accounts]);
+  const options = useMemo(() => accounts.map(a => ({
+    value: a.username,
+    label: (
+      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+        <span><UserOutlined style={{ marginRight: 8 }} />{a.username}</span>
+        <a onMouseDown={e => { e.stopPropagation(); e.preventDefault(); removeAccount(a.username); setAccounts(loadAccounts()); }}>删除</a>
+      </div>
+    ),
+  })), [accounts]);
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#f0f2f5' }}>
-      <Card style={{ width: 400, boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }} variant="borderless">
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <div style={{ fontSize: 40, marginBottom: 8 }}>🦜</div>
-          <h2 style={{ margin: 0 }}>{siteName}</h2>
-          <p style={{ color: '#999', margin: '8px 0 0' }}>{siteDescription}</p>
+    <div style={{ minHeight: '100vh', display: 'flex' }}>
+      {/* left panel */}
+      <div style={{ flex: 1, background: '#fafafa', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: 80 }}>
+        <div style={{ maxWidth: 360, marginLeft: 'auto', marginRight: 80 }}>
+          <h1 style={{ fontSize: 28, fontWeight: 600, marginBottom: 12 }}>{siteName || 'Kingfisher'}</h1>
+          {siteDescription && <p style={{ color: '#666', fontSize: 14 }}>{siteDescription}</p>}
         </div>
+      </div>
 
-        {accounts.length > 0 && (
-          <div style={{ marginBottom: 12 }}>
-            {accounts.slice(0, 5).map(a => (
-              <Tag
-                key={a.username}
-                closable
-                onClose={e => { e.preventDefault(); handleRemoveAccount(a.username); }}
-                onClick={() => handleSelectAccount(a.username)}
-                style={{ marginBottom: 6, cursor: 'pointer', fontSize: 13, padding: '4px 8px' }}
-                color={a.password ? 'green' : 'blue'}
-              >
-                {a.username}{a.password ? ' (已存密码)' : ''}
-              </Tag>
-            ))}
-          </div>
-        )}
+      {/* right panel */}
+      <div style={{ width: 440, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: 60, background: '#fff' }}>
+        <div style={{ maxWidth: 340 }}>
+          <h2 style={{ fontSize: 18, fontWeight: 500, marginBottom: 28 }}>登录</h2>
 
-        <Form form={form} onFinish={onFinish} size="large">
-          <Form.Item name="username" rules={[{ required: true, message: '请输入用户名' }]}>
-            <AutoComplete options={autoCompleteOptions} onSelect={handleSelectAccount} style={{ width: '100%' }}>
-              <Input prefix={<UserOutlined />} placeholder="用户名" />
-            </AutoComplete>
-          </Form.Item>
-          <Form.Item name="password" rules={[{ required: true, message: '请输入密码' }]}>
-            <Input.Password prefix={<LockOutlined />} placeholder="密码" />
-          </Form.Item>
-          <Form.Item style={{ marginBottom: 8 }}>
-            <div style={{ display: 'flex', gap: 16 }}>
-              <Checkbox checked={rememberAccount} onChange={e => { setRememberAccount(e.target.checked); if (!e.target.checked) setRememberPwd(false); }}>记住账户</Checkbox>
-              <Checkbox checked={rememberPwd} disabled={!rememberAccount} onChange={e => setRememberPwd(e.target.checked)}>记住密码</Checkbox>
+          {accounts.length > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              {accounts.slice(0, 5).map(a => (
+                <Tag
+                  key={a.username}
+                  closable
+                  onClose={e => { e.preventDefault(); removeAccount(a.username); setAccounts(loadAccounts()); }}
+                  onClick={() => { form.setFieldsValue({ username: a.username }); const pwd = getAccountPassword(a.username); if (pwd) form.setFieldsValue({ password: pwd }); }}
+                  style={{ cursor: 'pointer', marginBottom: 6 }}
+                >
+                  {a.username}
+                </Tag>
+              ))}
             </div>
-          </Form.Item>
-          <Form.Item>
-            <Button type="primary" htmlType="submit" loading={loading} block>登 录</Button>
-          </Form.Item>
-        </Form>
+          )}
 
-        <div style={{ textAlign: 'center', marginTop: 16 }}>还没有账号？<a href="/register">去注册</a></div>
-      </Card>
+          <Form form={form} onFinish={onFinish} size="large">
+            <Form.Item name="username" rules={[{ required: true, message: '请输入用户名' }]}>
+              <AutoComplete options={options} style={{ width: '100%' }}>
+                <Input prefix={<UserOutlined />} placeholder="用户名" />
+              </AutoComplete>
+            </Form.Item>
+            <Form.Item name="password" rules={[{ required: true, message: '请输入密码' }]}>
+              <Input.Password prefix={<LockOutlined />} placeholder="密码" />
+            </Form.Item>
+            <Form.Item style={{ marginBottom: 24 }}>
+              <Checkbox checked={rememberAccount} onChange={e => { setRememberAccount(e.target.checked); if (!e.target.checked) setRememberPwd(false); }}>记住账户</Checkbox>
+              <Checkbox checked={rememberPwd} disabled={!rememberAccount} onChange={e => setRememberPwd(e.target.checked)} style={{ marginLeft: 16 }}>记住密码</Checkbox>
+            </Form.Item>
+            <Form.Item style={{ marginBottom: 0 }}>
+              <Button type="primary" htmlType="submit" loading={loading} block>登录</Button>
+            </Form.Item>
+          </Form>
+
+          <div style={{ marginTop: 24, textAlign: 'center', fontSize: 13, color: '#999' }}>
+            <a href="/register">注册账号</a>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
