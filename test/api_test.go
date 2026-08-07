@@ -3,13 +3,16 @@ package test
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"sort"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -345,8 +348,8 @@ func TestPublicConfigsNoAuth(t *testing.T) {
 	s.ServeHTTP(w, doRequest("GET", "/api/v1/public/configs", "", nil))
 	m := assertCode(t, w, 0)
 	items := m["data"].([]any)
-	if len(items) != 4 {
-		t.Fatalf("want 4 public configs (site_name/site_logo/site_description/registration_enabled), got %d", len(items))
+	if len(items) != 5 {
+		t.Fatalf("want 5 public configs (site_name/site_logo/site_description/site_login_cover/registration_enabled), got %d", len(items))
 	}
 	for _, it := range items {
 		cfg := it.(map[string]any)
@@ -745,8 +748,8 @@ func TestGetConfigs(t *testing.T) {
 	s.ServeHTTP(w, doRequest("GET", "/api/v1/configs", tok, nil))
 	m := assertCode(t, w, 0)
 	data := m["data"].(map[string]any)
-	if len(data["items"].([]any)) != 8 {
-		t.Error("want 8 configs")
+	if len(data["items"].([]any)) != 9 {
+		t.Error("want 9 configs")
 	}
 }
 
@@ -758,8 +761,8 @@ func TestGetConfigsFiltered(t *testing.T) {
 	s.ServeHTTP(w, doRequest("GET", "/api/v1/configs?filter="+url.QueryEscape(`{"group_id":1}`), tok, nil))
 	m := assertCode(t, w, 0)
 	items := m["data"].(map[string]any)["items"].([]any)
-	if len(items) != 3 {
-		t.Fatalf("want 3 configs in group 1, got %d", len(items))
+	if len(items) != 4 {
+		t.Fatalf("want 4 configs in group 1, got %d", len(items))
 	}
 }
 
@@ -1000,5 +1003,32 @@ func TestBatchConfigDelete(t *testing.T) {
 	m := assertCode(t, w, 0)
 	if total := int(m["data"].(map[string]any)["total"].(float64)); total != 0 {
 		t.Errorf("want 0 configs after batch delete, got %d", total)
+	}
+}
+
+// 配置图片上传端点
+func TestConfigUploadImage(t *testing.T) {
+	s, _ := setupTestServer(t)
+	tok := login(t, s)
+	// 构造一张 1x1 PNG
+	png, _ := base64.StdEncoding.DecodeString("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==")
+	req := httptest.NewRequest("POST", "/api/v1/configs/upload-image", bytes.NewReader(png))
+	req.Header.Set("Authorization", "Bearer "+tok)
+	req.Header.Set("Content-Type", "image/png")
+	// 用 multipart 上传
+	body := &bytes.Buffer{}
+	mw := multipart.NewWriter(body)
+	fw, _ := mw.CreateFormFile("file", "cover.png")
+	_, _ = fw.Write(png)
+	_ = mw.Close()
+	req = httptest.NewRequest("POST", "/api/v1/configs/upload-image", body)
+	req.Header.Set("Authorization", "Bearer "+tok)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	w := httptest.NewRecorder()
+	s.ServeHTTP(w, req)
+	m := assertCode(t, w, 0)
+	url, ok := m["data"].(map[string]any)["url"].(string)
+	if !ok || !strings.HasPrefix(url, "/uploads/configs/") {
+		t.Errorf("want upload url under /uploads/configs/, got %v", m["data"])
 	}
 }

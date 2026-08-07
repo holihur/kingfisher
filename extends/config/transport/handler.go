@@ -1,7 +1,14 @@
 package transport
 
 import (
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -152,6 +159,72 @@ func (h *ConfigHandler) BatchDelete(c *gin.Context) {
 		return
 	}
 	response.OKJSON(c, nil)
+}
+
+// UploadImage 上传图片配置（如登录页封面 site_login_cover）
+// @Summary 上传配置图片
+// @Tags Config
+// @Accept multipart/form-data
+// @Produce json
+// @Security BearerAuth
+// @Param file formData file true "图片文件（png/jpg/jpeg/gif/webp，≤2MB）"
+// @Success 200 {object} response.Response{data=object{url=string}} "上传成功"
+// @Failure 400 {object} response.Response "参数错误"
+// @Router /api/v1/configs/upload-image [post]
+func (h *ConfigHandler) UploadImage(c *gin.Context) {
+	file, header, err := c.Request.FormFile("file")
+	if err != nil {
+		response.BadRequest(c, "请选择文件")
+		return
+	}
+	defer file.Close()
+
+	// 校验文件类型（扩展名 + 真实内容 magic bytes），与头像上传一致
+	ext := strings.ToLower(filepath.Ext(header.Filename))
+	switch ext {
+	case ".png", ".jpg", ".jpeg", ".gif", ".webp":
+	default:
+		response.BadRequest(c, "不支持的文件类型，仅支持 png/jpg/jpeg/gif/webp")
+		return
+	}
+	if header.Size > 2<<20 {
+		response.BadRequest(c, "文件大小不能超过 2MB")
+		return
+	}
+	buf := make([]byte, 512)
+	n, _ := file.Read(buf)
+	if n > 0 {
+		detected := http.DetectContentType(buf[:n])
+		if !strings.HasPrefix(detected, "image/") {
+			response.BadRequest(c, "不支持的文件内容，仅支持图片文件")
+			return
+		}
+	}
+
+	uploadDir := "uploads/configs"
+	if err := os.MkdirAll(uploadDir, 0755); err != nil {
+		response.InternalError(c)
+		return
+	}
+	filename := fmt.Sprintf("%d%s", time.Now().UnixNano(), ext)
+	savePath := filepath.Join(uploadDir, filename)
+	dst, err := os.Create(savePath)
+	if err != nil {
+		response.InternalError(c)
+		return
+	}
+	defer dst.Close()
+
+	if _, err := dst.Write(buf[:n]); err != nil {
+		response.InternalError(c)
+		return
+	}
+	if _, err := io.Copy(dst, file); err != nil {
+		response.InternalError(c)
+		return
+	}
+
+	response.OKJSON(c, gin.H{"url": "/uploads/configs/" + filename})
 }
 
 // ConfigGroupHandler 配置分组 CRUD

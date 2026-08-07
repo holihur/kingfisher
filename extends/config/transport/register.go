@@ -47,6 +47,7 @@ func (m *ConfigModule) RegisterProtected(r *gin.RouterGroup) {
 	configs := r.Group("/configs")
 	configs.GET("", rbacTransport.RequirePerm("config:list"), m.handler.GetAll)
 	configs.GET("/:key", rbacTransport.RequirePerm("config:list"), m.handler.Get)
+	configs.POST("/upload-image", rbacTransport.RequirePerm("config:update"), m.handler.UploadImage)
 	configs.PUT("/:key", rbacTransport.RequirePerm("config:update"), m.handler.Set)
 	configs.POST("/batch-delete", rbacTransport.RequirePerm("config:update"), m.handler.BatchDelete)
 	configs.DELETE("/:key", rbacTransport.RequirePerm("config:update"), m.handler.Delete)

@@ -1,14 +1,14 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Modal, Form, Input, InputNumber, Switch, Select, App, Tag, Popconfirm, Button, Empty, Dropdown } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, DownOutlined } from '@ant-design/icons';
+import { Modal, Form, Input, InputNumber, Switch, Select, App, Tag, Popconfirm, Button, Empty, Dropdown, Upload } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, DownOutlined, UploadOutlined } from '@ant-design/icons';
 import DataTable, { SearchField } from '../../components/DataTable';
 import { useAuthStore } from '../../stores/auth';
 import { configApi, configGroupApi } from '../../api/config';
 import { useTableUrlQuery } from '../../hooks/useTableUrlQuery';
 import { formatTime } from '../../utils/format';
 
-/** 渲染组件类型：text|number|switch|select|textarea */
-type RenderType = 'text' | 'number' | 'switch' | 'select' | 'textarea';
+/** 渲染组件类型：text|number|switch|select|textarea|image */
+type RenderType = 'text' | 'number' | 'switch' | 'select' | 'textarea' | 'image';
 
 const RENDER_TYPES: { value: RenderType; label: string }[] = [
   { value: 'text', label: '文本' },
@@ -16,10 +16,12 @@ const RENDER_TYPES: { value: RenderType; label: string }[] = [
   { value: 'switch', label: '开关' },
   { value: 'select', label: '下拉选择' },
   { value: 'textarea', label: '多行文本' },
+  { value: 'image', label: '图片' },
 ];
 
 /** 无 render 字段时的兜底：根据 key 名推断。 */
 function inferRenderType(key: string): RenderType {
+  if (/cover|logo|image|banner|img/i.test(key)) return 'image';
   if (/max_|attempts|timeout|duration|ttl/i.test(key)) return 'number';
   if (/enabled|enable|disabled/i.test(key)) return 'switch';
   return 'text';
@@ -85,6 +87,38 @@ const ConfigManage: React.FC = () => {
   const [refreshKey, setRefreshKey] = useState(0);
   const [form] = Form.useForm<Record<string, unknown>>();
   const perms = useAuthStore((s) => s.permissions);
+  const token = useAuthStore((s) => s.token);
+
+  /** 图片配置的受控输入：预览当前图 + 上传新图（写入 value） */
+  const ImageConfigInput: React.FC<{ value?: string; onChange?: (v: string) => void }> = ({ value, onChange }) => (
+    <div>
+      {value ? (
+        <img src={value} alt="preview" style={{ maxWidth: '100%', maxHeight: 96, borderRadius: 4, marginBottom: 8, display: 'block' }} />
+      ) : null}
+      <Upload
+        name="file"
+        action="/api/v1/configs/upload-image"
+        headers={{ Authorization: `Bearer ${token}` }}
+        accept=".png,.jpg,.jpeg,.gif,.webp"
+        showUploadList={false}
+        beforeUpload={(file) => {
+          if (!file.type.startsWith('image/')) { message.error('仅支持图片文件'); return Upload.LIST_IGNORE; }
+          if (file.size > 2 * 1024 * 1024) { message.error('文件大小不能超过 2MB'); return Upload.LIST_IGNORE; }
+          return true;
+        }}
+        onChange={(info) => {
+          if (info.file.status === 'done') {
+            const url = (info.file.response as { data?: { url?: string } } | undefined)?.data?.url;
+            if (url) { onChange?.(url); message.success('图片已上传'); }
+          } else if (info.file.status === 'error') {
+            message.error('上传失败');
+          }
+        }}
+      >
+        <Button icon={<UploadOutlined />}>上传图片</Button>
+      </Upload>
+    </div>
+  );
 
   // 分组状态（选中的 group_id 来自 URL，刷新/分享可保持）
   const [groups, setGroups] = useState<ConfigGroup[]>([]);
@@ -132,7 +166,10 @@ const ConfigManage: React.FC = () => {
       dataIndex: 'value',
       render: (v: unknown, r: ConfigRow) => {
         const render = (r.render as RenderType) || inferRenderType(r.key);
-        // Value 用渲染组件展示：switch → 开/关 Tag；select → 选中项 label；其余 → 文本
+        // Value 用渲染组件展示：image → 缩略图；switch → 开/关 Tag；select → 选中项 label；其余 → 文本
+        if (render === 'image') {
+          return v ? <img src={v as string} alt="config" style={{ height: 32, borderRadius: 4 }} /> : <span style={{ color: '#ccc' }}>-</span>;
+        }
         if (render === 'switch') {
           return v === 'true' ? <Tag color="green">开</Tag> : <Tag color="red">关</Tag>;
         }
@@ -231,6 +268,8 @@ const ConfigManage: React.FC = () => {
         );
       case 'textarea':
         return <Input.TextArea rows={3} />;
+      case 'image':
+        return <ImageConfigInput />;
       default:
         return <Input />;
     }

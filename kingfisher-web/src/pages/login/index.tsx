@@ -13,6 +13,7 @@ const LoginPage: React.FC = () => {
   const [siteName, setSiteName] = useState('');
   const [siteLogo, setSiteLogo] = useState('');
   const [siteDescription, setSiteDescription] = useState('');
+  const [siteLoginCover, setSiteLoginCover] = useState('');
   const [rememberAccount, setRememberAccount] = useState(true);
   const [rememberPwd, setRememberPwd] = useState(false);
   const [accounts, setAccounts] = useState<SavedAccount[]>(() => loadAccounts());
@@ -25,6 +26,7 @@ const LoginPage: React.FC = () => {
       m.configApi.getPublic('site_name').then(r => setSiteName((r.data as any)?.value || 'Kingfisher')).catch(() => {});
       m.configApi.getPublic('site_logo').then(r => setSiteLogo((r.data as any)?.value || '')).catch(() => {});
       m.configApi.getPublic('site_description').then(r => setSiteDescription((r.data as any)?.value || '')).catch(() => {});
+      m.configApi.getPublic('site_login_cover').then(r => setSiteLoginCover((r.data as any)?.value || '')).catch(() => {});
     });
   }, []);
 
@@ -66,8 +68,17 @@ const LoginPage: React.FC = () => {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex' }}>
-      <div style={{ flex: 1, background: '#fafafa', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: 80 }}>
-        <div style={{ maxWidth: 360, marginLeft: 'auto', marginRight: 80 }}>
+      <div style={{
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        padding: 80,
+        background: siteLoginCover ? `url(${siteLoginCover}) center/cover no-repeat` : '#fafafa',
+        position: 'relative',
+      }}>
+        {siteLoginCover ? <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.45)' }} /> : null}
+        <div style={{ maxWidth: 360, marginLeft: 'auto', marginRight: 80, position: 'relative', color: siteLoginCover ? '#fff' : 'inherit' }}>
           {siteLogo ? (
             <img src={siteLogo} alt="logo" style={{ height: 48, marginBottom: 16, borderRadius: 6 }} />
           ) : (
@@ -80,7 +91,7 @@ const LoginPage: React.FC = () => {
             </div>
           )}
           <h1 style={{ fontSize: 28, fontWeight: 600, marginBottom: 12 }}>{siteName || 'Kingfisher'}</h1>
-          {siteDescription && <p style={{ color: '#666', fontSize: 14 }}>{siteDescription}</p>}
+          {siteDescription && <p style={{ color: siteLoginCover ? 'rgba(255,255,255,0.85)' : '#666', fontSize: 14 }}>{siteDescription}</p>}
         </div>
       </div>
 
