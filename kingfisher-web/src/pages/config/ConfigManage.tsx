@@ -158,7 +158,6 @@ const ConfigManage: React.FC = () => {
         r.is_public ? <Tag color="green">公开</Tag> : <Tag color="default">私密</Tag>,
     },
     { title: '版本', dataIndex: 'version', width: 90 },
-    { title: '创建时间', dataIndex: 'created_at', width: 150, render: (v: unknown) => formatTime(v) },
     { title: '更新时间', dataIndex: 'updated_at', width: 150, render: (v: unknown) => formatTime(v) },
     {
       title: '操作',
@@ -177,7 +176,7 @@ const ConfigManage: React.FC = () => {
               setEditModal({ open: true, config: r as unknown as Record<string, unknown> });
             }}
           >
-            编辑
+          <EditOutlined /> 编辑
           </a>
         ) : null,
         perms.includes('config:update') ? (
@@ -190,7 +189,7 @@ const ConfigManage: React.FC = () => {
               setRefreshKey((k) => k + 1);
             }}
           >
-            <a style={{ color: 'red' }}>删除</a>
+            <a style={{ color: 'red' }}><DeleteOutlined /> 删除</a>
           </Popconfirm>
         ) : null,
       ],

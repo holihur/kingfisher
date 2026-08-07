@@ -79,12 +79,6 @@ const RoleList: React.FC = () => {
         r.landing_page ? <a href={r.landing_page}>{r.landing_page}</a> : '-',
     },
     {
-      title: '创建时间',
-      dataIndex: 'created_at',
-      width: 150,
-      render: (v: unknown) => formatTime(v),
-    },
-    {
       title: '更新时间',
       dataIndex: 'updated_at',
       width: 150,

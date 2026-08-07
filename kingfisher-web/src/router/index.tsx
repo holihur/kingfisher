@@ -105,11 +105,13 @@ function AppRoutes() {
   const location = useLocation();
 
   // 登录后加载菜单（驱动动态路由）；未登录不加载
+  // 依赖用 token 值而非 hasToken 函数引用，确保登录后跳转触发重新评估
+  const token = hasToken();
   useEffect(() => {
-    if (hasToken() && menuTree.length === 0) {
+    if (token && menuTree.length === 0) {
       fetchMenus();
     }
-  }, [hasToken, menuTree.length, fetchMenus]);
+  }, [token, menuTree.length, fetchMenus]);
 
   const menuRoutes = useMemo(() => buildMenuRoutes(menuTree as MenuNode[]), [menuTree]);
 

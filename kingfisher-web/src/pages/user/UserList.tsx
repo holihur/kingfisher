@@ -90,12 +90,6 @@ const UserList: React.FC = () => {
       ),
     },
     {
-      title: '创建时间',
-      dataIndex: 'created_at',
-      width: 150,
-      render: (v: unknown) => formatTime(v),
-    },
-    {
       title: '更新时间',
       dataIndex: 'updated_at',
       width: 150,

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Button, Modal, Form, Input, InputNumber, TreeSelect, App, Popconfirm, Switch } from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, FileAddOutlined } from '@ant-design/icons';
 import DataTable from '../../components/DataTable';
 import { useAuthStore } from '../../stores/auth';
 import { menuApi } from '../../api/menu';
@@ -94,17 +94,17 @@ const MenuManage: React.FC = () => {
       key: 'action',
       render: (_: unknown, r: Record<string, unknown>) => [
         perms.includes('menu:update') ? (
-          <a key="ed" onClick={() => { setEditing(r as unknown as MenuItem); setModalOpen(true); }}>编辑</a>
+          <a key="ed" onClick={() => { setEditing(r as unknown as MenuItem); setModalOpen(true); }}><EditOutlined /> 编辑</a>
         ) : null,
         perms.includes('menu:create') ? (
-          <a key="add" onClick={() => { setEditing({ parent_id: r.id as number } as MenuItem); setModalOpen(true); }}>添加子项</a>
+          <a key="add" onClick={() => { setEditing({ parent_id: r.id as number } as MenuItem); setModalOpen(true); }}><FileAddOutlined /> 添加子项</a>
         ) : null,
         perms.includes('menu:delete') ? (
           (r.children as MenuItem[])?.length > 0 ? (
-            <a key="del-disabled" style={{ color: '#ccc', cursor: 'not-allowed' }} title="有子节点无法删除">删除</a>
+            <a key="del-disabled" style={{ color: '#ccc', cursor: 'not-allowed' }} title="有子节点无法删除"><DeleteOutlined /> 删除</a>
           ) : (
             <Popconfirm key="del" title="确认删除？" onConfirm={async () => { try { await menuApi.delete(r.id as number); message.success('已删除'); fetchTree(); } catch { /* error shown by interceptor */ } }}>
-              <a style={{ color: 'red' }}>删除</a>
+              <a style={{ color: 'red' }}><DeleteOutlined /> 删除</a>
             </Popconfirm>
           )
         ) : null,

@@ -39,6 +39,7 @@ const AdminLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(isMobile);
   const [openKeys, setOpenKeys] = useState<string[]>([]);
   const [siteName, setSiteName] = useState('Kingfisher');
+  const [siteLogo, setSiteLogo] = useState('');
   const { menuTree, fetchMenus, loading } = useMenuStore();
   const { userInfo } = useAuthStore();
   const navigate = useNavigate();
@@ -50,6 +51,7 @@ const AdminLayout: React.FC = () => {
       setSiteName(name);
       document.title = name;
     }).catch(() => {});
+    configApi.getPublic('site_logo').then(r => setSiteLogo((r.data as any)?.value || '')).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -125,13 +127,21 @@ const AdminLayout: React.FC = () => {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              gap: 10,
               color: '#fff',
               fontSize: 18,
               fontWeight: 'bold',
               borderBottom: '1px solid rgba(255,255,255,0.1)',
             }}
           >
-            {siteName}
+            {siteLogo ? <img src={siteLogo} alt="logo" style={{ height: 32, borderRadius: 4 }} /> : (
+            <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ width: 32, height: 32, borderRadius: 6, background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 600 }}>
+                {(siteName || 'K').charAt(0)}
+              </span>
+              {siteName}
+            </span>
+          )}
           </div>
           {siderContent}
         </Drawer>
@@ -143,13 +153,37 @@ const AdminLayout: React.FC = () => {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              gap: collapsed ? 0 : 10,
               color: '#fff',
-              fontSize: 18,
+              fontSize: collapsed ? 22 : 18,
               fontWeight: 'bold',
               borderBottom: '1px solid rgba(255,255,255,0.1)',
             }}
           >
-            {collapsed ? (siteName || 'K').charAt(0) : siteName}
+            {siteLogo ? (
+              <img src={siteLogo} alt="logo" style={{ height: collapsed ? 28 : 32, borderRadius: 4 }} />
+            ) : (
+              collapsed ? (
+                <span style={{
+                  width: 34, height: 34, borderRadius: 6,
+                  background: 'rgba(255,255,255,0.15)', display: 'flex',
+                  alignItems: 'center', justifyContent: 'center', fontSize: 18,
+                }}>
+                  {(siteName || 'K').charAt(0)}
+                </span>
+              ) : (
+                <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{
+                    width: 32, height: 32, borderRadius: 6,
+                    background: 'rgba(255,255,255,0.15)', display: 'flex',
+                    alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 600,
+                  }}>
+                    {(siteName || 'K').charAt(0)}
+                  </span>
+                  {siteName}
+                </span>
+              )
+            )}
           </div>
           {siderContent}
         </Layout.Sider>

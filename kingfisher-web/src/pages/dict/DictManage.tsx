@@ -190,7 +190,6 @@ const DictManage: React.FC = () => {
         r.status === 1 ? <Tag color="green">启用</Tag> : <Tag color="red">禁用</Tag>,
     },
     { title: '备注', dataIndex: 'remark', ellipsis: true },
-    { title: '创建时间', dataIndex: 'created_at', width: 150, render: (v: unknown) => formatTime(v) },
     { title: '更新时间', dataIndex: 'updated_at', width: 150, render: (v: unknown) => formatTime(v) },
     {
       title: '操作',
@@ -198,12 +197,12 @@ const DictManage: React.FC = () => {
       render: (_: unknown, r: DictEntry) => [
         perms.includes('dict:update') ? (
           <a key="ed" onClick={() => openEditEntry(r)}>
-            编辑
+            <EditOutlined /> 编辑
           </a>
         ) : null,
         perms.includes('dict:delete') ? (
           <Popconfirm key="del" title="删除条目" description={`确定删除「${r.label}」吗？`} onConfirm={() => handleEntryDelete(r)}>
-            <a style={{ color: 'red' }}>删除</a>
+            <a style={{ color: 'red' }}><DeleteOutlined /> 删除</a>
           </Popconfirm>
         ) : null,
       ],
