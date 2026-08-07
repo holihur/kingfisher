@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Form, Input, Button, Card, message, Alert } from 'antd';
+import { Form, Input, Button, Card, App, Alert } from 'antd';
 import { UserOutlined, LockOutlined, MailOutlined } from '@ant-design/icons';
 import { authApi } from '../../api/auth';
 import { configApi } from '../../api/config';
 
 const RegisterPage: React.FC = () => {
+  const { message } = App.useApp();
   const [loading, setLoading] = useState(false);
   const [registrationEnabled, setRegistrationEnabled] = useState<boolean | null>(null);
   const navigate = useNavigate();
@@ -41,7 +42,7 @@ const RegisterPage: React.FC = () => {
         background: '#f0f2f5',
       }}
     >
-      <Card style={{ width: 400, boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }} bordered={false}>
+      <Card style={{ width: 400, boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }} variant="borderless">
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
           <h2 style={{ margin: 0 }}>Kingfisher</h2>
           <p style={{ color: '#999', margin: '8px 0 0' }}>注册新账号</p>
@@ -50,7 +51,7 @@ const RegisterPage: React.FC = () => {
           <Alert
             type="warning"
             showIcon
-            message="当前未开放注册"
+            title="当前未开放注册"
             description="系统管理员已关闭公开注册，请联系管理员开通账号。"
             style={{ marginBottom: 16 }}
           />

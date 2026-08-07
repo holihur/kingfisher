@@ -1,67 +1,68 @@
-import React, { useEffect } from 'react';
-import ProTable, { ProColumns } from '@ant-design/pro-table';
+import React from 'react';
+import { Tag } from 'antd';
+import DataTable, { SearchField } from '../../components/DataTable';
 import { auditApi } from '../../api/audit';
-import { useTableUrlQuery } from '../../hooks/useTableUrlQuery';
-import { buildQueryParams } from '../../utils/query';
 
-const ACTION_VALUES: Record<string, { text: string }> = {
-  create: { text: '创建' },
-  update: { text: '更新' },
-  delete: { text: '删除' },
+const ACTION_VALUES: Record<string, { text: string; color?: string }> = {
+  create: { text: '创建', color: 'green' },
+  update: { text: '更新', color: 'blue' },
+  delete: { text: '删除', color: 'red' },
   login: { text: '登录' },
   logout: { text: '退出' },
   register: { text: '注册' },
 };
 
+interface AuditLogRow {
+  id: number;
+  username: string;
+  action: string;
+  resource: string;
+  resource_id: number;
+  ip: string;
+  user_agent: string;
+  created_at: string;
+}
+
+const searchFields: SearchField[] = [
+  { name: 'q', label: '关键词', type: 'text' },
+  { name: 'resource', label: '资源', type: 'text' },
+];
+
 const AuditLogList: React.FC = () => {
-  const { urlParams, page, pageSize, actionRef, formRef, syncFormFromUrl, onSearch, onReset, onPageChange } = useTableUrlQuery();
-
-  // 挂载时用 URL 反填搜索表单
-  useEffect(() => {
-    syncFormFromUrl();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const columns: ProColumns[] = [
-    { title: 'ID', dataIndex: 'id', width: 80, search: false },
-    {
-      title: '关键词',
-      dataIndex: 'q',
-      hideInTable: true,
-      search: { transform: (v) => ({ q: v }) },
-    },
-    { title: '用户', dataIndex: 'username', search: false },
+  const columns = [
+    { title: 'ID', dataIndex: 'id', width: 80 },
+    { title: '用户', dataIndex: 'username' },
     {
       title: '操作',
       dataIndex: 'action',
-      valueEnum: ACTION_VALUES,
-      render: (_, r) => ACTION_VALUES[r.action as string]?.text || (r.action as string),
+      render: (_: unknown, r: AuditLogRow) => {
+        const v = ACTION_VALUES[r.action];
+        return v ? <Tag color={v.color}>{v.text}</Tag> : (r.action as string);
+      },
     },
     { title: '资源', dataIndex: 'resource' },
-    { title: '资源ID', dataIndex: 'resource_id', width: 90, search: false },
-    { title: 'IP', dataIndex: 'ip', search: false },
-    { title: '时间', dataIndex: 'created_at', valueType: 'dateTime', search: false },
+    { title: '资源ID', dataIndex: 'resource_id', width: 90 },
+    { title: 'IP', dataIndex: 'ip' },
+    {
+      title: '时间',
+      dataIndex: 'created_at',
+      render: (v: unknown) => (v ? new Date(v as string).toLocaleString() : '-'),
+    },
   ];
+
   return (
-    <ProTable
+    <DataTable<AuditLogRow>
       columns={columns}
-      actionRef={actionRef}
-      formRef={formRef}
-      params={urlParams}
+      rowKey="id"
       request={async (params) => {
-        const r = await auditApi.getList(buildQueryParams(params));
+        const r = await auditApi.getList(params);
         const data = r.data as Record<string, unknown>;
         return {
-          data: (data.items as Record<string, unknown>[]) || [],
+          items: (data.items as AuditLogRow[]) || [],
           total: (data.total as number) || 0,
-          success: true,
         };
       }}
-      rowKey="id"
-      onSubmit={onSearch}
-      onReset={onReset}
-      search={{ labelWidth: 'auto' }}
-      pagination={{ current: page, pageSize, showSizeChanger: true, onChange: onPageChange }}
+      searchFields={searchFields}
       headerTitle="审计日志"
     />
   );

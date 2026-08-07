@@ -1,6 +1,6 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
-import { message } from 'antd';
 import { getToken, getRefreshToken, setTokens, clearTokens } from '../utils/token';
+import { getMessage } from '../utils/feedback';
 
 const request = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api/v1',
@@ -30,13 +30,13 @@ request.interceptors.response.use(
         window.location.href = '/login';
         return Promise.reject(new Error('登录已过期'));
       default:
-        message.error(msg || `请求失败 [${code}]`);
+        getMessage().error(msg || `请求失败 [${code}]`);
         return Promise.reject(new Error(msg || `请求失败 [${code}]`));
     }
   },
   (error: AxiosError<{ message?: string }>) => {
     if (!error.response) {
-      message.error('网络异常');
+      getMessage().error('网络异常');
       return Promise.reject(error);
     }
     // 优先使用后端返回的错误信息
@@ -49,7 +49,7 @@ request.interceptors.response.use(
       429: '请求过于频繁',
       500: '服务器内部错误',
     };
-    message.error(backendMsg || statusMsgs[error.response.status] || `服务器错误 (${error.response.status})`);
+    getMessage().error(backendMsg || statusMsgs[error.response.status] || `服务器错误 (${error.response.status})`);
     return Promise.reject(error);
   }
 );

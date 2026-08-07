@@ -1,17 +1,25 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Modal, Form, Input, Tree, Tabs, Checkbox, Row, Col, message, Popconfirm, Badge, AutoComplete } from 'antd';
+import { Button, Modal, Form, Input, Tree, Tabs, Checkbox, Row, Col, App, Popconfirm, Badge, AutoComplete } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
-import ProTable, { ProColumns } from '@ant-design/pro-table';
+import DataTable, { SearchField } from '../../components/DataTable';
 import { useAuthStore } from '../../stores/auth';
 import { roleApi } from '../../api/role';
 import { menuApi } from '../../api/menu';
-import { useTableUrlQuery } from '../../hooks/useTableUrlQuery';
-import { buildQueryParams } from '../../utils/query';
+
+interface RoleRow {
+  id: number;
+  name: string;
+  code: string;
+  description: string;
+  status: number;
+  landing_page: string;
+}
 
 const RoleList: React.FC = () => {
-  const { urlParams, page, pageSize, actionRef, formRef, syncFormFromUrl, onSearch, onReset, onPageChange } = useTableUrlQuery();
+  const { message } = App.useApp();
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Record<string, unknown> | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [permModal, setPermModal] = useState<{ open: boolean; role: Record<string, unknown> | null }>({
     open: false,
     role: null,
@@ -29,9 +37,8 @@ const RoleList: React.FC = () => {
   const [form] = Form.useForm<Record<string, unknown>>();
   const perms = useAuthStore((s) => s.permissions);
 
-  // 挂载时用 URL 反填搜索表单，并加载落地页候选
+  // 加载落地页候选
   useEffect(() => {
-    syncFormFromUrl();
     menuApi.getTree().then((r) => {
       const walk = (nodes: Record<string, unknown>[], out: { label: string; value: string }[]) => {
         (nodes || []).forEach((n) => {
@@ -43,46 +50,39 @@ const RoleList: React.FC = () => {
       walk(r.data as Record<string, unknown>[], opts);
       setLandingOptions(opts);
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const searchFields: SearchField[] = [{ name: 'q', label: '关键词', type: 'text' }];
 
-  const columns: ProColumns[] = [
-    { title: 'ID', dataIndex: 'id', width: 80, search: false },
-    {
-      title: '关键词',
-      dataIndex: 'q',
-      hideInTable: true,
-      search: { transform: (v) => ({ q: v }) },
-    },
-    { title: '角色名', dataIndex: 'name', search: false },
-    { title: '编码', dataIndex: 'code', search: false },
-    { title: '描述', dataIndex: 'description', ellipsis: true, search: false },
+  const columns = [
+    { title: 'ID', dataIndex: 'id', width: 80 },
+    { title: '角色名', dataIndex: 'name' },
+    { title: '编码', dataIndex: 'code' },
+    { title: '描述', dataIndex: 'description', ellipsis: true },
     {
       title: '状态',
       dataIndex: 'status',
       width: 80,
-      valueEnum: { 1: { text: '启用' }, 0: { text: '禁用' } },
-      render: (_, r) => (
-        <Badge status={(r.status as number) === 1 ? 'success' : 'error'} text={(r.status as number) === 1 ? '启用' : '禁用'} />
+      render: (_: unknown, r: RoleRow) => (
+        <Badge status={r.status === 1 ? 'success' : 'error'} text={r.status === 1 ? '启用' : '禁用'} />
       ),
     },
-    { title: '落地页', dataIndex: 'landing_page', width: 140, ellipsis: true, render: (_, r) => (r.landing_page as string) || '-' },
+    { title: '落地页', dataIndex: 'landing_page', width: 140, ellipsis: true, render: (_: unknown, r: RoleRow) => r.landing_page || '-' },
     {
       title: '操作',
-      valueType: 'option',
-      render: (_, r) => [
+      key: 'action',
+      render: (_: unknown, r: RoleRow) => [
         perms.includes('role:update') ? (
           <a
             key="perm"
             onClick={async () => {
               const p = await roleApi.getAllPermissions();
               setAllPerms((p.data as Record<string, unknown>[]) || []);
-              const rp = await roleApi.getPermissions(r.id as number);
+              const rp = await roleApi.getPermissions(r.id);
               setSelectedPerms(
                 ((rp.data as Record<string, unknown>[]) || []).map((i: Record<string, unknown>) => i.id as number)
               );
-              setPermModal({ open: true, role: r as Record<string, unknown> });
+              setPermModal({ open: true, role: r as unknown as Record<string, unknown> });
             }}
           >
             权限
@@ -94,11 +94,11 @@ const RoleList: React.FC = () => {
             onClick={async () => {
               const m = await menuApi.getTree();
               setAllMenus((m.data as Record<string, unknown>[]) || []);
-              const rm = await roleApi.getMenus(r.id as number);
+              const rm = await roleApi.getMenus(r.id);
               setSelectedMenus(
                 ((rm.data as Record<string, unknown>[]) || []).map((i: Record<string, unknown>) => i.id as number)
               );
-              setMenuModal({ open: true, role: r as Record<string, unknown> });
+              setMenuModal({ open: true, role: r as unknown as Record<string, unknown> });
             }}
           >
             菜单
@@ -108,7 +108,7 @@ const RoleList: React.FC = () => {
           <a
             key="ed"
             onClick={() => {
-              setEditing(r as Record<string, unknown>);
+              setEditing(r as unknown as Record<string, unknown>);
               setModalOpen(true);
             }}
           >
@@ -120,9 +120,9 @@ const RoleList: React.FC = () => {
             key="del"
             title="确认删除？"
             onConfirm={async () => {
-              await roleApi.delete(r.id as number);
+              await roleApi.delete(r.id);
               message.success('已删除');
-              actionRef.current?.reload();
+              setRefreshKey((k) => k + 1);
             }}
           >
             <a style={{ color: 'red' }}>删除</a>
@@ -135,14 +135,14 @@ const RoleList: React.FC = () => {
   const handleSubmit = async () => {
     const v = await form.validateFields();
     if (editing?.id) {
-      await roleApi.update(editing.id as number, v);
+      await roleApi.update(editing.id as number, v as never);
     } else {
-      await roleApi.create(v);
+      await roleApi.create(v as never);
     }
     message.success('保存成功');
     setModalOpen(false);
     setEditing(null);
-    actionRef.current?.reload();
+    setRefreshKey((k) => k + 1);
   };
 
   const grouped = (allPerms || []).reduce(
@@ -166,27 +166,21 @@ const RoleList: React.FC = () => {
 
   return (
     <>
-      <ProTable
+      <DataTable<RoleRow>
         columns={columns}
-        actionRef={actionRef}
-        formRef={formRef}
-        params={urlParams}
+        rowKey="id"
         request={async (params) => {
-          const r = await roleApi.getList(buildQueryParams(params));
+          const r = await roleApi.getList(params);
           const data = r.data as Record<string, unknown>;
           return {
-            data: (data.items as Record<string, unknown>[]) || [],
+            items: (data.items as RoleRow[]) || [],
             total: (data.total as number) || 0,
-            success: true,
           };
         }}
-        rowKey="id"
-        onSubmit={onSearch}
-        onReset={onReset}
-        search={{ labelWidth: 'auto' }}
-        pagination={{ current: page, pageSize, showSizeChanger: true, onChange: onPageChange }}
+        searchFields={searchFields}
         headerTitle="角色管理"
-        toolBarRender={() => [
+        reloadKey={refreshKey}
+        toolBarRender={
           perms.includes('role:create') ? (
             <Button
               key="add"
@@ -199,8 +193,8 @@ const RoleList: React.FC = () => {
             >
               新增角色
             </Button>
-          ) : null,
-        ]}
+          ) : null
+        }
       />
       <Modal
         title={editing ? '编辑角色' : '新增角色'}
@@ -259,7 +253,7 @@ const RoleList: React.FC = () => {
           <Tabs
             items={Object.entries(grouped).map(([res, ps]) => ({
               key: res,
-              label: { user: '用户', menu: '菜单', role: '角色', config: '配置', audit: '审计' }[res] || res,
+              label: { user: '用户', menu: '菜单', role: '角色', config: '配置', audit: '审计', dict: '字典' }[res] || res,
               children: (
                 <Row gutter={[16, 8]}>
                   {ps.map((p) => (

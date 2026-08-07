@@ -1,17 +1,29 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Card, Form, Input, Button, message, Descriptions, Tag, Tabs, Upload } from 'antd';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Card, Form, Input, Button, App, Descriptions, Tag, Tabs, Upload, Table } from 'antd';
+import type { TableProps, UploadProps } from 'antd';
 import { UserOutlined, MailOutlined, LockOutlined, UploadOutlined } from '@ant-design/icons';
-import type { UploadProps } from 'antd';
-import ProTable, { ProColumns, ActionType } from '@ant-design/pro-table';
 import { userApi } from '../../api/user';
 import { useAuthStore } from '../../stores/auth';
 
+interface LoginLog {
+  id: number;
+  username: string;
+  ip: string;
+  user_agent: string;
+  created_at: string;
+}
+
 const Profile: React.FC = () => {
+  const { message } = App.useApp();
   const { userInfo, fetchUserInfo, token } = useAuthStore();
   const [profileForm] = Form.useForm();
   const [pwdForm] = Form.useForm();
   const [avatarUrl, setAvatarUrl] = useState<string>('');
-  const actionRef = useRef<ActionType>(null);
+  // 登录日志本地分页
+  const [logs, setLogs] = useState<LoginLog[]>([]);
+  const [logTotal, setLogTotal] = useState(0);
+  const [logPage, setLogPage] = useState(1);
+  const [logLoading, setLogLoading] = useState(false);
 
   useEffect(() => {
     if (userInfo) {
@@ -32,7 +44,7 @@ const Profile: React.FC = () => {
     });
     message.success('资料已更新');
     await fetchUserInfo();
-  }, [profileForm, fetchUserInfo]);
+  }, [profileForm, fetchUserInfo, message]);
 
   const handlePasswordChange = useCallback(async () => {
     const v = await pwdForm.validateFields();
@@ -46,7 +58,7 @@ const Profile: React.FC = () => {
     });
     message.success('密码已修改，请重新登录');
     pwdForm.resetFields();
-  }, [pwdForm]);
+  }, [pwdForm, message]);
 
   const uploadProps: UploadProps = {
     name: 'file',
@@ -68,7 +80,7 @@ const Profile: React.FC = () => {
     },
     onChange: (info) => {
       if (info.file.status === 'done') {
-        const url = (info.file.response as Record<string, unknown>)?.data?.url as string;
+        const url = (info.file.response as { data?: { url?: string } } | undefined)?.data?.url as string;
         if (url) {
           setAvatarUrl(url);
           message.success('头像已更新');
@@ -80,12 +92,42 @@ const Profile: React.FC = () => {
     },
   };
 
-  const loginLogColumns: ProColumns[] = [
-    { title: '时间', dataIndex: 'created_at', width: 180, valueType: 'dateTime' },
+  const loginLogColumns: TableProps<LoginLog>['columns'] = [
+    {
+      title: '时间',
+      dataIndex: 'created_at',
+      width: 180,
+      render: (v: unknown) => (v ? new Date(v as string).toLocaleString() : '-'),
+    },
     { title: '用户名', dataIndex: 'username', width: 120 },
-    { title: 'IP', dataIndex: 'ip', width: 140, render: (_, r) => <Tag>{(r as Record<string, unknown>).ip as string}</Tag> },
+    { title: 'IP', dataIndex: 'ip', width: 140, render: (_: unknown, r: LoginLog) => <Tag>{r.ip}</Tag> },
     { title: 'UserAgent', dataIndex: 'user_agent', ellipsis: true },
   ];
+
+  // 加载登录日志（Tab 内）
+  useEffect(() => {
+    let cancelled = false;
+    setLogLoading(true);
+    userApi
+      .getMyLoginLogs({ page: logPage, page_size: 10, sort: '-created_at' })
+      .then((r) => {
+        if (cancelled) return;
+        const data = r.data as Record<string, unknown>;
+        setLogs((data?.items as LoginLog[]) || (r.data as LoginLog[]) || []);
+        setLogTotal((data?.total as number) || 0);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setLogs([]);
+        setLogTotal(0);
+      })
+      .finally(() => {
+        if (!cancelled) setLogLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [logPage]);
 
   return (
     <div style={{ padding: 24, maxWidth: 900 }}>
@@ -178,27 +220,19 @@ const Profile: React.FC = () => {
             key: 'logs',
             label: '登录日志',
             children: (
-              <ProTable
+              <Table<LoginLog>
                 columns={loginLogColumns}
-                actionRef={actionRef}
-                request={async (params) => {
-                  const r = await userApi.getMyLoginLogs({
-                    page: params.current,
-                    page_size: params.pageSize,
-                    sort: '-created_at',
-                  });
-                  return {
-                    data: (r.data as Record<string, unknown>)?.items
-                      ? ((r.data as Record<string, unknown>).items as unknown[])
-                      : (r.data as unknown[]) || [],
-                    total: ((r.data as Record<string, unknown>)?.total as number) || 0,
-                    success: true,
-                  };
-                }}
                 rowKey="id"
-                search={false}
-                pagination={{ defaultPageSize: 10 }}
-                headerTitle="最近登录记录"
+                dataSource={logs}
+                loading={logLoading}
+                pagination={{
+                  current: logPage,
+                  pageSize: 10,
+                  total: logTotal,
+                  showSizeChanger: false,
+                  onChange: (p) => setLogPage(p),
+                }}
+                size="small"
               />
             ),
           },

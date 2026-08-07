@@ -1,11 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Modal, Form, Input, InputNumber, Switch, Select, message, Tag, Popconfirm, List, Button, Empty } from 'antd';
+import { Modal, Form, Input, InputNumber, Switch, Select, App, Tag, Popconfirm, Button, Empty } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
-import ProTable, { ProColumns } from '@ant-design/pro-table';
+import DataTable, { SearchField } from '../../components/DataTable';
 import { useAuthStore } from '../../stores/auth';
 import { dictTypeApi, dictEntryApi } from '../../api/dict';
-import { useTableUrlQuery } from '../../hooks/useTableUrlQuery';
-import { buildQueryParams } from '../../utils/query';
 
 interface DictType {
   id: number;
@@ -27,12 +25,13 @@ interface DictEntry {
 }
 
 const DictManage: React.FC = () => {
-  const { urlParams, page, pageSize, actionRef, formRef, syncFormFromUrl, onSearch, onReset, onPageChange } = useTableUrlQuery();
+  const { message } = App.useApp();
   const perms = useAuthStore((s) => s.permissions);
 
   // 字典类型状态
   const [types, setTypes] = useState<DictType[]>([]);
   const [selectedType, setSelectedType] = useState<DictType | null>(null);
+  const [entryRefreshKey, setEntryRefreshKey] = useState(0);
   const [typeModal, setTypeModal] = useState<{ open: boolean; editing: DictType | null }>({
     open: false,
     editing: null,
@@ -70,8 +69,6 @@ const DictManage: React.FC = () => {
 
   useEffect(() => {
     loadTypes();
-    syncFormFromUrl();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadTypes]);
 
   // ---- 字典类型 CRUD ----
@@ -122,7 +119,7 @@ const DictManage: React.FC = () => {
     message.success('字典类型已删除');
     if (selectedType?.id === t.id) setSelectedType(null);
     loadTypes();
-    actionRef.current?.reload();
+    setEntryRefreshKey((k) => k + 1);
   };
 
   // ---- 字典条目 CRUD ----
@@ -166,52 +163,60 @@ const DictManage: React.FC = () => {
       message.success('条目已创建');
     }
     setEntryModal({ open: false, editing: null });
-    actionRef.current?.reload();
+    setEntryRefreshKey((k) => k + 1);
   };
 
   const handleEntryDelete = async (e: DictEntry) => {
     if (!selectedType) return;
     await dictEntryApi.delete(selectedType.id, e.id);
     message.success('条目已删除');
-    actionRef.current?.reload();
+    setEntryRefreshKey((k) => k + 1);
   };
 
-  const entryColumns: ProColumns[] = [
-    {
-      title: '关键词',
-      dataIndex: 'q',
-      hideInTable: true,
-      search: { transform: (v) => ({ q: v }) },
-    },
-    { title: '显示名', dataIndex: 'label', width: 120, search: false },
-    { title: '值', dataIndex: 'value', width: 120, search: false, render: (_, r) => <Tag>{r.value as string}</Tag> },
-    { title: '排序', dataIndex: 'sort', width: 80, search: false },
+  const searchFields: SearchField[] = [{ name: 'q', label: '关键词', type: 'text' }];
+
+  const entryColumns = [
+    { title: '显示名', dataIndex: 'label', width: 120 },
+    { title: '值', dataIndex: 'value', width: 120, render: (_: unknown, r: DictEntry) => <Tag>{r.value}</Tag> },
+    { title: '排序', dataIndex: 'sort', width: 80 },
     {
       title: '状态',
       dataIndex: 'status',
       width: 80,
-      valueEnum: { 1: { text: '启用' }, 0: { text: '禁用' } },
-      render: (_, r) =>
+      render: (_: unknown, r: DictEntry) =>
         r.status === 1 ? <Tag color="green">启用</Tag> : <Tag color="red">禁用</Tag>,
     },
-    { title: '备注', dataIndex: 'remark', ellipsis: true, search: false },
+    { title: '备注', dataIndex: 'remark', ellipsis: true },
     {
       title: '操作',
-      valueType: 'option',
-      render: (_, r) => [
+      key: 'action',
+      render: (_: unknown, r: DictEntry) => [
         perms.includes('dict:update') ? (
-          <a key="ed" onClick={() => openEditEntry(r as unknown as DictEntry)}>
+          <a key="ed" onClick={() => openEditEntry(r)}>
             编辑
           </a>
         ) : null,
         perms.includes('dict:delete') ? (
-          <Popconfirm key="del" title="确认删除？" onConfirm={() => handleEntryDelete(r as unknown as DictEntry)}>
+          <Popconfirm key="del" title="确认删除？" onConfirm={() => handleEntryDelete(r)}>
             <a style={{ color: 'red' }}>删除</a>
           </Popconfirm>
         ) : null,
       ],
     },
   ];
+
+  const entryRequest = useCallback(
+    async (params: Record<string, unknown>) => {
+      if (!selectedType) return { items: [] as DictEntry[], total: 0 };
+      const r = await dictEntryApi.listByTypeId(selectedType.id, params);
+      const data = r.data as Record<string, unknown>;
+      return {
+        items: (data.items as DictEntry[]) || [],
+        total: (data.total as number) || 0,
+      };
+    },
+    [selectedType],
+  );
 
   return (
     <div style={{ display: 'flex', gap: 16 }}>
@@ -232,93 +237,74 @@ const DictManage: React.FC = () => {
             </Button>
           )}
         </div>
-        <List
-          size="small"
-          dataSource={types}
-          locale={{ emptyText: <Empty description="暂无字典类型" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
-          renderItem={(t) => (
-            <List.Item
-              onClick={() => {
-                setSelectedType(t);
-                // 延迟刷新让 ProTable 用新的 selectedType 重新请求
-                setTimeout(() => actionRef.current?.reload(), 0);
-              }}
-              style={{
-                cursor: 'pointer',
-                padding: '6px 8px',
-                borderRadius: 6,
-                background: selectedType?.id === t.id ? '#e6f4ff' : 'transparent',
-                border: selectedType?.id === t.id ? '1px solid #91caff' : '1px solid transparent',
-              }}
-              actions={
-                !perms.includes('dict:update') && !perms.includes('dict:delete')
-                  ? []
-                  : [
-                      perms.includes('dict:update') ? (
-                        <EditOutlined
-                          key="edit"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openEditType(t);
-                          }}
-                        />
-                      ) : null,
-                      perms.includes('dict:delete') ? (
-                        <Popconfirm key="del" title="删除类型？请先确保类型下无条目" onConfirm={() => handleTypeDelete(t)}>
-                          <DeleteOutlined style={{ color: 'red' }} onClick={(e) => e.stopPropagation()} />
-                        </Popconfirm>
-                      ) : null,
-                    ]
-              }
-            >
-              <div>
-                <div style={{ fontWeight: 500 }}>{t.name}</div>
-                <div style={{ fontSize: 12, color: '#888' }}>
-                  <Tag style={{ fontSize: 11 }}>{t.code}</Tag>
-                  {t.is_public ? <Tag color="green" style={{ fontSize: 11 }}>公开</Tag> : null}
-                  {t.status === 0 ? <Tag color="red" style={{ fontSize: 11 }}>禁用</Tag> : null}
+        {types.length === 0 ? (
+          <Empty description="暂无字典类型" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+        ) : (
+          <div>
+            {types.map((t) => (
+              <div
+                key={t.id}
+                onClick={() => {
+                  setSelectedType(t);
+                  setEntryRefreshKey((k) => k + 1);
+                }}
+                style={{
+                  cursor: 'pointer',
+                  padding: '6px 8px',
+                  borderRadius: 6,
+                  marginBottom: 4,
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  background: selectedType?.id === t.id ? '#e6f4ff' : 'transparent',
+                  border: selectedType?.id === t.id ? '1px solid #91caff' : '1px solid transparent',
+                }}
+              >
+                <div>
+                  <div style={{ fontWeight: 500 }}>{t.name}</div>
+                  <div style={{ fontSize: 12, color: '#888' }}>
+                    <Tag style={{ fontSize: 11 }}>{t.code}</Tag>
+                    {t.is_public ? <Tag color="green" style={{ fontSize: 11 }}>公开</Tag> : null}
+                    {t.status === 0 ? <Tag color="red" style={{ fontSize: 11 }}>禁用</Tag> : null}
+                  </div>
                 </div>
+                {(perms.includes('dict:update') || perms.includes('dict:delete')) && (
+                  <span style={{ display: 'inline-flex', gap: 8 }}>
+                    {perms.includes('dict:update') ? (
+                      <EditOutlined onClick={(e) => { e.stopPropagation(); openEditType(t); }} />
+                    ) : null}
+                    {perms.includes('dict:delete') ? (
+                      <Popconfirm key="del" title="删除类型？请先确保类型下无条目" onConfirm={() => handleTypeDelete(t)}>
+                        <DeleteOutlined style={{ color: 'red' }} onClick={(e) => e.stopPropagation()} />
+                      </Popconfirm>
+                    ) : null}
+                  </span>
+                )}
               </div>
-            </List.Item>
-          )}
-        />
+            ))}
+          </div>
+        )}
       </div>
 
       {/* 右侧：字典条目列表 */}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <ProTable
+        <DataTable<DictEntry>
           columns={entryColumns}
-          actionRef={actionRef}
-          formRef={formRef}
-          params={urlParams}
-          request={async (params) => {
-            if (!selectedType) return { data: [], success: true };
-            const r = await dictEntryApi.listByTypeId(selectedType.id, buildQueryParams(params));
-            const data = r.data as Record<string, unknown>;
-            return {
-              data: (data.items as unknown[]) || [],
-              total: (data.total as number) || 0,
-              success: true,
-            };
-          }}
           rowKey="id"
-          onSubmit={onSearch}
-          onReset={onReset}
-          search={{ labelWidth: 'auto' }}
-          pagination={{ current: page, pageSize, showSizeChanger: true, onChange: onPageChange }}
+          request={entryRequest}
+          searchFields={searchFields}
+          reloadKey={entryRefreshKey}
           headerTitle={
             selectedType
               ? `${selectedType.name}（${selectedType.code}）— 字典条目`
               : '请选择左侧字典类型'
           }
-          toolBarRender={() =>
-            selectedType && perms.includes('dict:create')
-              ? [
-                  <Button key="add" type="primary" icon={<PlusOutlined />} onClick={openCreateEntry}>
-                    新增条目
-                  </Button>,
-                ]
-              : []
+          toolBarRender={
+            selectedType && perms.includes('dict:create') ? (
+              <Button key="add" type="primary" icon={<PlusOutlined />} onClick={openCreateEntry}>
+                新增条目
+              </Button>
+            ) : null
           }
         />
       </div>

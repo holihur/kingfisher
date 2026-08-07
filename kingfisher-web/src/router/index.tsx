@@ -1,21 +1,23 @@
-import { Suspense, useEffect } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { Spin } from 'antd';
 import AdminLayout from '../layouts/AdminLayout';
-import LoginPage from '../pages/login';
-import Dashboard from '../pages/dashboard';
-import NotFound from '../pages/error/NotFound';
-import Forbidden from '../pages/error/Forbidden';
-import UserList from '../pages/user/UserList';
-import MenuManage from '../pages/menu/MenuManage';
-import RoleList from '../pages/role/RoleList';
-import ConfigManage from '../pages/config/ConfigManage';
-import AuditLogList from '../pages/audit/AuditLogList';
-import DictManage from '../pages/dict/DictManage';
-import Profile from '../pages/profile';
-import RegisterPage from '../pages/register';
 import { hasToken } from '../utils/token';
 import { useAuthStore } from '../stores/auth';
+
+// 路由级懒加载：按页面分包，避免把所有页面 + antd 打进单个大 chunk
+const LoginPage = lazy(() => import('../pages/login'));
+const Dashboard = lazy(() => import('../pages/dashboard'));
+const NotFound = lazy(() => import('../pages/error/NotFound'));
+const Forbidden = lazy(() => import('../pages/error/Forbidden'));
+const UserList = lazy(() => import('../pages/user/UserList'));
+const MenuManage = lazy(() => import('../pages/menu/MenuManage'));
+const RoleList = lazy(() => import('../pages/role/RoleList'));
+const ConfigManage = lazy(() => import('../pages/config/ConfigManage'));
+const AuditLogList = lazy(() => import('../pages/audit/AuditLogList'));
+const DictManage = lazy(() => import('../pages/dict/DictManage'));
+const Profile = lazy(() => import('../pages/profile'));
+const RegisterPage = lazy(() => import('../pages/register'));
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const userLoaded = useAuthStore((s) => s.userLoaded);
@@ -48,10 +50,25 @@ function PermGuard({ perm, children }: { perm: string; children: React.ReactNode
   return <>{children}</>;
 }
 
+/** 懒加载 fallback：路由分包加载时显示 loading。 */
+function Lazy({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense
+      fallback={
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+          <Spin size="large" />
+        </div>
+      }
+    >
+      {children}
+    </Suspense>
+  );
+}
+
 const router = createBrowserRouter([
-  { path: '/login', element: <LoginPage /> },
-  { path: '/register', element: <RegisterPage /> },
-  { path: '/403', element: <Forbidden /> },
+  { path: '/login', element: <Lazy><LoginPage /></Lazy> },
+  { path: '/register', element: <Lazy><RegisterPage /></Lazy> },
+  { path: '/403', element: <Lazy><Forbidden /></Lazy> },
   {
     path: '/',
     element: (
@@ -60,18 +77,18 @@ const router = createBrowserRouter([
       </AuthGuard>
     ),
     children: [
-      { path: 'dashboard', element: <Suspense><Dashboard /></Suspense> },
-      { path: 'profile', element: <Suspense><Profile /></Suspense> },
-      { path: 'system/users', element: <Suspense><PermGuard perm="user:list"><UserList /></PermGuard></Suspense> },
-      { path: 'system/menus', element: <Suspense><PermGuard perm="menu:list"><MenuManage /></PermGuard></Suspense> },
-      { path: 'system/roles', element: <Suspense><PermGuard perm="role:list"><RoleList /></PermGuard></Suspense> },
-      { path: 'system/configs', element: <Suspense><PermGuard perm="config:list"><ConfigManage /></PermGuard></Suspense> },
-      { path: 'system/audit', element: <Suspense><PermGuard perm="audit:list"><AuditLogList /></PermGuard></Suspense> },
-      { path: 'system/dicts', element: <Suspense><PermGuard perm="dict:list"><DictManage /></PermGuard></Suspense> },
+      { path: 'dashboard', element: <Lazy><Dashboard /></Lazy> },
+      { path: 'profile', element: <Lazy><Profile /></Lazy> },
+      { path: 'system/users', element: <Lazy><PermGuard perm="user:list"><UserList /></PermGuard></Lazy> },
+      { path: 'system/menus', element: <Lazy><PermGuard perm="menu:list"><MenuManage /></PermGuard></Lazy> },
+      { path: 'system/roles', element: <Lazy><PermGuard perm="role:list"><RoleList /></PermGuard></Lazy> },
+      { path: 'system/configs', element: <Lazy><PermGuard perm="config:list"><ConfigManage /></PermGuard></Lazy> },
+      { path: 'system/audit', element: <Lazy><PermGuard perm="audit:list"><AuditLogList /></PermGuard></Lazy> },
+      { path: 'system/dicts', element: <Lazy><PermGuard perm="dict:list"><DictManage /></PermGuard></Lazy> },
       { index: true, element: <Navigate to="/dashboard" replace /> },
     ],
   },
-  { path: '*', element: <NotFound /> },
+  { path: '*', element: <Lazy><NotFound /></Lazy> },
 ]);
 
 export default router;

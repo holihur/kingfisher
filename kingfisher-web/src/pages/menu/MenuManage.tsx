@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Modal, Form, Input, InputNumber, TreeSelect, message, Popconfirm } from 'antd';
+import { Button, Modal, Form, Input, InputNumber, TreeSelect, App, Popconfirm } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
-import ProTable from '@ant-design/pro-table';
+import DataTable from '../../components/DataTable';
 import { useAuthStore } from '../../stores/auth';
 import { menuApi } from '../../api/menu';
 
@@ -17,6 +17,7 @@ interface MenuItem {
 }
 
 const MenuManage: React.FC = () => {
+  const { message } = App.useApp();
   const [tree, setTree] = useState<MenuItem[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<MenuItem | null>(null);
@@ -66,7 +67,7 @@ const MenuManage: React.FC = () => {
     { title: '排序', dataIndex: 'sort', width: 80 },
     {
       title: '操作',
-      valueType: 'option',
+      key: 'action',
       render: (_: unknown, r: Record<string, unknown>) => [
         perms.includes('menu:update') ? (
           <a key="ed" onClick={() => { setEditing(r as unknown as MenuItem); setModalOpen(true); }}>编辑</a>
@@ -89,15 +90,18 @@ const MenuManage: React.FC = () => {
 
   return (
     <>
-      <ProTable columns={columns as Record<string, unknown>[]} dataSource={flatten(tree)} rowKey="id" search={false} pagination={false}
+      <DataTable<Record<string, unknown>>
+        columns={columns}
+        dataSource={flatten(tree)}
+        rowKey="id"
         headerTitle="菜单管理"
-        toolBarRender={() => [
+        toolBarRender={
           perms.includes('menu:create') ? (
             <Button key="add" type="primary" icon={<PlusOutlined />} onClick={() => { setEditing(null); setModalOpen(true); }}>
               新增根菜单
             </Button>
-          ) : null,
-        ]}
+          ) : null
+        }
       />
       <Modal title={editing?.id ? '编辑菜单' : '新增菜单'} open={modalOpen} onOk={handleSubmit}
         onCancel={() => { setModalOpen(false); setEditing(null); }}

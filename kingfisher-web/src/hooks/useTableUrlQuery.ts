@@ -1,21 +1,16 @@
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import type { ActionType } from '@ant-design/pro-table';
-import type { ProFormInstance } from '@ant-design/pro-form';
+import type { FormInstance } from 'antd';
 
 /**
- * 把表格的搜索/分页状态同步到 URL query 参数。
+ * 把表格的搜索/分页状态同步到 URL query 参数，并提供数据重载能力。
  *
  * - 搜索提交/重置、翻页时自动写入 URL，刷新或分享链接可保持相同视图。
- * - 挂载时用 URL 反填搜索表单（syncFormFromUrl）。
- *
- * 用法见各列表页：ProTable 传 params={urlParams}、pagination 由 page/pageSize 受控，
- * search 的 onSearch/onReset 调 updateUrl。
+ * - reload() 触发一次重新加载（配合 DataTable 的 refreshKey）。
  */
 export function useTableUrlQuery() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const actionRef = useRef<ActionType>(null);
-  const formRef = useRef<ProFormInstance | undefined>(undefined);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   /** URL query 全部参数（字符串形式）。 */
   const urlParams = useMemo(() => {
@@ -29,13 +24,19 @@ export function useTableUrlQuery() {
   const page = Number(urlParams.page) || 1;
   const pageSize = Number(urlParams.page_size) || 20;
 
+  /** 触发重新加载。 */
+  const reload = useCallback(() => setRefreshKey((k) => k + 1), []);
+
   /** 用当前 URL 反填搜索表单（不含分页参数）。 */
-  const syncFormFromUrl = useCallback(() => {
-    const { page: _p, page_size: _ps, ...search } = urlParams;
-    if (Object.keys(search).length > 0) {
-      formRef.current?.setFieldsValue(search);
-    }
-  }, [urlParams]);
+  const syncFormFromUrl = useCallback(
+    (form?: FormInstance) => {
+      const { page: _p, page_size: _ps, ...search } = urlParams;
+      if (Object.keys(search).length > 0) {
+        form?.setFieldsValue(search);
+      }
+    },
+    [urlParams],
+  );
 
   /** 合并写入一组 key 到 URL；空值/undefined 会被移除。 */
   const updateUrl = useCallback(
@@ -66,9 +67,9 @@ export function useTableUrlQuery() {
   }, [setSearchParams]);
 
   const onPageChange = useCallback(
-    (p: number, ps: number) => {
+    (p: number, ps: number, form?: FormInstance) => {
       // 保留当前搜索条件，只更新分页
-      const current = formRef.current?.getFieldsValue?.() || {};
+      const current = form?.getFieldsValue() || {};
       updateUrl({ ...current, page: p, page_size: ps });
     },
     [updateUrl],
@@ -78,8 +79,8 @@ export function useTableUrlQuery() {
     urlParams,
     page,
     pageSize,
-    actionRef,
-    formRef,
+    refreshKey,
+    reload,
     syncFormFromUrl,
     updateUrl,
     onSearch,

@@ -41,13 +41,13 @@ export class ProfilePage {
 
   // ---- Password form ----
   oldPasswordInput(): Locator {
-    return this.page.getByPlaceholder('旧密码');
+    return this.page.locator('.ant-form-item').filter({ hasText: '旧密码' }).locator('input');
   }
   newPasswordInput(): Locator {
-    return this.page.getByPlaceholder('新密码');
+    return this.page.locator('.ant-form-item').filter({ hasText: '新密码' }).locator('input').first();
   }
   confirmPasswordInput(): Locator {
-    return this.page.getByPlaceholder('确认新密码');
+    return this.page.locator('.ant-form-item').filter({ hasText: '确认新密码' }).locator('input');
   }
   changePasswordButton(): Locator {
     return this.page.getByRole('button', { name: '修改密码' });
@@ -55,7 +55,7 @@ export class ProfilePage {
 
   // ---- Login logs table ----
   loginLogTable(): Locator {
-    return this.page.locator('.ant-pro-table');
+    return this.page.locator('.ant-table');
   }
   logRows(): Locator {
     return this.page.locator('.ant-table-tbody tr');
