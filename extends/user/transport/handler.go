@@ -62,6 +62,8 @@ type LoginResp struct {
 	AccessToken  string      `json:"access_token"`
 	RefreshToken string      `json:"refresh_token"`
 	User         domain.User `json:"user"`
+	// LandingPage 角色落地页（登录后跳转的页面）
+	LandingPage string `json:"landing_page"`
 }
 
 // @Summary 用户注册
@@ -90,7 +92,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		response.BadRequest(c, err.Error())
 		return
 	}
-	access, refresh, user, err := h.svc.Login(c.Request.Context(), req.Username, req.Password)
+	access, refresh, user, landing, err := h.svc.Login(c.Request.Context(), req.Username, req.Password)
 	if err != nil {
 		h.auditLogin(c, req.Username, "FAILURE", err.Error())
 		switch err.Error() {
@@ -104,7 +106,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 	h.auditLogin(c, req.Username, "SUCCESS", "")
-	response.OKJSON(c, LoginResp{AccessToken: access, RefreshToken: refresh, User: *user})
+	response.OKJSON(c, LoginResp{AccessToken: access, RefreshToken: refresh, User: *user, LandingPage: landing})
 }
 
 type RefreshReq struct {

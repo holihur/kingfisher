@@ -35,6 +35,8 @@ type RolePO struct {
 	Description string `gorm:"size:255"`
 	Status      int    `gorm:"default:1"`
 	Level       int    `gorm:"default:2"`
+	// LandingPage 角色登录后的落地页（如 /dashboard）
+	LandingPage string `gorm:"size:128"`
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }

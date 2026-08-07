@@ -1,6 +1,10 @@
 package adapter
 
-import "time"
+import (
+	"time"
+
+	"kingfisher/extends/rbac/domain"
+)
 
 type rolePO struct {
 	ID          uint
@@ -9,8 +13,13 @@ type rolePO struct {
 	Description string
 	Status      int
 	Level       int
+	LandingPage string
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
+}
+
+func toRole(p *rolePO) *domain.Role {
+	return &domain.Role{ID: p.ID, Name: p.Name, Code: p.Code, Description: p.Description, Status: p.Status, Level: p.Level, LandingPage: p.LandingPage, CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt}
 }
 
 func (rolePO) TableName() string { return "roles" }

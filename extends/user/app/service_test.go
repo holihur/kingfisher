@@ -109,7 +109,7 @@ func TestRegisterAndLogin(t *testing.T) {
 	}
 
 	// Login
-	access, refresh, user, err := svc.Login(context.Background(), "testuser", "Abcd1234")
+	access, refresh, user, landing, err := svc.Login(context.Background(), "testuser", "Abcd1234")
 	if err != nil {
 		t.Fatal("login:", err)
 	}
@@ -119,9 +119,10 @@ func TestRegisterAndLogin(t *testing.T) {
 	if user.Username != "testuser" {
 		t.Error("user mismatch")
 	}
+	_ = landing
 
 	// Login wrong password
-	_, _, _, err = svc.Login(context.Background(), "testuser", "wrong")
+	_, _, _, _, err = svc.Login(context.Background(), "testuser", "wrong")
 	if err == nil {
 		t.Error("wrong password should fail")
 	}
@@ -130,7 +131,7 @@ func TestRegisterAndLogin(t *testing.T) {
 	}
 
 	// Login non-existent (enumeration resistant)
-	_, _, _, err = svc.Login(context.Background(), "nobody", "anything")
+	_, _, _, _, err = svc.Login(context.Background(), "nobody", "anything")
 	if err == nil {
 		t.Error("non-existent should fail")
 	}

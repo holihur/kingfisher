@@ -20,14 +20,17 @@ const LoginPage: React.FC = () => {
       m.configApi.getPublic('site_description').then(r => setSiteDescription((r.data as any)?.value || '后台管理系统')).catch(() => {});
     });
   }, []);
-  const redirectTo = searchParams.get('redirect') || '/dashboard';
+  const redirectTo = searchParams.get('redirect');
 
   const onFinish = async (values: { username: string; password: string }) => {
     setLoading(true);
     try {
       await login(values.username, values.password);
       message.success('登录成功');
-      navigate(redirectTo);
+      // 跳转优先级：redirect 参数（用户原本要去的页）> 角色落地页 > 默认 /dashboard
+      // 用 getState() 取最新 landing_page，避免闭包捕获旧值
+      const landing = useAuthStore.getState().landingPage;
+      navigate(redirectTo || landing || '/dashboard');
     } catch {
       /* error handled by interceptor */
     } finally {

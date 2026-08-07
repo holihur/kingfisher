@@ -23,7 +23,7 @@ func (r *RoleRepo) FindAll(ctx context.Context, q *query.Query) ([]domain.Role, 
 	}
 	roles := make([]domain.Role, len(pos))
 	for i, p := range pos {
-		roles[i] = domain.Role{ID: p.ID, Name: p.Name, Code: p.Code, Description: p.Description, Status: p.Status, Level: p.Level, CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt}
+		roles[i] = *toRole(&p)
 	}
 	return roles, total, nil
 }
@@ -33,7 +33,7 @@ func (r *RoleRepo) FindByCode(ctx context.Context, code string) (*domain.Role, e
 	if err != nil {
 		return nil, err
 	}
-	return &domain.Role{ID: po.ID, Name: po.Name, Code: po.Code, Description: po.Description, Status: po.Status, Level: po.Level}, nil
+	return toRole(&po), nil
 }
 
 func (r *RoleRepo) FindByID(ctx context.Context, id uint) (*domain.Role, error) {
@@ -42,10 +42,10 @@ func (r *RoleRepo) FindByID(ctx context.Context, id uint) (*domain.Role, error) 
 	if err != nil {
 		return nil, err
 	}
-	return &domain.Role{ID: po.ID, Name: po.Name, Code: po.Code, Description: po.Description, Status: po.Status, Level: po.Level}, nil
+	return toRole(&po), nil
 }
 func (r *RoleRepo) Create(ctx context.Context, role *domain.Role) error {
-	return r.db.WithContext(ctx).Create(&rolePO{Name: role.Name, Code: role.Code, Description: role.Description, Status: role.Status, Level: role.Level}).Error
+	return r.db.WithContext(ctx).Create(&rolePO{Name: role.Name, Code: role.Code, Description: role.Description, Status: role.Status, Level: role.Level, LandingPage: role.LandingPage}).Error
 }
 func (r *RoleRepo) Update(ctx context.Context, id uint, updates map[string]any) error {
 	return r.db.WithContext(ctx).Model(&rolePO{}).Where("id = ?", id).Updates(updates).Error

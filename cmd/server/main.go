@@ -135,6 +135,8 @@ func main() {
 	// Inject audit logger into auth handler so login/logout are recorded
 	userMod.InjectAuditLogger(userTransport.AuditLogger(auditMod.AuditLogCallback()))
 	userMod.InjectAuditService(auditMod.Service())
+	// Inject role landing page provider so login response carries the role's landing page
+	userMod.InjectLandingPageProvider(rbacSvc.GetRoleLandingPage)
 	mods := []router.Module{
 		userMod,
 		rbacTransport.NewRBACModule(db, redisCache),

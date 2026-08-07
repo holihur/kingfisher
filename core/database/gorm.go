@@ -146,11 +146,11 @@ func SeedData(db *gorm.DB) error {
 			return fmt.Errorf("seed permissions: %w", err)
 		}
 
-		// Roles
+		// Roles（landing_page：登录后的落地页）
 		roles := []RolePO{
-			{ID: 1, Name: "超级管理员", Code: "admin", Level: 0, Status: 1},
-			{ID: 3, Name: "编辑", Code: "editor", Level: 1, Status: 1},
-			{ID: 4, Name: "访客", Code: "viewer", Level: 2, Status: 1},
+			{ID: 1, Name: "超级管理员", Code: "admin", Level: 0, Status: 1, LandingPage: "/dashboard"},
+			{ID: 3, Name: "编辑", Code: "editor", Level: 1, Status: 1, LandingPage: "/system/users"},
+			{ID: 4, Name: "访客", Code: "viewer", Level: 2, Status: 1, LandingPage: "/dashboard"},
 		}
 		if err := tx.Create(&roles).Error; err != nil {
 			return fmt.Errorf("seed roles: %w", err)

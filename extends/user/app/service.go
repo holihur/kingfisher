@@ -19,10 +19,17 @@ type AuthService struct {
 	repo   port.UserRepository
 	cache  cache.Cache
 	jwtMgr *jwt.JWTManager
+	// getLandingPage 返回角色落地页（登录后跳转的页面），由 cmd 注入
+	getLandingPage func(ctx context.Context, roleID uint) (string, error)
 }
 
 func NewAuthService(repo port.UserRepository, c cache.Cache, j *jwt.JWTManager) *AuthService {
 	return &AuthService{repo: repo, cache: c, jwtMgr: j}
+}
+
+// SetLandingPageProvider 注入角色落地页查询函数。
+func (s *AuthService) SetLandingPageProvider(fn func(ctx context.Context, roleID uint) (string, error)) {
+	s.getLandingPage = fn
 }
 
 func (s *AuthService) Register(ctx context.Context, username, password, email string) (*domain.User, error) {
@@ -46,7 +53,7 @@ func (s *AuthService) Register(ctx context.Context, username, password, email st
 
 var dummyHash = "$2a$12$LJ3m4ys3Lk0TSwHCpNqrIeN5U5Akn5dQUhBvPXFxFG7GqQvHCzB5q"
 
-func (s *AuthService) Login(ctx context.Context, username, password string) (string, string, *domain.User, error) {
+func (s *AuthService) Login(ctx context.Context, username, password string) (string, string, *domain.User, string, error) {
 	user, err := s.repo.FindByUsername(ctx, username)
 	hashToCheck := dummyHash
 	if err == nil {
@@ -60,16 +67,16 @@ func (s *AuthService) Login(ctx context.Context, username, password string) (str
 				_ = s.cache.Expire(ctx, "login_fail:"+username, 15*time.Minute)
 			}
 			if count > 5 {
-				return "", "", nil, fmt.Errorf("too many attempts")
+				return "", "", nil, "", fmt.Errorf("too many attempts")
 			}
 		}
-		return "", "", nil, fmt.Errorf("wrong password")
+		return "", "", nil, "", fmt.Errorf("wrong password")
 	}
 	if err != nil {
-		return "", "", nil, fmt.Errorf("wrong password")
+		return "", "", nil, "", fmt.Errorf("wrong password")
 	}
 	if user.Status != 1 {
-		return "", "", nil, fmt.Errorf("user disabled")
+		return "", "", nil, "", fmt.Errorf("user disabled")
 	}
 
 	// Clear fail count
@@ -86,10 +93,17 @@ func (s *AuthService) Login(ctx context.Context, username, password string) (str
 	}
 	access, refresh, err := s.jwtMgr.GenerateToken(ctx, user.ID, user.RoleID, roleCode, user.SessionVersion)
 	if err != nil {
-		return "", "", nil, err
+		return "", "", nil, "", err
+	}
+	// 查询角色落地页（登录后跳转页面）
+	landing := ""
+	if s.getLandingPage != nil {
+		if lp, e := s.getLandingPage(ctx, user.RoleID); e == nil {
+			landing = lp
+		}
 	}
 	user.Password = ""
-	return access, refresh, user, nil
+	return access, refresh, user, landing, nil
 }
 
 func (s *AuthService) RevokeToken(ctx context.Context, tokenStr string) error {

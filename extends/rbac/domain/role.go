@@ -9,6 +9,8 @@ type Role struct {
 	Description string    `json:"description"`
 	Status      int       `json:"status"`
 	Level       int       `json:"level"`
+	// LandingPage 角色登录后的落地页（如 /dashboard）
+	LandingPage string    `json:"landing_page"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }

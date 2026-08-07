@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Modal, Form, Input, Tree, Tabs, Checkbox, Row, Col, message, Popconfirm, Badge } from 'antd';
+import { Button, Modal, Form, Input, Tree, Tabs, Checkbox, Row, Col, message, Popconfirm, Badge, AutoComplete } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import ProTable, { ProColumns } from '@ant-design/pro-table';
 import { useAuthStore } from '../../stores/auth';
@@ -24,12 +24,25 @@ const RoleList: React.FC = () => {
   const [selectedPerms, setSelectedPerms] = useState<number[]>([]);
   const [allMenus, setAllMenus] = useState<Record<string, unknown>[]>([]);
   const [selectedMenus, setSelectedMenus] = useState<number[]>([]);
+  // 落地页候选（菜单路径）
+  const [landingOptions, setLandingOptions] = useState<{ label: string; value: string }[]>([]);
   const [form] = Form.useForm<Record<string, unknown>>();
   const perms = useAuthStore((s) => s.permissions);
 
-  // 挂载时用 URL 反填搜索表单
+  // 挂载时用 URL 反填搜索表单，并加载落地页候选
   useEffect(() => {
     syncFormFromUrl();
+    menuApi.getTree().then((r) => {
+      const walk = (nodes: Record<string, unknown>[], out: { label: string; value: string }[]) => {
+        (nodes || []).forEach((n) => {
+          if (n.path) out.push({ label: `${n.name as string} (${n.path as string})`, value: n.path as string });
+          walk(n.children as Record<string, unknown>[], out);
+        });
+      };
+      const opts: { label: string; value: string }[] = [];
+      walk(r.data as Record<string, unknown>[], opts);
+      setLandingOptions(opts);
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -54,6 +67,7 @@ const RoleList: React.FC = () => {
         <Badge status={(r.status as number) === 1 ? 'success' : 'error'} text={(r.status as number) === 1 ? '启用' : '禁用'} />
       ),
     },
+    { title: '落地页', dataIndex: 'landing_page', width: 140, ellipsis: true, render: (_, r) => (r.landing_page as string) || '-' },
     {
       title: '操作',
       valueType: 'option',
@@ -213,6 +227,20 @@ const RoleList: React.FC = () => {
           </Form.Item>
           <Form.Item name="description" label="描述">
             <Input.TextArea rows={2} />
+          </Form.Item>
+          <Form.Item
+            name="landing_page"
+            label="落地页（登录后跳转的页面）"
+            extra="可从菜单路径选择，或手动输入路径"
+          >
+            <AutoComplete
+              options={landingOptions}
+              placeholder="如 /dashboard"
+              allowClear
+              filterOption={(inputValue, option) =>
+                (option?.value as string)?.toLowerCase().includes(inputValue.toLowerCase()) ?? true
+              }
+            />
           </Form.Item>
         </Form>
       </Modal>

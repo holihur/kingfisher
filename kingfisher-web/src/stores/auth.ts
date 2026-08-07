@@ -11,6 +11,8 @@ interface AuthState {
   isLoggedIn: boolean;
   /** 用户信息/权限是否已加载（刷新后先拉取再渲染路由，避免权限误判） */
   userLoaded: boolean;
+  /** 角色落地页（登录后跳转的页面） */
+  landingPage: string;
   login: (u: string, p: string) => Promise<void>;
   logout: () => void;
   fetchUserInfo: () => Promise<void>;
@@ -23,22 +25,24 @@ export const useAuthStore = create<AuthState>((set) => ({
   permissions: [],
   isLoggedIn: hasToken(),
   userLoaded: false,
+  landingPage: '',
   login: async (username, password) => {
     const resp = await authApi.login({ username, password });
-    const { access_token, refresh_token, user } = resp.data as Record<string, unknown>;
+    const { access_token, refresh_token, user, landing_page } = resp.data as Record<string, unknown>;
     setTokens(access_token as string, refresh_token as string);
     set({
       token: access_token as string,
       refreshToken: refresh_token as string,
       userInfo: user as Record<string, unknown>,
       isLoggedIn: true,
-      // 登录响应已含用户信息；权限由 AuthGuard 的 fetchUserInfo 后台补齐
-      userLoaded: true,
+      landingPage: (landing_page as string) || '',
+      // 注意：不设 userLoaded=true。权限需由 AuthGuard 的 fetchUserInfo 拉取完成后
+      // 才放行渲染子路由，避免 PermGuard 在空权限下误判 403。
     });
   },
   logout: () => {
     clearTokens();
-    set({ token: null, refreshToken: null, userInfo: null, permissions: [], isLoggedIn: false, userLoaded: false });
+    set({ token: null, refreshToken: null, userInfo: null, permissions: [], isLoggedIn: false, userLoaded: false, landingPage: '' });
   },
   fetchUserInfo: async () => {
     try {

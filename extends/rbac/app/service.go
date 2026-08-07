@@ -26,6 +26,15 @@ func (s *RoleService) List(ctx context.Context, q *query.Query) ([]domain.Role, 
 func (s *RoleService) GetByID(ctx context.Context, id uint) (*domain.Role, error) {
 	return s.repo.FindByID(ctx, id)
 }
+
+// GetRoleLandingPage 返回角色的落地页（登录后跳转的页面）。
+func (s *RoleService) GetRoleLandingPage(ctx context.Context, roleID uint) (string, error) {
+	role, err := s.repo.FindByID(ctx, roleID)
+	if err != nil {
+		return "", err
+	}
+	return role.LandingPage, nil
+}
 func (s *RoleService) Create(ctx context.Context, role *domain.Role) error {
 	return s.repo.Create(ctx, role)
 }

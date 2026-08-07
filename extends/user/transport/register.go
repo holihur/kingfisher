@@ -22,6 +22,7 @@ type UserModule struct {
 	authHandler *AuthHandler
 	userHandler *UserHandler
 	cache       cache.Cache
+	authSvc     *app.AuthService
 }
 
 func NewUserModule(db *gorm.DB, c cache.Cache, jwtMgr *jwt.JWTManager, getUserPerms PermProvider) *UserModule {
@@ -34,7 +35,13 @@ func NewUserModule(db *gorm.DB, c cache.Cache, jwtMgr *jwt.JWTManager, getUserPe
 		authHandler: NewAuthHandler(authSvc),
 		userHandler: uh,
 		cache:       c,
+		authSvc:     authSvc,
 	}
+}
+
+// InjectLandingPageProvider 注入角色落地页查询函数（登录后跳转页面）。
+func (m *UserModule) InjectLandingPageProvider(fn func(ctx context.Context, roleID uint) (string, error)) {
+	m.authSvc.SetLandingPageProvider(fn)
 }
 
 // InjectAuditLogger wires the audit logger callback into the auth handler.

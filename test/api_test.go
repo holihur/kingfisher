@@ -2,6 +2,7 @@ package test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -64,8 +65,20 @@ func setupTestServer(t *testing.T) (*gin.Engine, *jwt.JWTManager) {
 		c.Next()
 	}
 
+	userMod := userTransport.NewUserModule(db, nil, jwtMgr, nil)
+	// 注入角色落地页查询：集成测试中按 role_id 返回固定落地页
+	userMod.InjectLandingPageProvider(func(ctx context.Context, roleID uint) (string, error) {
+		switch roleID {
+		case 1:
+			return "/dashboard", nil
+		case 3:
+			return "/system/users", nil
+		default:
+			return "/dashboard", nil
+		}
+	})
 	mods := []router.Module{
-		userTransport.NewUserModule(db, nil, jwtMgr, nil),
+		userMod,
 		rbacTransport.NewRBACModule(db, nil),
 		menuTransport.NewMenuModule(db, nil),
 		configTransport.NewConfigModule(db, nil),
@@ -167,6 +180,18 @@ func TestLoginSuccess(t *testing.T) {
 	tok := login(t, s)
 	if tok == "" {
 		t.Error("empty token")
+	}
+}
+
+// 登录响应应携带角色落地页（admin → /dashboard）
+func TestLoginReturnsLandingPage(t *testing.T) {
+	s, _ := setupTestServer(t)
+	w := httptest.NewRecorder()
+	s.ServeHTTP(w, doRequest("POST", "/api/v1/auth/login", "", map[string]string{"username": "admin", "password": "Abcd1234"}))
+	m := assertCode(t, w, 0)
+	data := m["data"].(map[string]any)
+	if data["landing_page"] != "/dashboard" {
+		t.Errorf("want landing_page=/dashboard, got %v", data["landing_page"])
 	}
 }
 
