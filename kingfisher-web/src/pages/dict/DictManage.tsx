@@ -177,7 +177,7 @@ const DictManage: React.FC = () => {
 
   const entryColumns = [
     { title: '显示名', dataIndex: 'label', width: 120 },
-    { title: '值', dataIndex: 'value', width: 120, render: (_: unknown, r: DictEntry) => <Tag>{r.value}</Tag> },
+    { title: '值', dataIndex: 'value', width: 120, render: (_: unknown, r: DictEntry) => <Tag color="blue">{r.value}</Tag> },
     { title: '排序', dataIndex: 'sort', width: 80 },
     {
       title: '状态',
@@ -197,7 +197,7 @@ const DictManage: React.FC = () => {
           </a>
         ) : null,
         perms.includes('dict:delete') ? (
-          <Popconfirm key="del" title="确认删除？" onConfirm={() => handleEntryDelete(r)}>
+          <Popconfirm key="del" title="删除条目" description={`确定删除「${r.label}」吗？`} onConfirm={() => handleEntryDelete(r)}>
             <a style={{ color: 'red' }}>删除</a>
           </Popconfirm>
         ) : null,

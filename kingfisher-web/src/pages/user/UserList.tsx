@@ -1,15 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Modal, Form, App, Popconfirm, Badge } from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
+import { Button, Modal, Form, App, Popconfirm, Badge, Avatar, Tag, Space } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import DataTable, { SearchField } from '../../components/DataTable';
 import { useAuthStore } from '../../stores/auth';
 import { userApi } from '../../api/user';
 import { roleApi } from '../../api/role';
+import { formatTime } from '../../utils/format';
 import UserForm from './UserForm';
 
 interface UserRow {
   id: number;
   username: string;
+  nickname?: string;
+  avatar?: string;
   email: string;
   role_id: number;
   status: number;
@@ -54,18 +57,33 @@ const UserList: React.FC = () => {
 
   const columns = [
     { title: 'ID', dataIndex: 'id', width: 80 },
-    { title: '用户名', dataIndex: 'username' },
+    {
+      title: '用户',
+      dataIndex: 'username',
+      render: (_: unknown, r: UserRow) => (
+        <Space>
+          <Avatar size="small" src={r.avatar} icon={undefined}>{r.username?.charAt(0)?.toUpperCase()}</Avatar>
+          <span>
+            {r.username}
+            {r.nickname ? <span style={{ color: '#8c8c8c', marginLeft: 6, fontSize: 12 }}>({r.nickname})</span> : null}
+          </span>
+        </Space>
+      ),
+    },
     { title: '邮箱', dataIndex: 'email', ellipsis: true },
     {
       title: '角色',
       dataIndex: 'role_id',
-      width: 100,
-      render: (_: unknown, r: UserRow) => roleNameMap[r.role_id] || `#${r.role_id}`,
+      width: 110,
+      render: (_: unknown, r: UserRow) => {
+        const name = roleNameMap[r.role_id];
+        return name ? <Tag color={r.role_id === 1 ? 'gold' : r.role_id === 3 ? 'blue' : 'default'}>{name}</Tag> : <span>#{r.role_id}</span>;
+      },
     },
     {
       title: '状态',
       dataIndex: 'status',
-      width: 80,
+      width: 90,
       render: (_: unknown, r: UserRow) => (
         <Badge status={r.status === 1 ? 'success' : 'error'} text={r.status === 1 ? '启用' : '禁用'} />
       ),
@@ -73,7 +91,8 @@ const UserList: React.FC = () => {
     {
       title: '创建时间',
       dataIndex: 'created_at',
-      render: (v: unknown) => (v ? new Date(v as string).toLocaleString() : '-'),
+      width: 160,
+      render: (v: unknown) => formatTime(v),
     },
     {
       title: '操作',
@@ -87,20 +106,21 @@ const UserList: React.FC = () => {
               setModalOpen(true);
             }}
           >
-            编辑
+            <EditOutlined /> 编辑
           </a>
         ) : null,
         hasPerm('user:delete') ? (
           <Popconfirm
             key="del"
-            title="确认删除？"
+            title="删除用户"
+            description={`确定删除用户「${r.username}」吗？`}
             onConfirm={async () => {
               await userApi.delete(r.id);
               message.success('已删除');
               setRefreshKey((k) => k + 1);
             }}
           >
-            <a style={{ color: 'red' }}>删除</a>
+            <a style={{ color: 'red' }}><DeleteOutlined /> 删除</a>
           </Popconfirm>
         ) : null,
       ],

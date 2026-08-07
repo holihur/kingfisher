@@ -98,3 +98,21 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+
+/* ---- 表格展示优化 ---- */
+
+/* 斑马纹 */
+.data-table-row:nth-child(odd) td.ant-table-cell {
+  background: #fafafa;
+}
+
+/* 操作列链接间距 */
+.ant-table-cell .ant-btn-link + .ant-btn-link,
+.ant-table-cell a + a {
+  margin-left: 8px;
+}
+
+/* 表格表头加粗 */
+.ant-table-thead > tr > th {
+  font-weight: 600;
+}

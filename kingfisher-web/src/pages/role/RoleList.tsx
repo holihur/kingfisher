@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Modal, Form, Input, Tree, Tabs, Checkbox, Row, Col, App, Popconfirm, Badge, AutoComplete } from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
+import { Button, Modal, Form, Input, Tree, Tabs, Checkbox, Row, Col, App, Popconfirm, Badge, AutoComplete, Tag } from 'antd';
+import { PlusOutlined, SafetyOutlined, AppstoreOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import DataTable, { SearchField } from '../../components/DataTable';
 import { useAuthStore } from '../../stores/auth';
 import { roleApi } from '../../api/role';
 import { menuApi } from '../../api/menu';
+import { formatTime } from '../../utils/format';
 
 interface RoleRow {
   id: number;
@@ -13,6 +14,7 @@ interface RoleRow {
   description: string;
   status: number;
   landing_page: string;
+  created_at: string;
 }
 
 const RoleList: React.FC = () => {
@@ -57,17 +59,30 @@ const RoleList: React.FC = () => {
   const columns = [
     { title: 'ID', dataIndex: 'id', width: 80 },
     { title: '角色名', dataIndex: 'name' },
-    { title: '编码', dataIndex: 'code' },
+    { title: '编码', dataIndex: 'code', render: (_: unknown, r: RoleRow) => <Tag color={r.code === 'admin' ? 'gold' : 'blue'}>{r.code}</Tag> },
     { title: '描述', dataIndex: 'description', ellipsis: true },
     {
       title: '状态',
       dataIndex: 'status',
-      width: 80,
+      width: 90,
       render: (_: unknown, r: RoleRow) => (
         <Badge status={r.status === 1 ? 'success' : 'error'} text={r.status === 1 ? '启用' : '禁用'} />
       ),
     },
-    { title: '落地页', dataIndex: 'landing_page', width: 140, ellipsis: true, render: (_: unknown, r: RoleRow) => r.landing_page || '-' },
+    {
+      title: '落地页',
+      dataIndex: 'landing_page',
+      width: 150,
+      ellipsis: true,
+      render: (_: unknown, r: RoleRow) =>
+        r.landing_page ? <a href={r.landing_page}>{r.landing_page}</a> : '-',
+    },
+    {
+      title: '创建时间',
+      dataIndex: 'created_at',
+      width: 160,
+      render: (v: unknown) => formatTime(v),
+    },
     {
       title: '操作',
       key: 'action',
@@ -85,7 +100,7 @@ const RoleList: React.FC = () => {
               setPermModal({ open: true, role: r as unknown as Record<string, unknown> });
             }}
           >
-            权限
+            <SafetyOutlined /> 权限
           </a>
         ) : null,
         perms.includes('role:update') ? (
@@ -101,7 +116,7 @@ const RoleList: React.FC = () => {
               setMenuModal({ open: true, role: r as unknown as Record<string, unknown> });
             }}
           >
-            菜单
+            <AppstoreOutlined /> 菜单
           </a>
         ) : null,
         perms.includes('role:update') ? (
@@ -112,20 +127,21 @@ const RoleList: React.FC = () => {
               setModalOpen(true);
             }}
           >
-            编辑
+            <EditOutlined /> 编辑
           </a>
         ) : null,
         perms.includes('role:delete') ? (
           <Popconfirm
             key="del"
-            title="确认删除？"
+            title="删除角色"
+            description={`确定删除角色「${r.name}」吗？`}
             onConfirm={async () => {
               await roleApi.delete(r.id);
               message.success('已删除');
               setRefreshKey((k) => k + 1);
             }}
           >
-            <a style={{ color: 'red' }}>删除</a>
+            <a style={{ color: 'red' }}><DeleteOutlined /> 删除</a>
           </Popconfirm>
         ) : null,
       ],

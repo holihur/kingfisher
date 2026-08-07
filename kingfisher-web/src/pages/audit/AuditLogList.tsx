@@ -2,6 +2,7 @@ import React from 'react';
 import { Tag } from 'antd';
 import DataTable, { SearchField } from '../../components/DataTable';
 import { auditApi } from '../../api/audit';
+import { formatTime } from '../../utils/format';
 
 const ACTION_VALUES: Record<string, { text: string; color?: string }> = {
   create: { text: '创建', color: 'green' },
@@ -40,13 +41,14 @@ const AuditLogList: React.FC = () => {
         return v ? <Tag color={v.color}>{v.text}</Tag> : (r.action as string);
       },
     },
-    { title: '资源', dataIndex: 'resource' },
+    { title: '资源', dataIndex: 'resource', render: (_: unknown, r: AuditLogRow) => <Tag>{r.resource}</Tag> },
     { title: '资源ID', dataIndex: 'resource_id', width: 90 },
-    { title: 'IP', dataIndex: 'ip' },
+    { title: 'IP', dataIndex: 'ip', render: (_: unknown, r: AuditLogRow) => <code style={{ background: '#f5f5f5', padding: '2px 6px', borderRadius: 4 }}>{r.ip}</code> },
     {
       title: '时间',
       dataIndex: 'created_at',
-      render: (v: unknown) => (v ? new Date(v as string).toLocaleString() : '-'),
+      width: 160,
+      render: (v: unknown) => formatTime(v),
     },
   ];
 

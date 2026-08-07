@@ -69,6 +69,7 @@ interface ConfigRow {
   render: string;
   render_options: string;
   group_id: number;
+  group_name?: string;
 }
 
 const ConfigManage: React.FC = () => {
@@ -141,13 +142,19 @@ const ConfigManage: React.FC = () => {
     },
     { title: '备注', dataIndex: 'remark', ellipsis: true },
     {
+      title: '分组',
+      dataIndex: 'group_name',
+      width: 90,
+      render: (_: unknown, r: ConfigRow) => (r.group_name ? <Tag color="purple">{r.group_name}</Tag> : '-'),
+    },
+    {
       title: '是否公开',
       dataIndex: 'is_public',
       width: 100,
       render: (_: unknown, r: ConfigRow) =>
         r.is_public ? <Tag color="green">公开</Tag> : <Tag color="default">私密</Tag>,
     },
-    { title: '版本', dataIndex: 'version', width: 100 },
+    { title: '版本', dataIndex: 'version', width: 90 },
     {
       title: '操作',
       key: 'action',
