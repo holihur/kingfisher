@@ -121,6 +121,7 @@ func main() {
 	r.GET("/ready", readyHandler(db, rdb))
 	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	r.Static("/uploads", "./uploads")
 
 	// 8. Build auth/rbac middleware
 	authMw := rbacTransport.AuthMiddleware(jwtMgr)
@@ -133,6 +134,7 @@ func main() {
 	userMod := userTransport.NewUserModule(db, redisCache, jwtMgr, rbacSvc.GetUserPermissions)
 	// Inject audit logger into auth handler so login/logout are recorded
 	userMod.InjectAuditLogger(userTransport.AuditLogger(auditMod.AuditLogCallback()))
+	userMod.InjectAuditService(auditMod.Service())
 	mods := []router.Module{
 		userMod,
 		rbacTransport.NewRBACModule(db, redisCache),
