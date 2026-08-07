@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"kingfisher/core/logger"
+	"kingfisher/core/query"
 	adapter "kingfisher/extends/audit/adapter/mysql"
 	"kingfisher/extends/audit/domain"
 )
@@ -48,6 +49,6 @@ func (s *AuditService) worker() {
 func (s *AuditService) Flush() {
 	// flush is called from Shutdown — not implemented for simplicity
 }
-func (s *AuditService) FindAll(ctx context.Context, page, pageSize int, filters map[string]any) ([]domain.AuditLog, int64, error) {
-	return s.repo.FindAll(ctx, page, pageSize, filters)
+func (s *AuditService) FindAll(ctx context.Context, q *query.Query) ([]domain.AuditLog, int64, error) {
+	return s.repo.FindAll(ctx, q)
 }

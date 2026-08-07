@@ -7,6 +7,7 @@ import (
 
 	"kingfisher/core/config"
 	"kingfisher/core/jwt"
+	"kingfisher/core/query"
 	"kingfisher/extends/user/domain"
 )
 
@@ -48,7 +49,7 @@ func (m *mockUserRepo) FindByUsername(ctx context.Context, username string) (*do
 	}, nil
 }
 
-func (m *mockUserRepo) FindAll(ctx context.Context, page, pageSize int, keyword string) ([]domain.User, int64, error) {
+func (m *mockUserRepo) FindAll(ctx context.Context, q *query.Query) ([]domain.User, int64, error) {
 	return nil, 0, nil
 }
 

@@ -1,6 +1,6 @@
 import request from './request';
 export const configApi = {
-  getAll: () => request.get('/configs'),
+  getAll: (params?: Record<string, unknown>) => request.get('/configs', { params }),
   get: (key: string) => request.get(`/configs/${key}`),
   set: (key: string, value: string, isPublic?: boolean, version?: string, render?: string, renderOptions?: string, groupId?: number) =>
     request.put(`/configs/${key}`, { value, is_public: isPublic, version, render, render_options: renderOptions, group_id: groupId }),

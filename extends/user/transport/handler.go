@@ -2,13 +2,20 @@ package transport
 
 import (
 	"context"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
 	"kingfisher/core/errcode"
+	"kingfisher/core/query"
 	"kingfisher/core/response"
+	auditApp "kingfisher/extends/audit/app"
 	"kingfisher/extends/user/app"
 	"kingfisher/extends/user/domain"
 )
@@ -25,8 +32,9 @@ type AuthHandler struct {
 type PermProvider func(ctx context.Context, userID uint) ([]string, error)
 
 type UserHandler struct {
-	svc        *app.UserService
-	getUserPerms PermProvider // optional; when nil, falls back to svc.GetUserPermissions
+	svc          *app.UserService
+	getUserPerms PermProvider   // optional; when nil, falls back to svc.GetUserPermissions
+	auditSvc     *auditApp.AuditService // optional; for GetMyLoginLogs
 }
 
 func NewAuthHandler(svc *app.AuthService) *AuthHandler { return &AuthHandler{svc: svc} }
@@ -35,6 +43,9 @@ func NewAuthHandler(svc *app.AuthService) *AuthHandler { return &AuthHandler{svc
 func (h *AuthHandler) SetAuditLogger(fn AuditLogger) { h.auditLog = fn }
 
 func NewUserHandler(svc *app.UserService) *UserHandler  { return &UserHandler{svc: svc} }
+
+// SetAuditService injects the audit service for self-service login log queries.
+func (h *UserHandler) SetAuditService(auditSvc *auditApp.AuditService) { h.auditSvc = auditSvc }
 
 type RegisterReq struct {
 	Username string `json:"username" binding:"required,min=3,max=32"`
@@ -192,22 +203,28 @@ func (h *UserHandler) GetMyPermissions(c *gin.Context) {
 // @Summary 用户列表
 // @Tags User
 // @Router /api/v1/users [get]
+// userQueryDefs 用户列表可查询字段白名单
+var userQueryDefs = query.Defs{
+	"username":   {Name: "username", Type: query.TypeString, Searchable: true, Filterable: true},
+	"email":      {Name: "email", Type: query.TypeString, Searchable: true, Filterable: true},
+	"status":     {Name: "status", Type: query.TypeInt, Filterable: true},
+	"role_id":    {Name: "role_id", Type: query.TypeUint, Filterable: true},
+	"created_at": {Name: "created_at", Type: query.TypeTime, Filterable: true},
+	"updated_at": {Name: "updated_at", Type: query.TypeTime, Filterable: true},
+}
+
 func (h *UserHandler) List(c *gin.Context) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
-	if page < 1 {
-		page = 1
+	pq, err := query.Parse(c, userQueryDefs)
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
 	}
-	if pageSize < 1 || pageSize > 100 {
-		pageSize = 20
-	}
-	keyword := c.Query("keyword")
-	users, total, err := h.svc.List(c.Request.Context(), page, pageSize, keyword)
+	users, total, err := h.svc.List(c.Request.Context(), pq)
 	if err != nil {
 		response.InternalError(c)
 		return
 	}
-	response.PageJSON(c, users, total, page, pageSize)
+	response.PageJSON(c, users, total, pq.Page, pq.PageSize)
 }
 
 type UpdateUserReq struct {
@@ -301,4 +318,129 @@ func (h *AuthHandler) auditLogout(c *gin.Context, username string) {
 		return
 	}
 	h.auditLog(c.Request.Context(), c.GetUint("user_id"), username, "LOGOUT", "auth", c.ClientIP(), c.Request.UserAgent())
+}
+
+// UpdateMeReq 当前用户资料更新请求体
+type UpdateMeReq struct {
+	Email    string `json:"email"`
+	Nickname string `json:"nickname"`
+	Avatar   string `json:"avatar"`
+}
+
+// UpdateMe 当前用户更新自己的资料
+// @Summary 更新个人资料
+// @Tags User
+// @Router /api/v1/users/me [put]
+func (h *UserHandler) UpdateMe(c *gin.Context) {
+	userID := c.GetUint("user_id")
+	var req UpdateMeReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	if err := h.svc.UpdateProfile(c.Request.Context(), userID, req.Email, req.Nickname, req.Avatar); err != nil {
+		response.InternalError(c)
+		return
+	}
+	// 返回最新用户信息
+	user, err := h.svc.GetByID(c.Request.Context(), userID)
+	if err != nil {
+		response.InternalError(c)
+		return
+	}
+	response.OKJSON(c, user)
+}
+
+// GetMyLoginLogs 当前用户查询自己的登录日志
+// @Summary 我的登录日志
+// @Tags User
+// @Router /api/v1/users/me/login-logs [get]
+func (h *UserHandler) GetMyLoginLogs(c *gin.Context) {
+	if h.auditSvc == nil {
+		response.OKJSON(c, []any{})
+		return
+	}
+	userID := c.GetUint("user_id")
+	pq, err := query.Parse(c, auditLogQueryDefs)
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	// 强制只查当前用户的 LOGIN 记录
+	pq.Filters = append(pq.Filters, query.Condition{Field: "user_id", Op: "eq", Value: userID})
+	logs, total, err := h.auditSvc.FindAll(c.Request.Context(), pq)
+	if err != nil {
+		response.InternalError(c)
+		return
+	}
+	response.PageJSON(c, logs, total, pq.Page, pq.PageSize)
+}
+
+// auditLogQueryDefs 登录日志可查询字段白名单
+var auditLogQueryDefs = query.Defs{
+	"user_id":    {Name: "user_id", Type: query.TypeUint, Filterable: true},
+	"username":   {Name: "username", Type: query.TypeString, Searchable: true, Filterable: true},
+	"ip":         {Name: "ip", Type: query.TypeString, Searchable: true},
+	"user_agent": {Name: "user_agent", Type: query.TypeString, Searchable: true},
+	"created_at": {Name: "created_at", Type: query.TypeTime, Filterable: true},
+}
+
+// UploadAvatar 当前用户上传头像
+// @Summary 上传头像
+// @Tags User
+// @Router /api/v1/users/me/avatar [post]
+func (h *UserHandler) UploadAvatar(c *gin.Context) {
+	userID := c.GetUint("user_id")
+	file, header, err := c.Request.FormFile("file")
+	if err != nil {
+		response.BadRequest(c, "请选择文件")
+		return
+	}
+	defer file.Close()
+
+	// 校验文件类型
+	ext := strings.ToLower(filepath.Ext(header.Filename))
+	switch ext {
+	case ".png", ".jpg", ".jpeg", ".gif", ".webp":
+	default:
+		response.BadRequest(c, "不支持的文件类型，仅支持 png/jpg/jpeg/gif/webp")
+		return
+	}
+
+	// 校验大小（最大 2MB）
+	if header.Size > 2<<20 {
+		response.BadRequest(c, "文件大小不能超过 2MB")
+		return
+	}
+
+	// 确保目录存在
+	uploadDir := "uploads/avatars"
+	if err := os.MkdirAll(uploadDir, 0755); err != nil {
+		response.InternalError(c)
+		return
+	}
+
+	// 生成唯一文件名
+	filename := fmt.Sprintf("%d_%d%s", userID, time.Now().UnixNano(), ext)
+	savePath := filepath.Join(uploadDir, filename)
+	dst, err := os.Create(savePath)
+	if err != nil {
+		response.InternalError(c)
+		return
+	}
+	defer dst.Close()
+
+	if _, err := io.Copy(dst, file); err != nil {
+		response.InternalError(c)
+		return
+	}
+
+	// 更新用户 avatar 字段
+	avatarURL := "/uploads/avatars/" + filename
+	if err := h.svc.UpdateProfile(c.Request.Context(), userID, "", "", avatarURL); err != nil {
+		response.InternalError(c)
+		return
+	}
+
+	response.OKJSON(c, gin.H{"url": avatarURL})
 }

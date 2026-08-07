@@ -1,13 +1,15 @@
-import React, { useRef, useState } from 'react';
-import { Button, Modal, Form, Input, Tree, Tabs, Checkbox, Row, Col, message, Popconfirm } from 'antd';
+import React, { useEffect, useState } from 'react';
+import { Button, Modal, Form, Input, Tree, Tabs, Checkbox, Row, Col, message, Popconfirm, Badge } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
-import ProTable, { ProColumns, ActionType } from '@ant-design/pro-table';
+import ProTable, { ProColumns } from '@ant-design/pro-table';
 import { useAuthStore } from '../../stores/auth';
 import { roleApi } from '../../api/role';
 import { menuApi } from '../../api/menu';
+import { useTableUrlQuery } from '../../hooks/useTableUrlQuery';
+import { buildQueryParams } from '../../utils/query';
 
 const RoleList: React.FC = () => {
-  const actionRef = useRef<ActionType>(null);
+  const { urlParams, page, pageSize, actionRef, formRef, syncFormFromUrl, onSearch, onReset, onPageChange } = useTableUrlQuery();
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Record<string, unknown> | null>(null);
   const [permModal, setPermModal] = useState<{ open: boolean; role: Record<string, unknown> | null }>({
@@ -25,12 +27,33 @@ const RoleList: React.FC = () => {
   const [form] = Form.useForm<Record<string, unknown>>();
   const perms = useAuthStore((s) => s.permissions);
 
+  // 挂载时用 URL 反填搜索表单
+  useEffect(() => {
+    syncFormFromUrl();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
 
   const columns: ProColumns[] = [
-    { title: 'ID', dataIndex: 'id', width: 80 },
-    { title: '角色名', dataIndex: 'name' },
-    { title: '编码', dataIndex: 'code' },
-    { title: '描述', dataIndex: 'description', ellipsis: true },
+    { title: 'ID', dataIndex: 'id', width: 80, search: false },
+    {
+      title: '关键词',
+      dataIndex: 'q',
+      hideInTable: true,
+      search: { transform: (v) => ({ q: v }) },
+    },
+    { title: '角色名', dataIndex: 'name', search: false },
+    { title: '编码', dataIndex: 'code', search: false },
+    { title: '描述', dataIndex: 'description', ellipsis: true, search: false },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      width: 80,
+      valueEnum: { 1: { text: '启用' }, 0: { text: '禁用' } },
+      render: (_, r) => (
+        <Badge status={(r.status as number) === 1 ? 'success' : 'error'} text={(r.status as number) === 1 ? '启用' : '禁用'} />
+      ),
+    },
     {
       title: '操作',
       valueType: 'option',
@@ -132,12 +155,22 @@ const RoleList: React.FC = () => {
       <ProTable
         columns={columns}
         actionRef={actionRef}
-        request={async () => {
-          const r = await roleApi.getList();
-          return { data: (r.data as Record<string, unknown>[]) || [], success: true };
+        formRef={formRef}
+        params={urlParams}
+        request={async (params) => {
+          const r = await roleApi.getList(buildQueryParams(params));
+          const data = r.data as Record<string, unknown>;
+          return {
+            data: (data.items as Record<string, unknown>[]) || [],
+            total: (data.total as number) || 0,
+            success: true,
+          };
         }}
         rowKey="id"
-        search={false}
+        onSubmit={onSearch}
+        onReset={onReset}
+        search={{ labelWidth: 'auto' }}
+        pagination={{ current: page, pageSize, showSizeChanger: true, onChange: onPageChange }}
         headerTitle="角色管理"
         toolBarRender={() => [
           perms.includes('role:create') ? (
@@ -165,7 +198,7 @@ const RoleList: React.FC = () => {
         }}
         afterOpenChange={(open) => {
           if (open && editing) {
-            form.setFieldsValue(editing);
+            form.setFieldsValue(editing as never);
           } else if (open && !editing) {
             form.resetFields();
           }

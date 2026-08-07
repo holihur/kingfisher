@@ -1,6 +1,6 @@
 import request from './request';
 export const roleApi = {
-  getList: () => request.get('/roles'),
+  getList: (params: Record<string, unknown>) => request.get('/roles', { params }),
   getById: (id: number) => request.get(`/roles/${id}`),
   create: (data: Record<string, unknown>) => request.post('/roles', data),
   update: (id: number, data: Record<string, unknown>) => request.put(`/roles/${id}`, data),

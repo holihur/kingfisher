@@ -6,6 +6,7 @@ import (
 
 	"gorm.io/gorm"
 
+	"kingfisher/core/query"
 	"kingfisher/extends/config/domain"
 )
 
@@ -13,13 +14,14 @@ type ConfigRepo struct{ db *gorm.DB }
 
 func NewConfigRepo(db *gorm.DB) *ConfigRepo { return &ConfigRepo{db: db} }
 
-func (r *ConfigRepo) GetAll(ctx context.Context) ([]domain.SystemConfig, error) {
+// List 分页 + 结构化查询配置列表
+func (r *ConfigRepo) List(ctx context.Context, q *query.Query) ([]domain.SystemConfig, int64, error) {
 	var pos []configPO
-	err := r.db.WithContext(ctx).Find(&pos).Error
+	total, err := q.Find(r.db.WithContext(ctx).Model(&configPO{}), &pos)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return toConfigs(ctx, r.db, pos), nil
+	return toConfigs(ctx, r.db, pos), total, nil
 }
 
 // GetPublicAll 返回全部公开配置（未登录可读）

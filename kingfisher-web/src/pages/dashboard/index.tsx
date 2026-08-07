@@ -9,15 +9,15 @@ const Dashboard: React.FC = () => {
     Promise.all([
       request.get('/users?page=1&page_size=1'),
       request.get('/menus/tree'),
-      request.get('/roles'),
-      request.get('/configs'),
+      request.get('/roles?page=1&page_size=1'),
+      request.get('/configs?page=1&page_size=1'),
     ])
       .then(([u, m, r, c]) => {
         setStats({
           users: (u.data as Record<string, unknown>).total as number,
           menus: ((m.data as unknown[]) || []).length,
-          roles: ((r.data as unknown[]) || []).length,
-          configs: ((c.data as unknown[]) || []).length,
+          roles: ((r.data as Record<string, unknown>).total as number) || 0,
+          configs: ((c.data as Record<string, unknown>).total as number) || 0,
         });
       })
       .catch(() => {});

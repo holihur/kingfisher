@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"kingfisher/core/query"
 	"kingfisher/core/response"
 	"kingfisher/extends/rbac/app"
 	"kingfisher/extends/rbac/domain"
@@ -25,13 +26,28 @@ func NewPermHandler(svc *app.PermService) *PermHandler { return &PermHandler{svc
 // @Summary 角色列表
 // @Tags Role
 // @Router /api/v1/roles [get]
+// roleQueryDefs 角色列表可查询字段白名单
+var roleQueryDefs = query.Defs{
+	"name":       {Name: "name", Type: query.TypeString, Searchable: true, Filterable: true},
+	"code":       {Name: "code", Type: query.TypeString, Searchable: true, Filterable: true},
+	"description": {Name: "description", Type: query.TypeString, Searchable: true},
+	"status":     {Name: "status", Type: query.TypeInt, Filterable: true},
+	"level":      {Name: "level", Type: query.TypeInt, Filterable: true},
+	"created_at": {Name: "created_at", Type: query.TypeTime, Filterable: true},
+}
+
 func (h *RoleHandler) List(c *gin.Context) {
-	roles, err := h.svc.List(c.Request.Context())
+	pq, err := query.Parse(c, roleQueryDefs)
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	roles, total, err := h.svc.List(c.Request.Context(), pq)
 	if err != nil {
 		response.InternalError(c)
 		return
 	}
-	response.OKJSON(c, roles)
+	response.PageJSON(c, roles, total, pq.Page, pq.PageSize)
 }
 
 func (h *RoleHandler) GetByID(c *gin.Context) {

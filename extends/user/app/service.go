@@ -10,6 +10,7 @@ import (
 
 	"kingfisher/core/cache"
 	"kingfisher/core/jwt"
+	"kingfisher/core/query"
 	"kingfisher/extends/user/domain"
 	"kingfisher/extends/user/port"
 )
@@ -146,8 +147,8 @@ func (s *UserService) CreateUser(ctx context.Context, username, password, email 
 	return user, nil
 }
 
-func (s *UserService) List(ctx context.Context, page, pageSize int, keyword string) ([]domain.User, int64, error) {
-	return s.repo.FindAll(ctx, page, pageSize, keyword)
+func (s *UserService) List(ctx context.Context, q *query.Query) ([]domain.User, int64, error) {
+	return s.repo.FindAll(ctx, q)
 }
 func (s *UserService) GetUserPermissions(ctx context.Context, userID uint) ([]string, error) {
 	// Placeholder: returns empty list for now; RBAC module handles real permission lookup
@@ -177,4 +178,22 @@ func (s *UserService) ChangePassword(ctx context.Context, userID uint, oldPwd, n
 
 func (s *UserService) RevokeSessions(ctx context.Context, userID uint) error {
 	return s.repo.IncrementSessionVersion(ctx, userID)
+}
+
+// UpdateProfile updates the current user's own profile fields (email, nickname, avatar).
+func (s *UserService) UpdateProfile(ctx context.Context, userID uint, email, nickname, avatar string) error {
+	updates := map[string]any{}
+	if email != "" {
+		updates["email"] = email
+	}
+	if nickname != "" {
+		updates["nickname"] = nickname
+	}
+	if avatar != "" {
+		updates["avatar"] = avatar
+	}
+	if len(updates) == 0 {
+		return nil
+	}
+	return s.Update(ctx, userID, updates)
 }

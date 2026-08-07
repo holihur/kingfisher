@@ -3,11 +3,12 @@ package port
 import (
 	"context"
 
+	"kingfisher/core/query"
 	"kingfisher/extends/rbac/domain"
 )
 
 type RoleRepository interface {
-	FindAll(ctx context.Context) ([]domain.Role, error)
+	FindAll(ctx context.Context, q *query.Query) ([]domain.Role, int64, error)
 	FindByID(ctx context.Context, id uint) (*domain.Role, error)
 	FindByCode(ctx context.Context, code string) (*domain.Role, error)
 	Create(ctx context.Context, role *domain.Role) error

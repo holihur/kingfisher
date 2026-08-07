@@ -1,9 +1,11 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Modal, Form, Input, InputNumber, Switch, Select, message, Tag, Popconfirm, List, Button, Space, Empty } from 'antd';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Modal, Form, Input, InputNumber, Switch, Select, message, Tag, Popconfirm, List, Button, Empty } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
-import ProTable, { ProColumns, ActionType } from '@ant-design/pro-table';
+import ProTable, { ProColumns } from '@ant-design/pro-table';
 import { useAuthStore } from '../../stores/auth';
 import { configApi, configGroupApi } from '../../api/config';
+import { useTableUrlQuery } from '../../hooks/useTableUrlQuery';
+import { buildQueryParams } from '../../utils/query';
 
 /** 渲染组件类型：text|number|switch|select|textarea */
 type RenderType = 'text' | 'number' | 'switch' | 'select' | 'textarea';
@@ -60,7 +62,7 @@ interface ConfigGroup {
 }
 
 const ConfigManage: React.FC = () => {
-  const actionRef = useRef<ActionType>(null);
+  const { urlParams, page, pageSize, actionRef, formRef, syncFormFromUrl, updateUrl, onSearch, onReset, onPageChange } = useTableUrlQuery();
   const [editModal, setEditModal] = useState<{ open: boolean; config: Record<string, unknown> | null }>({
     open: false,
     config: null,
@@ -68,9 +70,9 @@ const ConfigManage: React.FC = () => {
   const [form] = Form.useForm<Record<string, unknown>>();
   const perms = useAuthStore((s) => s.permissions);
 
-  // 分组状态
+  // 分组状态（选中的 group_id 来自 URL，刷新/分享可保持）
   const [groups, setGroups] = useState<ConfigGroup[]>([]);
-  const [selectedGroupId, setSelectedGroupId] = useState(0); // 0 = 全部
+  const selectedGroupId = Number(urlParams.group_id) || 0;
   const [groupModal, setGroupModal] = useState<{ open: boolean; editing: ConfigGroup | null }>({ open: false, editing: null });
   const [groupForm] = Form.useForm<{ name: string; sort: number }>();
 
@@ -85,6 +87,8 @@ const ConfigManage: React.FC = () => {
 
   useEffect(() => {
     loadGroups();
+    syncFormFromUrl();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadGroups]);
 
   // 编辑弹窗内当前选中的渲染组件（联动 Value 控件与选项编辑区）
@@ -93,10 +97,17 @@ const ConfigManage: React.FC = () => {
   const watchedOptions = Form.useWatch('render_options', form) as string | undefined;
 
   const columns: ProColumns[] = [
-    { title: 'Key', dataIndex: 'key', width: 200, render: (_, r) => <Tag color="blue">{r.key as string}</Tag> },
+    {
+      title: '关键词',
+      dataIndex: 'q',
+      hideInTable: true,
+      search: { transform: (v) => ({ q: v }) },
+    },
+    { title: 'Key', dataIndex: 'key', width: 200, search: false, render: (_, r) => <Tag color="blue">{r.key as string}</Tag> },
     {
       title: 'Value',
       dataIndex: 'value',
+      search: false,
       render: (v, r) => {
         const render = (r.render as RenderType) || inferRenderType(r.key as string);
         // Value 用渲染组件展示：switch → 开/关 Tag；select → 选中项 label；其余 → 文本
@@ -110,15 +121,22 @@ const ConfigManage: React.FC = () => {
         return <span style={{ wordBreak: 'break-all' }}>{v as string}</span>;
       },
     },
-    { title: '备注', dataIndex: 'remark', ellipsis: true },
+    { title: '备注', dataIndex: 'remark', ellipsis: true, search: false },
     {
       title: '是否公开',
       dataIndex: 'is_public',
       width: 100,
+      valueEnum: { true: { text: '公开' }, false: { text: '私密' } },
       render: (_, r) =>
         r.is_public ? <Tag color="green">公开</Tag> : <Tag color="default">私密</Tag>,
     },
     { title: '版本', dataIndex: 'version', width: 100 },
+    {
+      title: '渲染组件',
+      dataIndex: 'render',
+      hideInTable: true,
+      valueEnum: Object.fromEntries(RENDER_TYPES.map((t) => [t.value, { text: t.label }])),
+    },
     {
       title: '操作',
       valueType: 'option',
@@ -220,9 +238,8 @@ const ConfigManage: React.FC = () => {
   const handleGroupDelete = async (g: ConfigGroup) => {
     await configGroupApi.delete(g.id);
     message.success('分组已删除，其下配置移回未分组');
-    if (selectedGroupId === g.id) setSelectedGroupId(0);
+    if (selectedGroupId === g.id) updateUrl({ group_id: '' });
     loadGroups();
-    actionRef.current?.reload();
   };
 
   return (
@@ -244,8 +261,9 @@ const ConfigManage: React.FC = () => {
           renderItem={(g) => (
             <List.Item
               onClick={() => {
-                setSelectedGroupId(g.id);
-                actionRef.current?.reload();
+                // 保留当前搜索条件，只切换分组；group_id=0(全部) 时清空该参数
+                const current = formRef.current?.getFieldsValue?.() || {};
+                updateUrl({ ...current, group_id: g.id === 0 ? '' : g.id, page: 1 });
               }}
               style={{
                 cursor: 'pointer',
@@ -276,16 +294,22 @@ const ConfigManage: React.FC = () => {
         <ProTable
           columns={columns}
           actionRef={actionRef}
-          request={async () => {
-            const r = await configApi.getAll();
-            let data = (r.data as unknown[]) || [];
-            if (selectedGroupId !== 0) {
-              data = data.filter((c) => (c as Record<string, unknown>).group_id === selectedGroupId);
-            }
-            return { data, success: true };
+          formRef={formRef}
+          params={urlParams}
+          request={async (params) => {
+            const r = await configApi.getAll(buildQueryParams(params));
+            const data = r.data as Record<string, unknown>;
+            return {
+              data: (data.items as unknown[]) || [],
+              total: (data.total as number) || 0,
+              success: true,
+            };
           }}
           rowKey="key"
-          search={false}
+          onSubmit={onSearch}
+          onReset={onReset}
+          search={{ labelWidth: 'auto' }}
+          pagination={{ current: page, pageSize, showSizeChanger: true, onChange: onPageChange }}
           headerTitle={`系统配置${selectedGroupId ? `（${groups.find(g => g.id === selectedGroupId)?.name ?? ''}）` : ''}`}
         />
       </div>

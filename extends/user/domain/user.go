@@ -5,6 +5,7 @@ import "time"
 type User struct {
 	ID             uint      `json:"id"`
 	Username       string    `json:"username"`
+	Nickname       string    `json:"nickname"`
 	Password       string    `json:"-"` // bcrypt hash
 	Email          string    `json:"email"`
 	Avatar         string    `json:"avatar"`

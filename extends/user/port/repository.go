@@ -3,13 +3,14 @@ package port
 import (
 	"context"
 
+	"kingfisher/core/query"
 	"kingfisher/extends/user/domain"
 )
 
 type UserRepository interface {
 	FindByID(ctx context.Context, id uint) (*domain.User, error)
 	FindByUsername(ctx context.Context, username string) (*domain.User, error)
-	FindAll(ctx context.Context, page, pageSize int, keyword string) ([]domain.User, int64, error)
+	FindAll(ctx context.Context, q *query.Query) ([]domain.User, int64, error)
 	Create(ctx context.Context, user *domain.User) error
 	Update(ctx context.Context, id uint, updates map[string]any) error
 	Delete(ctx context.Context, id uint) error

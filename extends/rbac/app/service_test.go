@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"kingfisher/core/query"
 	"kingfisher/extends/rbac/domain"
 )
 
@@ -16,12 +17,12 @@ type mockRoleRepo struct {
 	menus map[uint][]domain.Menu
 }
 
-func (m *mockRoleRepo) FindAll(ctx context.Context) ([]domain.Role, error) {
+func (m *mockRoleRepo) FindAll(ctx context.Context, q *query.Query) ([]domain.Role, int64, error) {
 	var out []domain.Role
 	for _, r := range m.roles {
 		out = append(out, *r)
 	}
-	return out, nil
+	return out, int64(len(out)), nil
 }
 
 func (m *mockRoleRepo) FindByID(ctx context.Context, id uint) (*domain.Role, error) {
@@ -109,12 +110,12 @@ func TestRoleList(t *testing.T) {
 		},
 	}
 	svc := NewRoleService(repo, nil)
-	roles, err := svc.List(context.Background())
+	roles, total, err := svc.List(context.Background(), &query.Query{Page: 1, PageSize: 20})
 	if err != nil {
 		t.Fatal("list:", err)
 	}
-	if len(roles) != 2 {
-		t.Errorf("want 2 roles, got %d", len(roles))
+	if len(roles) != 2 || total != 2 {
+		t.Errorf("want 2 roles, got %d total=%d", len(roles), total)
 	}
 }
 

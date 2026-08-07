@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"kingfisher/core/cache"
+	"kingfisher/core/query"
 	"kingfisher/extends/rbac/domain"
 	"kingfisher/extends/rbac/port"
 )
@@ -19,7 +20,9 @@ type RoleService struct {
 func NewRoleService(repo port.RoleRepository, c cache.Cache) *RoleService {
 	return &RoleService{repo: repo, cache: c}
 }
-func (s *RoleService) List(ctx context.Context) ([]domain.Role, error) { return s.repo.FindAll(ctx) }
+func (s *RoleService) List(ctx context.Context, q *query.Query) ([]domain.Role, int64, error) {
+	return s.repo.FindAll(ctx, q)
+}
 func (s *RoleService) GetByID(ctx context.Context, id uint) (*domain.Role, error) {
 	return s.repo.FindByID(ctx, id)
 }

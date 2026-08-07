@@ -5,6 +5,7 @@ import (
 
 	"gorm.io/gorm"
 
+	"kingfisher/core/query"
 	"kingfisher/extends/audit/domain"
 )
 
@@ -18,25 +19,9 @@ func (r *AuditRepo) InsertBatch(ctx context.Context, logs []domain.AuditLog) err
 	}
 	return r.db.WithContext(ctx).Create(&pos).Error
 }
-func (r *AuditRepo) FindAll(ctx context.Context, page, pageSize int, filters map[string]any) ([]domain.AuditLog, int64, error) {
+func (r *AuditRepo) FindAll(ctx context.Context, q *query.Query) ([]domain.AuditLog, int64, error) {
 	var pos []auditPO
-	var total int64
-	q := r.db.WithContext(ctx).Model(&auditPO{})
-	if v, ok := filters["user_id"]; ok {
-		q = q.Where("user_id = ?", v)
-	}
-	if v, ok := filters["resource"]; ok {
-		q = q.Where("resource = ?", v)
-	}
-	if v, ok := filters["action"]; ok {
-		q = q.Where("action = ?", v)
-	}
-	q.Count(&total)
-	offset := (page - 1) * pageSize
-	if offset < 0 {
-		offset = 0
-	}
-	err := q.Offset(offset).Limit(pageSize).Order("id DESC").Find(&pos).Error
+	total, err := q.Find(r.db.WithContext(ctx).Model(&auditPO{}), &pos)
 	if err != nil {
 		return nil, 0, err
 	}

@@ -3,11 +3,12 @@ package port
 import (
 	"context"
 
+	"kingfisher/core/query"
 	"kingfisher/extends/config/domain"
 )
 
 type ConfigRepository interface {
-	GetAll(ctx context.Context) ([]domain.SystemConfig, error)
+	List(ctx context.Context, q *query.Query) ([]domain.SystemConfig, int64, error)
 	GetPublicAll(ctx context.Context) ([]domain.SystemConfig, error)
 	GetByKey(ctx context.Context, key string) (*domain.SystemConfig, error)
 	GetPublicByKey(ctx context.Context, key string) (*domain.SystemConfig, error)

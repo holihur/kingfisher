@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"testing"
 
+	"kingfisher/core/query"
 	"kingfisher/extends/config/domain"
 )
 
@@ -12,12 +13,12 @@ type mockConfigRepo struct {
 	configs map[string]*domain.SystemConfig
 }
 
-func (m *mockConfigRepo) GetAll(ctx context.Context) ([]domain.SystemConfig, error) {
+func (m *mockConfigRepo) List(ctx context.Context, q *query.Query) ([]domain.SystemConfig, int64, error) {
 	var out []domain.SystemConfig
 	for _, c := range m.configs {
 		out = append(out, *c)
 	}
-	return out, nil
+	return out, int64(len(out)), nil
 }
 
 func (m *mockConfigRepo) GetPublicAll(ctx context.Context) ([]domain.SystemConfig, error) {
@@ -67,12 +68,12 @@ func TestConfigGetAll(t *testing.T) {
 		},
 	}
 	svc := NewConfigService(repo, nil)
-	cfgs, err := svc.GetAll(context.Background())
+	cfgs, total, err := svc.List(context.Background(), &query.Query{Page: 1, PageSize: 20})
 	if err != nil {
-		t.Fatal("get all:", err)
+		t.Fatal("list:", err)
 	}
-	if len(cfgs) != 2 {
-		t.Errorf("want 2 configs, got %d", len(cfgs))
+	if len(cfgs) != 2 || total != 2 {
+		t.Errorf("want 2 configs, got %d total=%d", len(cfgs), total)
 	}
 }
 

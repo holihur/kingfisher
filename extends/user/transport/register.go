@@ -12,6 +12,7 @@ import (
 	"kingfisher/core/cache"
 	"kingfisher/core/jwt"
 	"kingfisher/core/middleware"
+	auditApp "kingfisher/extends/audit/app"
 	rbacTransport "kingfisher/extends/rbac/transport"
 	adapter "kingfisher/extends/user/adapter/mysql"
 	"kingfisher/extends/user/app"
@@ -39,6 +40,11 @@ func NewUserModule(db *gorm.DB, c cache.Cache, jwtMgr *jwt.JWTManager, getUserPe
 // InjectAuditLogger wires the audit logger callback into the auth handler.
 func (m *UserModule) InjectAuditLogger(fn AuditLogger) { m.authHandler.auditLog = fn }
 
+// InjectAuditService wires the audit service into the user handler for login-log queries.
+func (m *UserModule) InjectAuditService(auditSvc *auditApp.AuditService) {
+	m.userHandler.SetAuditService(auditSvc)
+}
+
 func (m *UserModule) Name() string                       { return "user" }
 func (m *UserModule) Init(ctx context.Context) error     { return nil }
 func (m *UserModule) Shutdown(ctx context.Context) error { return nil }
@@ -55,7 +61,10 @@ func (m *UserModule) RegisterProtected(r *gin.RouterGroup) {
 	users := r.Group("/users")
 	users.POST("", rbacTransport.RequirePerm("user:create"), m.userHandler.Create)
 	users.GET("/me", m.userHandler.GetMe)
+	users.PUT("/me", m.userHandler.UpdateMe)
 	users.GET("/me/permissions", m.userHandler.GetMyPermissions)
+	users.GET("/me/login-logs", m.userHandler.GetMyLoginLogs)
+	users.POST("/me/avatar", m.userHandler.UploadAvatar)
 	users.PUT("/me/password", m.userHandler.ChangePassword)
 	users.GET("/:id", m.userHandler.GetByID)
 	users.PUT("/:id", rbacTransport.RequirePerm("user:update"), m.userHandler.Update)

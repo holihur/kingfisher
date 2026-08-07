@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"sort"
 	"strconv"
 	"testing"
@@ -523,8 +524,29 @@ func TestGetRoles(t *testing.T) {
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, doRequest("GET", "/api/v1/roles", tok, nil))
 	m := assertCode(t, w, 0)
-	if len(m["data"].([]any)) != 3 {
+	data := m["data"].(map[string]any)
+	if len(data["items"].([]any)) != 3 {
 		t.Error("want 3 roles")
+	}
+	if int(data["total"].(float64)) != 3 {
+		t.Error("want total 3")
+	}
+}
+
+// 角色列表支持结构化查询
+func TestGetRolesFiltered(t *testing.T) {
+	s, _ := setupTestServer(t)
+	tok := login(t, s)
+	w := httptest.NewRecorder()
+	s.ServeHTTP(w, doRequest("GET", "/api/v1/roles?filter="+url.QueryEscape(`{"code":"admin"}`), tok, nil))
+	m := assertCode(t, w, 0)
+	data := m["data"].(map[string]any)
+	items := data["items"].([]any)
+	if len(items) != 1 {
+		t.Fatalf("want 1 role with code=admin, got %d", len(items))
+	}
+	if items[0].(map[string]any)["code"] != "admin" {
+		t.Error("unexpected role")
 	}
 }
 
@@ -551,8 +573,8 @@ func TestGetPermissions(t *testing.T) {
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, doRequest("GET", "/api/v1/permissions", tok, nil))
 	m := assertCode(t, w, 0)
-	if len(m["data"].([]any)) != 15 {
-		t.Error("want 15 perms")
+	if len(m["data"].([]any)) != 19 {
+		t.Error("want 19 perms")
 	}
 }
 
@@ -640,8 +662,22 @@ func TestGetConfigs(t *testing.T) {
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, doRequest("GET", "/api/v1/configs", tok, nil))
 	m := assertCode(t, w, 0)
-	if len(m["data"].([]any)) != 6 {
+	data := m["data"].(map[string]any)
+	if len(data["items"].([]any)) != 6 {
 		t.Error("want 6 configs")
+	}
+}
+
+// 配置列表支持结构化查询（is_public / group_id 过滤）
+func TestGetConfigsFiltered(t *testing.T) {
+	s, _ := setupTestServer(t)
+	tok := login(t, s)
+	w := httptest.NewRecorder()
+	s.ServeHTTP(w, doRequest("GET", "/api/v1/configs?filter="+url.QueryEscape(`{"group_id":1}`), tok, nil))
+	m := assertCode(t, w, 0)
+	items := m["data"].(map[string]any)["items"].([]any)
+	if len(items) != 3 {
+		t.Fatalf("want 3 configs in group 1, got %d", len(items))
 	}
 }
 
@@ -726,4 +762,49 @@ func TestNotFound(t *testing.T) {
 	if w.Code != 404 {
 		t.Errorf("want 404, got %d", w.Code)
 	}
+}
+
+// --- Profile self-service tests ---
+
+func TestUpdateMeProfile(t *testing.T) {
+	s, _ := setupTestServer(t)
+	tok := login(t, s)
+
+	// Update nickname + email
+	w := httptest.NewRecorder()
+	s.ServeHTTP(w, doRequest("PUT", "/api/v1/users/me", tok, map[string]string{
+		"nickname": "管理员",
+		"email":    "admin@example.com",
+	}))
+	assertCode(t, w, 0)
+	m := assertCode(t, w, 0) // re-parse with code check
+	_ = m
+}
+
+func TestUpdateMeNickname(t *testing.T) {
+	s, _ := setupTestServer(t)
+	tok := login(t, s)
+
+	w := httptest.NewRecorder()
+	s.ServeHTTP(w, doRequest("PUT", "/api/v1/users/me", tok, map[string]string{
+		"nickname": "测试昵称",
+	}))
+	assertCode(t, w, 0)
+
+	// Verify GET /users/me reflects the change
+	w2 := httptest.NewRecorder()
+	s.ServeHTTP(w2, doRequest("GET", "/api/v1/users/me", tok, nil))
+	m := assertCode(t, w2, 0)
+	if m["data"].(map[string]any)["nickname"] != "测试昵称" {
+		t.Error("nickname not updated")
+	}
+}
+
+func TestGetMyLoginLogs(t *testing.T) {
+	s, _ := setupTestServer(t)
+	tok := login(t, s)
+
+	w := httptest.NewRecorder()
+	s.ServeHTTP(w, doRequest("GET", "/api/v1/users/me/login-logs", tok, nil))
+	assertCode(t, w, 0)
 }

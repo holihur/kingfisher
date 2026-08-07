@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"kingfisher/core/errcode"
+	"kingfisher/core/query"
 	"kingfisher/core/response"
 	"kingfisher/extends/config/app"
 )
@@ -14,16 +15,34 @@ type ConfigHandler struct{ svc *app.ConfigService }
 
 func NewConfigHandler(svc *app.ConfigService) *ConfigHandler { return &ConfigHandler{svc: svc} }
 
+// configQueryDefs 配置列表可查询字段白名单
+var configQueryDefs = query.Defs{
+	"key":        {Name: "key", Type: query.TypeString, Searchable: true, Filterable: true},
+	"value":      {Name: "value", Type: query.TypeString, Searchable: true},
+	"remark":     {Name: "remark", Type: query.TypeString, Searchable: true},
+	"is_public":  {Name: "is_public", Type: query.TypeBool, Filterable: true},
+	"version":    {Name: "version", Type: query.TypeString, Filterable: true},
+	"render":     {Name: "render", Type: query.TypeString, Filterable: true},
+	"group_id":   {Name: "group_id", Type: query.TypeUint, Filterable: true},
+	"created_at": {Name: "created_at", Type: query.TypeTime, Filterable: true},
+	"updated_at": {Name: "updated_at", Type: query.TypeTime, Filterable: true},
+}
+
 // @Summary 配置列表
 // @Tags Config
 // @Router /api/v1/configs [get]
 func (h *ConfigHandler) GetAll(c *gin.Context) {
-	configs, err := h.svc.GetAll(c.Request.Context())
+	pq, err := query.Parse(c, configQueryDefs)
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	configs, total, err := h.svc.List(c.Request.Context(), pq)
 	if err != nil {
 		response.InternalError(c)
 		return
 	}
-	response.OKJSON(c, configs)
+	response.PageJSON(c, configs, total, pq.Page, pq.PageSize)
 }
 
 // GetPublicAll 公开配置列表（无需登录）

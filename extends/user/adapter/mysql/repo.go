@@ -2,11 +2,11 @@ package adapter
 
 import (
 	"context"
-	"strings"
 	"time"
 
 	"gorm.io/gorm"
 
+	"kingfisher/core/query"
 	"kingfisher/extends/user/domain"
 	"kingfisher/extends/user/port"
 )
@@ -37,20 +37,9 @@ func (r *UserRepo) FindByUsername(ctx context.Context, username string) (*domain
 	return po.toDomain(), nil
 }
 
-func (r *UserRepo) FindAll(ctx context.Context, page, pageSize int, keyword string) ([]domain.User, int64, error) {
+func (r *UserRepo) FindAll(ctx context.Context, q *query.Query) ([]domain.User, int64, error) {
 	var pos []userPO
-	var total int64
-	q := r.db.WithContext(ctx).Model(&userPO{})
-	if keyword != "" {
-		escaped := strings.ReplaceAll(strings.ReplaceAll(keyword, "%", "\\%"), "_", "\\_")
-		q = q.Where("username LIKE ? OR email LIKE ?", "%"+escaped+"%", "%"+escaped+"%")
-	}
-	q.Count(&total)
-	offset := (page - 1) * pageSize
-	if offset < 0 {
-		offset = 0
-	}
-	err := q.Offset(offset).Limit(pageSize).Order("id DESC").Find(&pos).Error
+	total, err := q.Find(r.db.WithContext(ctx).Model(&userPO{}), &pos)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -62,7 +51,7 @@ func (r *UserRepo) FindAll(ctx context.Context, page, pageSize int, keyword stri
 }
 
 func (r *UserRepo) Create(ctx context.Context, u *domain.User) error {
-	po := userPO{Username: u.Username, Password: u.Password, Email: u.Email, Status: u.Status, RoleID: u.RoleID}
+	po := userPO{Username: u.Username, Nickname: u.Nickname, Password: u.Password, Email: u.Email, Status: u.Status, RoleID: u.RoleID}
 	err := r.db.WithContext(ctx).Create(&po).Error
 	if err == nil {
 		u.ID = po.ID

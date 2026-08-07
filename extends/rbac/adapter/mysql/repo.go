@@ -5,6 +5,7 @@ import (
 
 	"gorm.io/gorm"
 
+	"kingfisher/core/query"
 	"kingfisher/extends/rbac/domain"
 	"kingfisher/extends/rbac/port"
 )
@@ -14,17 +15,17 @@ type RoleRepo struct{ db *gorm.DB }
 var _ port.RoleRepository = (*RoleRepo)(nil)
 
 func NewRoleRepo(db *gorm.DB) *RoleRepo { return &RoleRepo{db: db} }
-func (r *RoleRepo) FindAll(ctx context.Context) ([]domain.Role, error) {
+func (r *RoleRepo) FindAll(ctx context.Context, q *query.Query) ([]domain.Role, int64, error) {
 	var pos []rolePO
-	err := r.db.WithContext(ctx).Find(&pos).Error
+	total, err := q.Find(r.db.WithContext(ctx).Model(&rolePO{}), &pos)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	roles := make([]domain.Role, len(pos))
 	for i, p := range pos {
 		roles[i] = domain.Role{ID: p.ID, Name: p.Name, Code: p.Code, Description: p.Description, Status: p.Status, Level: p.Level, CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt}
 	}
-	return roles, nil
+	return roles, total, nil
 }
 func (r *RoleRepo) FindByCode(ctx context.Context, code string) (*domain.Role, error) {
 	var po rolePO

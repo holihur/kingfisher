@@ -6,6 +6,7 @@ import (
 	"time"
 
 	coreCache "kingfisher/core/cache"
+	"kingfisher/core/query"
 	"kingfisher/extends/config/domain"
 	"kingfisher/extends/config/port"
 )
@@ -19,25 +20,9 @@ func NewConfigService(repo port.ConfigRepository, cache coreCache.Cache) *Config
 	return &ConfigService{repo: repo, cache: cache}
 }
 
-func (s *ConfigService) GetAll(ctx context.Context) ([]domain.SystemConfig, error) {
-	if s.cache != nil {
-		if val, err := s.cache.Get(ctx, "config:all"); err == nil && val != "" {
-			var configs []domain.SystemConfig
-			if json.Unmarshal([]byte(val), &configs) == nil {
-				return configs, nil
-			}
-		}
-	}
-	configs, err := s.repo.GetAll(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if s.cache != nil {
-		if data, err := json.Marshal(configs); err == nil {
-			_ = s.cache.Set(ctx, "config:all", string(data), 5*time.Minute)
-		}
-	}
-	return configs, nil
+// List 分页 + 结构化查询查询配置列表
+func (s *ConfigService) List(ctx context.Context, q *query.Query) ([]domain.SystemConfig, int64, error) {
+	return s.repo.List(ctx, q)
 }
 
 // GetAllPublic 返回全部公开配置（未登录可读）

@@ -1,14 +1,16 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button, Modal, Form, message, Popconfirm, Badge } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
-import ProTable, { ProColumns, ActionType } from '@ant-design/pro-table';
+import ProTable, { ProColumns } from '@ant-design/pro-table';
 import { useAuthStore } from '../../stores/auth';
 import { userApi } from '../../api/user';
 import { roleApi } from '../../api/role';
+import { useTableUrlQuery } from '../../hooks/useTableUrlQuery';
+import { buildQueryParams } from '../../utils/query';
 import UserForm from './UserForm';
 
 const UserList: React.FC = () => {
-  const actionRef = useRef<ActionType>(null);
+  const { urlParams, page, pageSize, actionRef, formRef, syncFormFromUrl, onSearch, onReset, onPageChange } = useTableUrlQuery();
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Record<string, unknown> | null>(null);
   const [form] = Form.useForm<Record<string, unknown>>();
@@ -17,9 +19,16 @@ const UserList: React.FC = () => {
   const [roleOptions, setRoleOptions] = useState<{ label: string; value: number }[]>([]);
   const [roleNameMap, setRoleNameMap] = useState<Record<number, string>>({});
 
+  // 挂载时用 URL 反填搜索表单
   useEffect(() => {
-    roleApi.getList().then((r) => {
-      const items = (r.data as Record<string, unknown>[]) || [];
+    syncFormFromUrl();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    roleApi.getList({ page: 1, page_size: 100 }).then((r) => {
+      const data = r.data as Record<string, unknown>;
+      const items = (data.items as Record<string, unknown>[]) || [];
       setRoleOptions(items.map((i) => ({ label: i.name as string, value: i.id as number })));
       const map: Record<number, string> = {};
       items.forEach((i) => { map[i.id as number] = i.name as string; });
@@ -28,24 +37,32 @@ const UserList: React.FC = () => {
   }, []);
 
   const columns: ProColumns[] = [
-    { title: 'ID', dataIndex: 'id', width: 80 },
-    { title: '用户名', dataIndex: 'username' },
-    { title: '邮箱', dataIndex: 'email', ellipsis: true },
+    { title: 'ID', dataIndex: 'id', width: 80, search: false },
+    {
+      title: '关键词',
+      dataIndex: 'q',
+      hideInTable: true,
+      search: { transform: (v) => ({ q: v }) },
+    },
+    { title: '用户名', dataIndex: 'username', search: false },
+    { title: '邮箱', dataIndex: 'email', ellipsis: true, search: false },
     {
       title: '角色',
       dataIndex: 'role_id',
       width: 100,
+      valueEnum: Object.fromEntries(roleOptions.map((o) => [o.value, { text: o.label }])),
       render: (_, r) => roleNameMap[r.role_id as number] || `#${r.role_id}`,
     },
     {
       title: '状态',
       dataIndex: 'status',
       width: 80,
+      valueEnum: { 1: { text: '启用' }, 0: { text: '禁用' } },
       render: (_, r) => (
         <Badge status={(r.status as number) === 1 ? 'success' : 'error'} text={(r.status as number) === 1 ? '启用' : '禁用'} />
       ),
     },
-    { title: '创建时间', dataIndex: 'created_at', valueType: 'dateTime' },
+    { title: '创建时间', dataIndex: 'created_at', valueType: 'dateTime', search: false },
     {
       title: '操作',
       valueType: 'option',
@@ -97,12 +114,10 @@ const UserList: React.FC = () => {
       <ProTable
         columns={columns}
         actionRef={actionRef}
+        formRef={formRef}
+        params={urlParams}
         request={async (params) => {
-          const resp = await userApi.getList({
-            page: params.current || 1,
-            page_size: params.pageSize || 20,
-            keyword: params.keyword as string,
-          });
+          const resp = await userApi.getList(buildQueryParams(params));
           const data = resp.data as Record<string, unknown>;
           return {
             data: (data.items as Record<string, unknown>[]) || [],
@@ -111,8 +126,10 @@ const UserList: React.FC = () => {
           };
         }}
         rowKey="id"
+        onSubmit={onSearch}
+        onReset={onReset}
         search={{ labelWidth: 'auto' }}
-        pagination={{ pageSize: 20, showSizeChanger: true }}
+        pagination={{ current: page, pageSize, showSizeChanger: true, onChange: onPageChange }}
         headerTitle="用户管理"
         toolBarRender={() => [
           hasPerm('user:create') ? (

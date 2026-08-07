@@ -36,6 +36,9 @@ func (m *AuditModule) RegisterProtected(r *gin.RouterGroup) {
 }
 func (m *AuditModule) Middleware() gin.HandlerFunc { return AuditMiddleware(m.svc) }
 
+// Service returns the audit service for query use by other modules.
+func (m *AuditModule) Service() *app.AuditService { return m.svc }
+
 // AuditLogCallback returns an AuditRecorder for other modules to use.
 func (m *AuditModule) AuditLogCallback() AuditRecorder {
 	return func(ctx context.Context, userID uint, username, action, resource, ip, userAgent string) {
