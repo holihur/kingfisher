@@ -41,9 +41,11 @@ jobs:
       - uses: actions/setup-go@v5
         with: { go-version: '1.25' }
       - uses: actions/setup-node@v4
-        with: { node-version: '24', cache: 'pnpm', cache-dependency-path: 'kingfisher-web/pnpm-lock.yaml' }
-      # corepack enable 后，首次调用 pnpm 会按 packageManager 字段自动安装锁定版本
-      - run: corepack enable
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+          cache-dependency-path: 'kingfisher-web/pnpm-lock.yaml'
+          corepack: true
       - run: cd kingfisher-web && pnpm install --frozen-lockfile
       - run: npx playwright install --with-deps chromium
       - run: go install github.com/go-task/task/v3/cmd/task@latest
@@ -66,11 +68,14 @@ jobs:
       - uses: actions/setup-go@v5
         with: { go-version: '1.25' }
       - uses: actions/setup-node@v4
-        with: { node-version: '24', cache: 'pnpm', cache-dependency-path: 'kingfisher-web/pnpm-lock.yaml' }
-      - run: corepack enable
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+          cache-dependency-path: 'kingfisher-web/pnpm-lock.yaml'
+          corepack: true
       # 后端二进制（linux/amd64，静态编译）
       - run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w -X main.version=${GITHUB_REF_NAME} -X main.commit=$(git rev-parse --short HEAD) -X main.buildTime=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -o kingfisher-server ./cmd/server
-      # 前端 dist
+      # 前端 dist（corepack 已激活 pnpm）
       - run: cd kingfisher-web && pnpm install --frozen-lockfile
       - run: cd kingfisher-web && pnpm build
       # 打包：server 二进制 + 前端 dist + 生产配置模板
