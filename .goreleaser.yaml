@@ -17,6 +17,7 @@ builds:
     main: ./cmd/server
     binary: kingfisher-server
     env:
+      # 纯 Go SQLite 驱动（glebarez/modernc），无需 cgo，可全平台静态编译
       - CGO_ENABLED=0
     goos: [linux, darwin, windows]
     goarch: [amd64, arm64]

@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"go.uber.org/zap"
+	"github.com/glebarez/sqlite" // 纯 Go SQLite 驱动（无 cgo），支持静态编译
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	gormlogger "gorm.io/gorm/logger"
 
@@ -31,7 +31,8 @@ func NewDatabase(cfg config.DatabaseConfig, logger *zap.Logger) (*gorm.DB, error
 		if path == "" {
 			path = "kingfisher.db"
 		}
-		dsn := path + "?_journal_mode=WAL&_busy_timeout=5000"
+		// glebarez/sqlite（modernc 纯 Go）：dsn 用 _pragma 前缀设置 PRAGMA
+		dsn := "file:" + path + "?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)"
 		db, err := gorm.Open(sqlite.Open(dsn), gc)
 		if err != nil {
 			return nil, fmt.Errorf("sqlite open: %w", err)

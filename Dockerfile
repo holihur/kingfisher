@@ -13,6 +13,7 @@ RUN pnpm build
 
 # ---- Stage 2: 构建后端二进制 ----
 FROM golang:1.25-alpine AS backend-builder
+# 纯 Go SQLite 驱动（glebarez/modernc），无需 cgo，可静态编译
 RUN apk add --no-cache git ca-certificates
 WORKDIR /src
 COPY go.mod go.sum ./
