@@ -3,9 +3,11 @@ package transport
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -40,6 +42,7 @@ var resourceLabels = map[string]string{
 
 func AuditMiddleware(svc *app.AuditService) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		start := time.Now()
 		// 读取并恢复请求体（写操作记录关键字段）
 		var body []byte
 		if c.Request.Body != nil {
@@ -47,26 +50,54 @@ func AuditMiddleware(svc *app.AuditService) gin.HandlerFunc {
 			c.Request.Body = io.NopCloser(bytes.NewBuffer(body))
 		}
 		c.Next()
-		if c.Request.Method == "GET" || c.Request.Method == "HEAD" || c.Request.Method == "OPTIONS" {
+
+		// 只审计写操作 + 登录/权限相关；GET/HEAD/OPTIONS 跳过
+		method := c.Request.Method
+		if method == "GET" || method == "HEAD" || method == "OPTIONS" {
 			return
 		}
-		if c.Writer.Status() < 200 || c.Writer.Status() >= 300 {
-			return
-		}
-		resource, resourceID := extractResource(c)
+		// 未认证（无 user_id）跳过中间件审计（登录失败等由 handler 单独审计）
 		userID := c.GetUint("user_id")
 		if userID == 0 {
 			return
 		}
-		action := methodAction[c.Request.Method]
-		if action == "" {
-			action = strings.ToLower(c.Request.Method)
+
+		status := c.Writer.Status()
+		result := "success"
+		message := ""
+		if status < 200 || status >= 300 {
+			result = "failure"
+			switch status {
+			case 403:
+				message = "权限不足"
+			case 404:
+				message = "资源不存在"
+			case 401:
+				message = "未认证"
+			case 400:
+				message = "参数错误"
+			default:
+				message = fmt.Sprintf("HTTP %d", status)
+			}
 		}
+
+		resource, resourceID := extractResource(c)
+		action := methodAction[method]
+		if action == "" {
+			action = strings.ToLower(method)
+		}
+		// 优先使用 handler 提供的变更 Diff（旧值→新值）；否则用请求体详情
 		detail := buildDetail(body)
+		if diff, ok := c.Get("audit_diff"); ok {
+			if s, ok := diff.(string); ok && s != "" {
+				detail = s
+			}
+		}
 		svc.Log(c.Request.Context(), &domain.AuditLog{
 			UserID: userID, Username: c.GetString("username"),
 			Action: action, Resource: resource, ResourceID: resourceID,
-			Detail: detail, IP: c.ClientIP(), UserAgent: c.Request.UserAgent(),
+			Detail: detail, Result: result, Latency: time.Since(start).Milliseconds(), Message: message,
+			IP: c.ClientIP(), UserAgent: c.Request.UserAgent(),
 		})
 	}
 }

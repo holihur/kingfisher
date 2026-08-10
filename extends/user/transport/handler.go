@@ -2,6 +2,7 @@ package transport
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -22,7 +23,8 @@ import (
 )
 
 // AuditLogger is injected by main to record auth events (login/logout).
-type AuditLogger func(ctx context.Context, userID uint, username, action, resource, ip, userAgent string)
+// result: success | failure（登录成功/失败）
+type AuditLogger func(ctx context.Context, userID uint, username, action, resource, result string, ip, userAgent string)
 
 type AuthHandler struct {
 	svc      *app.AuthService
@@ -166,11 +168,11 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 	access, refresh, user, landing, err := h.svc.Login(c.Request.Context(), req.Username, req.Password)
 	if err != nil {
-		h.auditLogin(c, 0, req.Username, "FAILURE", "")
+		h.auditLogin(c, 0, req.Username, "failure", "")
 		response.ErrorJSON(c, errcode.ErrPasswordWrong)
 		return
 	}
-	h.auditLogin(c, user.ID, req.Username, "SUCCESS", "")
+	h.auditLogin(c, user.ID, req.Username, "success", "")
 	response.OKJSON(c, LoginResp{AccessToken: access, RefreshToken: refresh, User: *user, LandingPage: landing})
 }
 
@@ -589,11 +591,50 @@ func (h *UserHandler) Update(c *gin.Context) {
 		}
 		updates["role_ids"] = req.RoleIDs
 	}
+
+	// 变更 Diff：更新前读取旧值，构造 旧值→新值 供审计记录
+	if len(updates) > 0 {
+		if old, err := h.svc.GetByID(c.Request.Context(), uint(id)); err == nil && old != nil {
+			diff := map[string]any{}
+			if req.Email != nil && old.Email != *req.Email {
+				diff["email"] = map[string]any{"old": old.Email, "new": *req.Email}
+			}
+			if req.Status != nil && old.Status != *req.Status {
+				diff["status"] = map[string]any{"old": old.Status, "new": *req.Status}
+			}
+			if req.RoleIDs != nil && !sameUintSlice(old.RoleIDs, req.RoleIDs) {
+				diff["role_ids"] = map[string]any{"old": old.RoleIDs, "new": req.RoleIDs}
+			}
+			if len(diff) > 0 {
+				if b, err := json.Marshal(diff); err == nil {
+					c.Set("audit_diff", string(b))
+				}
+			}
+		}
+	}
+
 	if err := h.svc.Update(c.Request.Context(), uint(id), updates); err != nil {
 		response.InternalError(c)
 		return
 	}
 	response.OKJSON(c, nil)
+}
+
+// sameUintSlice 判断两个 uint 切片是否相同（忽略顺序用于角色比较）。
+func sameUintSlice(a, b []uint) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	am := make(map[uint]bool, len(a))
+	for _, v := range a {
+		am[v] = true
+	}
+	for _, v := range b {
+		if !am[v] {
+			return false
+		}
+	}
+	return true
 }
 
 // Delete 删除用户
@@ -709,16 +750,18 @@ func (h *AuthHandler) auditLogin(c *gin.Context, userID uint, username, result, 
 	if h.auditLog == nil {
 		return
 	}
-	resource := result
+	resource := "auth"
+	message := result
 	if detail != "" {
-		resource = result + ": " + detail
+		message = result + ": " + detail
 	}
-	h.auditLog(c.Request.Context(), userID, username, "LOGIN", resource, c.ClientIP(), c.Request.UserAgent())
+	h.auditLog(c.Request.Context(), userID, username, "login", resource, result, c.ClientIP(), c.Request.UserAgent())
+	_ = message
 }
 
 func (h *AuthHandler) auditLogout(c *gin.Context, username string) {
 	if h.auditLog == nil {
 		return
 	}
-	h.auditLog(c.Request.Context(), c.GetUint("user_id"), username, "LOGOUT", "auth", c.ClientIP(), c.Request.UserAgent())
+	h.auditLog(c.Request.Context(), c.GetUint("user_id"), username, "logout", "auth", "success", c.ClientIP(), c.Request.UserAgent())
 }

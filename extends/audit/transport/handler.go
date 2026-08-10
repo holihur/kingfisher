@@ -21,6 +21,7 @@ var auditQueryDefs = query.Defs{
 	"resource":    {Name: "resource", Type: query.TypeString, Filterable: true},
 	"action":      {Name: "action", Type: query.TypeString, Filterable: true},
 	"resource_id": {Name: "resource_id", Type: query.TypeUint, Filterable: true},
+	"result":      {Name: "result", Type: query.TypeString, Filterable: true},
 	"created_at":  {Name: "created_at", Type: query.TypeTime, Filterable: true},
 }
 

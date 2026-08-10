@@ -15,7 +15,7 @@ import (
 )
 
 // AuditRecorder is a callback used by other modules to record audit entries.
-type AuditRecorder func(ctx context.Context, userID uint, username, action, resource, ip, userAgent string)
+type AuditRecorder func(ctx context.Context, userID uint, username, action, resource, result string, ip, userAgent string)
 
 type AuditModule struct {
 	handler *AuditHandler
@@ -41,12 +41,13 @@ func (m *AuditModule) Service() *app.AuditService { return m.svc }
 
 // AuditLogCallback returns an AuditRecorder for other modules to use.
 func (m *AuditModule) AuditLogCallback() AuditRecorder {
-	return func(ctx context.Context, userID uint, username, action, resource, ip, userAgent string) {
+	return func(ctx context.Context, userID uint, username, action, resource, result string, ip, userAgent string) {
 		m.svc.Log(ctx, &domain.AuditLog{
 			UserID:    userID,
 			Username:  username,
 			Action:    action,
 			Resource:  resource,
+			Result:    result,
 			IP:        ip,
 			UserAgent: userAgent,
 		})

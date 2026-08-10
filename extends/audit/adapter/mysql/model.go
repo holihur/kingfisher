@@ -10,6 +10,9 @@ type auditPO struct {
 	Resource   string
 	ResourceID uint
 	Detail     string
+	Result     string
+	Latency    int64
+	Message    string
 	IP         string
 	UserAgent  string
 	CreatedAt  time.Time

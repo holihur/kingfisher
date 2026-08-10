@@ -21,6 +21,9 @@ interface AuditLogRow {
   resource: string;
   resource_id: number;
   detail: string;
+  result: string;
+  latency: number;
+  message: string;
   ip: string;
   user_agent: string;
   created_at: string;
@@ -57,6 +60,15 @@ const searchFields: SearchField[] = [
       { label: '周期任务', value: '周期任务' },
     ],
   },
+  {
+    name: 'result',
+    label: '结果',
+    type: 'select',
+    options: [
+      { label: '成功', value: 'success' },
+      { label: '失败', value: 'failure' },
+    ],
+  },
 ];
 
 const AuditLogList: React.FC = () => {
@@ -77,6 +89,19 @@ const AuditLogList: React.FC = () => {
     },
     { title: '资源', dataIndex: 'resource', width: 110, render: (_: unknown, r: AuditLogRow) => <Tag>{r.resource}</Tag> },
     { title: '资源ID', dataIndex: 'resource_id', width: 80 },
+    {
+      title: '结果',
+      dataIndex: 'result',
+      width: 80,
+      render: (_: unknown, r: AuditLogRow) =>
+        r.result === 'success' ? <Tag color="green">成功</Tag> : <Tag color="red">失败</Tag>,
+    },
+    {
+      title: '耗时',
+      dataIndex: 'latency',
+      width: 80,
+      render: (_: unknown, r: AuditLogRow) => (r.latency ? <span>{r.latency}ms</span> : <span style={{ color: token.colorTextTertiary }}>-</span>),
+    },
     {
       title: '操作详情',
       key: 'detail',
@@ -129,6 +154,13 @@ const AuditLogList: React.FC = () => {
             <Descriptions.Item label="资源">
               {detail.resource}{detail.resource_id ? ` #${detail.resource_id}` : ''}
             </Descriptions.Item>
+            <Descriptions.Item label="结果">
+              {detail.result === 'success' ? <Tag color="green">成功</Tag> : <Tag color="red">失败</Tag>}
+              {detail.message ? `（${detail.message}）` : ''}
+            </Descriptions.Item>
+            <Descriptions.Item label="耗时">
+              {detail.latency ? `${detail.latency}ms` : '-'}
+            </Descriptions.Item>
             <Descriptions.Item label="IP">{detail.ip}</Descriptions.Item>
             <Descriptions.Item label="UserAgent">
               <Typography.Text style={{ fontSize: 12 }} ellipsis={{ tooltip: detail.user_agent }}>
@@ -137,21 +169,7 @@ const AuditLogList: React.FC = () => {
             </Descriptions.Item>
             <Descriptions.Item label="时间">{formatTime(detail.created_at)}</Descriptions.Item>
             <Descriptions.Item label="详情">
-              <pre
-                style={{
-                  margin: 0,
-                  padding: 12,
-                  background: token.colorFillAlter,
-                  borderRadius: 6,
-                  fontSize: 12,
-                  maxHeight: 240,
-                  overflow: 'auto',
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-all',
-                }}
-              >
-                {JSON.stringify(JSON.parse(detail.detail || '{}'), null, 2)}
-              </pre>
+              {renderDetail(detail.detail, token)}
             </Descriptions.Item>
           </Descriptions>
         )}
@@ -159,5 +177,60 @@ const AuditLogList: React.FC = () => {
     </>
   );
 };
+
+// renderDetail 渲染审计详情：
+// - diff 结构（字段 → {old,new}）→ 友好的 旧值→新值 展示
+// - 普通 JSON → 格式化展示
+function renderDetail(raw: string, token: ReturnType<typeof useThemeToken>): React.ReactNode {
+  if (!raw) return <span style={{ color: token.colorTextTertiary }}>-</span>;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return <pre style={{ margin: 0, fontSize: 12 }}>{raw}</pre>;
+  }
+  // 检测是否为 diff 结构：对象且至少一个值含 old/new
+  const isDiff =
+    parsed && typeof parsed === 'object' &&
+    Object.values(parsed as Record<string, unknown>).some(
+      (v) => v && typeof v === 'object' && 'old' in (v as object) && 'new' in (v as object),
+    );
+  if (isDiff) {
+    const entries = Object.entries(parsed as Record<string, { old: unknown; new: unknown }>);
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {entries.map(([field, d]) => (
+          <div key={field} style={{ fontSize: 12, lineHeight: 1.6 }}>
+            <b>{field}</b>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
+              <span style={{
+                background: token.colorErrorBg, color: token.colorError, padding: '1px 8px', borderRadius: 4,
+                textDecoration: 'line-through', opacity: 0.85,
+              }}>
+                {fmtVal(d.old)}
+              </span>
+              <span style={{ color: token.colorTextTertiary }}>→</span>
+              <span style={{ background: token.colorSuccessBg, color: token.colorSuccess, padding: '1px 8px', borderRadius: 4 }}>
+                {fmtVal(d.new)}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+  return (
+    <pre style={{ margin: 0, padding: 12, background: token.colorFillAlter, borderRadius: 6, fontSize: 12, maxHeight: 240, overflow: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+      {JSON.stringify(parsed, null, 2)}
+    </pre>
+  );
+}
+
+function fmtVal(v: unknown): string {
+  if (Array.isArray(v)) return v.join(', ');
+  if (v === null || v === undefined) return '空';
+  if (typeof v === 'object') return JSON.stringify(v);
+  return String(v);
+}
 
 export default AuditLogList;
