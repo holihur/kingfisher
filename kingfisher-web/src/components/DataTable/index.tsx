@@ -58,7 +58,7 @@ export default function DataTable<T = Record<string, unknown>>({
   batchBarRender,
 }: DataTableProps<T>) {
   const token = useThemeToken();
-  const { urlParams, page, pageSize, syncFormFromUrl, onPageChange } = useTableUrlQuery();
+  const { urlParams, page, pageSize, syncFormFromUrl, onPageChange, updateUrl } = useTableUrlQuery();
   const [, setSearchParams] = useSearchParams();
   const [form] = Form.useForm();
   const [data, setData] = useState<T[]>([]);
@@ -149,6 +149,24 @@ export default function DataTable<T = Record<string, unknown>>({
     [isStatic, page, pageSize, total, form],
   );
 
+  // 表头排序/翻页 → 更新 URL（sort 参数），触发数据重载
+  const handleTableChange: NonNullable<TableProps<T>['onChange']> = useCallback(
+    (pg, _filters, sorter) => {
+      // 排序：sorter 为对象或数组，取第一个
+      const s = Array.isArray(sorter) ? sorter[0] : sorter;
+      let sortParam = '';
+      if (s && s.order && s.field) {
+        const col = String(s.field);
+        sortParam = s.order === 'descend' ? `-${col}` : col;
+      }
+      // 保留现有搜索条件，只更新排序（翻页走 pagination.onChange）
+      const current = form.getFieldsValue() || {};
+      updateUrl({ ...current, page: 1, sort: sortParam || undefined });
+      void pg;
+    },
+    [updateUrl, form],
+  );
+
   return (
     <Card
       title={
@@ -235,6 +253,7 @@ export default function DataTable<T = Record<string, unknown>>({
             : undefined
         }
         pagination={pagination}
+        onChange={handleTableChange}
         scroll={{ x: 'max-content' }}
         size="middle"
         rowClassName={() => 'data-table-row'}

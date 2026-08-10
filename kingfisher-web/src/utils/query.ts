@@ -14,6 +14,10 @@ export function buildQueryParams(p: Record<string, unknown>): Record<string, unk
   const q = (p.q as string) || (p.keyword as string) || '';
   if (q) params.q = q;
 
+  // 排序：支持 "-field"（倒序）与 "field"（正序）
+  const sort = (p.sort as string) || '';
+  if (sort) params.sort = sort;
+
   const filter: Record<string, unknown> = {};
   const skip = new Set(['current', 'pageSize', 'q', 'keyword', 'page', 'page_size', 'sort']);
   Object.entries(p).forEach(([k, v]) => {

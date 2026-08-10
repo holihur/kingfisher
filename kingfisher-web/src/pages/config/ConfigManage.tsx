@@ -198,7 +198,7 @@ const ConfigManage: React.FC = () => {
         r.is_public ? <Tag color="green">公开</Tag> : <Tag color="default">私密</Tag>,
     },
     { title: '版本', dataIndex: 'version', width: 90 },
-    { title: '更新时间', dataIndex: 'updated_at', width: 150, render: (v: unknown) => formatTime(v) },
+    { title: '更新时间', dataIndex: 'updated_at', width: 150, sorter: true, render: (v: unknown) => formatTime(v) },
     {
       title: '操作',
       key: 'action',

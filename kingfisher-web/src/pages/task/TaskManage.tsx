@@ -154,7 +154,7 @@ const TaskManage: React.FC = () => {
       render: (v: unknown) => (v === 1 ? <Tag color="green">启用</Tag> : <Tag color="red">禁用</Tag>),
     },
     { title: '备注', dataIndex: 'remark', ellipsis: true },
-    { title: '更新时间', dataIndex: 'updated_at', width: 150, render: (v: unknown) => formatTime(v) },
+    { title: '更新时间', dataIndex: 'updated_at', width: 150, sorter: true, render: (v: unknown) => formatTime(v) },
     {
       title: '操作',
       key: 'action',

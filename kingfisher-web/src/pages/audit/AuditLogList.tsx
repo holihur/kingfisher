@@ -117,6 +117,7 @@ const AuditLogList: React.FC = () => {
       title: '时间',
       dataIndex: 'created_at',
       width: 160,
+      sorter: true,
       render: (v: unknown) => formatTime(v),
     },
   ];

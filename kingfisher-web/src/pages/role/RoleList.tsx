@@ -82,6 +82,7 @@ const RoleList: React.FC = () => {
       title: '更新时间',
       dataIndex: 'updated_at',
       width: 150,
+      sorter: true,
       render: (v: unknown) => formatTime(v),
     },
     {

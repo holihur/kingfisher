@@ -206,7 +206,7 @@ const DictManage: React.FC = () => {
     },
     { title: '备注', dataIndex: 'remark', ellipsis: true },
     { title: '版本', dataIndex: 'version', width: 90, render: (v: unknown) => (v ? <Tag>{v as string}</Tag> : '-') },
-    { title: '更新时间', dataIndex: 'updated_at', width: 150, render: (v: unknown) => formatTime(v) },
+    { title: '更新时间', dataIndex: 'updated_at', width: 150, sorter: true, render: (v: unknown) => formatTime(v) },
     {
       title: '操作',
       key: 'action',
