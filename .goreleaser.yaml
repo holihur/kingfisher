@@ -16,24 +16,35 @@ builds:
     binary: kingfisher-server
     env:
       - CGO_ENABLED=0
-    goos: [linux]
-    goarch: [amd64]
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    ignore:
+      - goos: windows
+        goarch: arm64
     ldflags:
       - -s -w -X main.version={{.Version}} -X main.commit={{.ShortCommit}} -X main.buildTime={{.Date}}
 
-# 归档：包含二进制 + 前端 dist + 生产配置
+# 归档：
+# 1) 所有平台：裸可执行文件（formats: binary）——每个平台一个文件
+# 2) linux/amd64：额外打包前端 dist + 生产配置，供 101 机器部署（deploy.sh 拉取）
 archives:
-  - id: release
+  - id: binaries
+    formats: [binary]
+    name_template: "kingfisher-server_{{ .Os }}_{{ .Arch }}"
+    meta: false
+
+  - id: deploy
     formats: [tar.gz]
-    name_template: "kingfisher-release"
-    # goreleaser 默认会把 build 产物放进归档（二进制在根）；这里额外加前端 dist 与生产配置
+    name_template: "kingfisher-deploy"
+    goos: [linux]
+    goarch: [amd64]
+    # 仅 linux/amd64 生成部署包（含二进制 + dist + config）
     files:
       - src: deploy/config.prod.yaml
         dst: config.yaml
       - src: kingfisher-web/dist/*
         dst: kingfisher-web
         strip_parent: false
-    # 不额外附带 LICENSE/README 等
     meta: false
 
 changelog:
