@@ -37,10 +37,8 @@ archives:
 
   - id: deploy
     formats: [tar.gz]
-    name_template: "kingfisher-deploy"
-    goos: [linux]
-    goarch: [amd64]
-    # 仅 linux/amd64 生成部署包（含二进制 + dist + config）
+    name_template: "kingfisher-deploy_{{ .Os }}_{{ .Arch }}"
+    # 每个平台一个部署包（含二进制 + dist + config）；部署用 linux_amd64
     files:
       - src: deploy/config.prod.yaml
         dst: config.yaml

@@ -17,7 +17,7 @@ SERVICE="${DEPLOY_SERVICE:-kingfisher}"
 KEY="${DEPLOY_SSH_KEY:-$HOME/.ssh/kingfisher}"
 VERSION="${DEPLOY_VERSION:-latest}"   # 默认拉最新 release
 REPO="kingfisher-vvv/kingfisher"
-ASSET="kingfisher-deploy.tar.gz"
+ASSET="kingfisher-deploy_linux_amd64.tar.gz"
 
 SSH="ssh -p $SSHPORT -o ConnectTimeout=10 -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i $KEY"
 
