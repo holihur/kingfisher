@@ -97,13 +97,13 @@ func (s *RoleService) AssignMenus(ctx context.Context, roleID uint, menuIDs []ui
 		return err
 	}
 	if s.cache != nil {
-		_ = s.cache.Delete(ctx, "menu:role:"+strconv.Itoa(int(roleID)))
+		_ = s.cache.Delete(ctx, "menu:role:"+strconv.FormatUint(uint64(roleID), 10))
 		_ = s.cache.Delete(ctx, "menu:tree")
 	}
 	return nil
 }
 func (s *RoleService) GetUserPermissions(ctx context.Context, userID uint) ([]string, error) {
-	key := "user:perms:" + strconv.Itoa(int(userID))
+	key := "user:perms:" + strconv.FormatUint(uint64(userID), 10)
 	if s.cache != nil {
 		if val, err := s.cache.Get(ctx, key); err == nil && val != "" {
 			return strSlice(val), nil

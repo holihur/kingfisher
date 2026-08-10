@@ -157,7 +157,7 @@ func (s *UserService) Update(ctx context.Context, id uint, updates map[string]an
 	// When role changes, invalidate cached permissions so RBAC middleware
 	// picks up the new role's permissions on next request.
 	if _, ok := updates["role_id"]; ok && s.cache != nil {
-		_ = s.cache.Delete(ctx, "user:perms:"+strconv.Itoa(int(id)))
+		_ = s.cache.Delete(ctx, "user:perms:"+strconv.FormatUint(uint64(id), 10))
 	}
 	return nil
 }
