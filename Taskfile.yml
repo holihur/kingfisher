@@ -11,6 +11,11 @@ vars:
     sh: echo "${SERVER_PORT:-8080}"
   WEB_PORT:
     sh: echo "${WEB_PORT:-5173}"
+  # 构建版本信息注入（dev/run/build 统一），使 /system/info 与 /version 展示真实版本
+  LDFLAGS: >-
+    -X main.version=$(git describe --tags --always 2>/dev/null || echo dev)
+    -X main.commit=$(git rev-parse --short HEAD 2>/dev/null || echo unknown)
+    -X main.buildTime=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
 tasks:
   default:
@@ -21,7 +26,7 @@ tasks:
   run:
     desc: 启动服务
     cmds:
-      - go run ./cmd/server
+      - go run -ldflags="{{.LDFLAGS}}" ./cmd/server
 
   dev:
     desc: 启动前后端（重置 SQLite 数据库，自动 kill 占用端口的进程）
@@ -47,14 +52,14 @@ tasks:
         # Ctrl+C 时同步退出前后端子进程
         # （|| true 容错：个别 shell 不支持该 trap 语法时不影响启动）
         trap 'kill 0' INT TERM EXIT 2>/dev/null || true
-        (go run ./cmd/server) &
+        (go run -ldflags="{{.LDFLAGS}}" ./cmd/server) &
         (cd kingfisher-web && npm run dev) &
         wait
 
   build:
     desc: 编译
     cmds:
-      - go build -ldflags="-s -w -X main.version=$(git describe --tags --always 2>/dev/null || echo dev) -X main.commit=$(git rev-parse --short HEAD 2>/dev/null || echo unknown) -X main.buildTime=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -o bin/{{.APP}} ./cmd/server
+      - go build -ldflags="-s -w {{.LDFLAGS}}" -o bin/{{.APP}} ./cmd/server
 
   test:
     desc: 运行测试

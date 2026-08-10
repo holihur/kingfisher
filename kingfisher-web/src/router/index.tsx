@@ -101,6 +101,7 @@ function buildMenuRoutes(menuTree: MenuNode[]) {
 /** 应用路由：菜单树动态生成 + 固定路由。 */
 function AppRoutes() {
   const menuTree = useMenuStore((s) => s.menuTree);
+  const menuLoaded = useMenuStore((s) => s.loaded);
   const fetchMenus = useMenuStore((s) => s.fetchMenus);
   const location = useLocation();
 
@@ -108,10 +109,10 @@ function AppRoutes() {
   // 依赖用 token 值而非 hasToken 函数引用，确保登录后跳转触发重新评估
   const token = hasToken();
   useEffect(() => {
-    if (token && menuTree.length === 0) {
+    if (token && menuTree.length === 0 && !menuLoaded) {
       fetchMenus();
     }
-  }, [token, menuTree.length, fetchMenus]);
+  }, [token, menuTree.length, menuLoaded, fetchMenus]);
 
   const menuRoutes = useMemo(() => buildMenuRoutes(menuTree as MenuNode[]), [menuTree]);
 
@@ -136,8 +137,8 @@ function AppRoutes() {
     { path: '*', element: <Lazy><NotFound /></Lazy> },
   ]);
 
-  // 登录态且菜单尚未加载时，等菜单（刷新场景）
-  if (hasToken() && menuTree.length === 0 && location.pathname !== '/login') {
+  // 登录态且菜单尚未加载完成时，等菜单（刷新场景；失败后 loaded=true 不再卡死）
+  if (hasToken() && menuTree.length === 0 && !menuLoaded && location.pathname !== '/login') {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
         <Spin size="large" />

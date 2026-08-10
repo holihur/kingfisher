@@ -45,6 +45,8 @@ import (
 	menuTransport "kingfisher/extends/menu/transport"
 	messageTransport "kingfisher/extends/message/transport"
 	rbacTransport "kingfisher/extends/rbac/transport"
+	systemApp "kingfisher/extends/system/app"
+	systemTransport "kingfisher/extends/system/transport"
 	taskTransport "kingfisher/extends/task/transport"
 	templateTransport "kingfisher/extends/template/transport"
 	userAdapter "kingfisher/extends/user/adapter/mysql"
@@ -166,6 +168,9 @@ func main() {
 		messageTransport.NewMessageModule(db, producer),
 		templateTransport.NewTemplateModule(db, redisCache),
 		taskTransport.NewTaskModule(db, producer),
+		systemTransport.NewSystemModule(db, rdb, systemApp.VersionInfo{
+			Version: version, Commit: commit, BuildTime: buildTime,
+		}),
 		auditMod,
 	}
 	r.Use(auditMod.Middleware()) // audit all write operations

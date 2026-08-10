@@ -1,4 +1,5 @@
 const ACCOUNTS_KEY = 'kingfisher_accounts';
+const PWD_REMEMBER_KEY = 'kingfisher_remember_pwd';
 
 export interface SavedAccount {
   username: string;
@@ -40,4 +41,18 @@ export function getAccountPassword(username: string): string {
 export function removeAccount(username: string): void {
   const accounts = loadAccounts().filter(a => a.username !== username);
   localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
+}
+
+// 记住密码勾选状态持久化：用户选择一次后持续生效，
+// 避免重新登录时状态重置导致已保存的密码被覆盖清空。
+export function loadRememberPwd(): boolean {
+  try {
+    return localStorage.getItem(PWD_REMEMBER_KEY) === '1';
+  } catch { return false; }
+}
+
+export function saveRememberPwd(v: boolean): void {
+  try {
+    localStorage.setItem(PWD_REMEMBER_KEY, v ? '1' : '0');
+  } catch { /* ignore */ }
 }

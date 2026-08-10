@@ -11,6 +11,29 @@ const request = axios.create({
 let isRefreshing = false;
 let pendingRequests: Array<(token: string) => void> = [];
 
+// 自动重试配置：后端临时不可达（网络错误/502/503/504）时按指数退避重试
+const MAX_RETRY = 2; // 初始请求 + 2 次重试
+const RETRY_DELAY = 800; // 首次退避间隔 ms，之后翻倍
+
+// 可安全重试的请求方法（幂等；写操作不重试，避免重复提交）
+// 注意：axios 内部将 method 统一转为小写，这里用小写匹配
+const RETRYABLE_METHODS = new Set(['get', 'head', 'put', 'delete']);
+
+// 标记已重试过，避免递归重试
+declare module 'axios' {
+  export interface InternalAxiosRequestConfig {
+    __retryCount?: number;
+  }
+}
+
+function shouldRetry(method?: string): boolean {
+  return method ? RETRYABLE_METHODS.has(method) : false;
+}
+
+function retryDelay(count: number): number {
+  return RETRY_DELAY * 2 ** (count - 1);
+}
+
 request.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   const token = getToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
@@ -35,8 +58,25 @@ request.interceptors.response.use(
     }
   },
   (error: AxiosError<{ message?: string }>) => {
+    // 可重试场景：网络错误（后端不可达）或 502/503/504，且方法幂等、未超过最大重试
+    const config = error.config as InternalAxiosRequestConfig | undefined;
+    const retryable =
+      config &&
+      shouldRetry(config.method) &&
+      ((!error.response) || (error.response.status >= 502 && error.response.status <= 504)) &&
+      (config.__retryCount ?? 0) < MAX_RETRY;
+
+    if (retryable) {
+      const count = (config.__retryCount ?? 0) + 1;
+      config.__retryCount = count;
+      const delay = retryDelay(count);
+      return new Promise((resolve) => {
+        setTimeout(() => resolve(request(config)), delay);
+      });
+    }
+
     if (!error.response) {
-      getMessage().error('网络异常');
+      getMessage().error('网络异常，请稍后重试');
       return Promise.reject(error);
     }
     // 优先使用后端返回的错误信息
@@ -48,8 +88,11 @@ request.interceptors.response.use(
       404: '资源不存在',
       429: '请求过于频繁',
       500: '服务器内部错误',
+      502: '网络异常，请稍后重试',
+      503: '网络异常，请稍后重试',
+      504: '网络异常，请稍后重试',
     };
-    getMessage().error(backendMsg || statusMsgs[error.response.status] || `服务器错误 (${error.response.status})`);
+    getMessage().error(backendMsg || statusMsgs[error.response.status] || `网络异常，请稍后重试`);
     return Promise.reject(error);
   }
 );

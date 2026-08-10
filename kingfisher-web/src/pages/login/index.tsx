@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Form, Input, Button, App, AutoComplete, Checkbox, Avatar } from 'antd';
 import { UserOutlined, LockOutlined, CloseOutlined } from '@ant-design/icons';
 import { useAuthStore } from '../../stores/auth';
-import { loadAccounts, saveAccount, getAccountPassword, removeAccount } from '../../utils/remember';
+import { loadAccounts, saveAccount, getAccountPassword, removeAccount, loadRememberPwd, saveRememberPwd } from '../../utils/remember';
 import type { SavedAccount } from '../../utils/remember';
 
 const LoginPage: React.FC = () => {
@@ -15,7 +15,7 @@ const LoginPage: React.FC = () => {
   const [siteDescription, setSiteDescription] = useState('');
   const [siteLoginCover, setSiteLoginCover] = useState('');
   const [rememberAccount, setRememberAccount] = useState(true);
-  const [rememberPwd, setRememberPwd] = useState(false);
+  const [rememberPwd, setRememberPwd] = useState(loadRememberPwd);
   const [accounts, setAccounts] = useState<SavedAccount[]>(() => loadAccounts());
   const [view, setView] = useState<'accounts' | 'form'>(() => (loadAccounts().length > 0 ? 'accounts' : 'form'));
   const login = useAuthStore((s) => s.login);
@@ -38,6 +38,7 @@ const LoginPage: React.FC = () => {
     try {
       await login(values.username, values.password);
       message.success('登录成功');
+      saveRememberPwd(rememberPwd);
       saveAccount(values.username, values.password, rememberAccount, rememberPwd);
       navigate(redirectTo || useAuthStore.getState().landingPage || '/dashboard');
     } catch {

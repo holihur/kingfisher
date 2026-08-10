@@ -18,6 +18,7 @@ import {
   MailOutlined,
   FileTextOutlined,
   ScheduleOutlined,
+  MonitorOutlined,
   BulbOutlined,
   BulbFilled,
 } from '@ant-design/icons';
@@ -40,6 +41,7 @@ const icons: Record<string, React.ReactNode> = {
   MailOutlined: <MailOutlined />,
   FileTextOutlined: <FileTextOutlined />,
   ScheduleOutlined: <ScheduleOutlined />,
+  MonitorOutlined: <MonitorOutlined />,
 };
 
 const MOBILE_BREAKPOINT = 768;
