@@ -4,7 +4,7 @@ import { Form, Input, Button, App, AutoComplete, Checkbox, Avatar } from 'antd';
 import { UserOutlined, LockOutlined, CloseOutlined } from '@ant-design/icons';
 import { useAuthStore } from '../../stores/auth';
 import { useThemeToken } from '../../hooks/useThemeToken';
-import { loadAccounts, saveAccount, getAccountPassword, removeAccount, loadRememberPwd, saveRememberPwd } from '../../utils/remember';
+import { loadAccounts, saveAccount, removeAccount, purgeStoredPasswords } from '../../utils/remember';
 import type { SavedAccount } from '../../utils/remember';
 
 const LoginPage: React.FC = () => {
@@ -18,7 +18,6 @@ const LoginPage: React.FC = () => {
   const [siteLoginCover, setSiteLoginCover] = useState('');
   const [passwordResetEnabled, setPasswordResetEnabled] = useState(true);
   const [rememberAccount, setRememberAccount] = useState(true);
-  const [rememberPwd, setRememberPwd] = useState(loadRememberPwd);
   const [accounts, setAccounts] = useState<SavedAccount[]>(() => loadAccounts());
   const [view, setView] = useState<'accounts' | 'form'>(() => (loadAccounts().length > 0 ? 'accounts' : 'form'));
   const login = useAuthStore((s) => s.login);
@@ -42,8 +41,9 @@ const LoginPage: React.FC = () => {
     try {
       await login(values.username, values.password);
       message.success('登录成功');
-      saveRememberPwd(rememberPwd);
-      saveAccount(values.username, values.password, rememberAccount, rememberPwd);
+      // 仅记住用户名，不保存密码（安全）；清理历史残留密码数据
+      if (rememberAccount) saveAccount(values.username);
+      purgeStoredPasswords();
       navigate(redirectTo || useAuthStore.getState().landingPage || '/dashboard');
     } catch {
     } finally {
@@ -53,8 +53,7 @@ const LoginPage: React.FC = () => {
 
   const selectAccount = (username: string) => {
     form.setFieldsValue({ username });
-    const pwd = getAccountPassword(username);
-    if (pwd) form.setFieldsValue({ password: pwd });
+    // 不自动填充密码（安全：不保存密码）
     setView('form');
   };
 
@@ -128,7 +127,7 @@ const LoginPage: React.FC = () => {
                       <Avatar size={36} style={{ background: token.colorPrimary }}>{a.username?.charAt(0)?.toUpperCase()}</Avatar>
                       <div>
                         <div style={{ fontWeight: 500, fontSize: 14 }}>{a.username}</div>
-                        <div style={{ fontSize: 11, color: token.colorTextTertiary }}>{a.password ? '已保存密码' : '点击后输入密码'}</div>
+                        <div style={{ fontSize: 11, color: token.colorTextTertiary }}>点击后输入密码</div>
                       </div>
                     </span>
                     <CloseOutlined style={{ color: token.colorTextDisabled, fontSize: 12 }} onClick={e => { e.stopPropagation(); delAccount(a.username); }} />
@@ -159,8 +158,7 @@ const LoginPage: React.FC = () => {
                   <Input.Password prefix={<LockOutlined />} placeholder="密码" />
                 </Form.Item>
                 <Form.Item style={{ marginBottom: 24 }}>
-                  <Checkbox checked={rememberAccount} onChange={e => { setRememberAccount(e.target.checked); if (!e.target.checked) setRememberPwd(false); }}>记住账户</Checkbox>
-                  <Checkbox checked={rememberPwd} disabled={!rememberAccount} onChange={e => setRememberPwd(e.target.checked)} style={{ marginLeft: 16 }}>记住密码</Checkbox>
+                  <Checkbox checked={rememberAccount} onChange={e => setRememberAccount(e.target.checked)}>记住账户</Checkbox>
                 </Form.Item>
                 <Form.Item style={{ marginBottom: 0 }}>
                   <Button type="primary" htmlType="submit" loading={loading} block>登录</Button>
