@@ -118,7 +118,7 @@ type BatchStatusReq struct {
 // @Success 200 {object} response.Response{data=domain.User} "注册成功"
 // @Failure 400 {object} response.Response "参数错误"
 // @Failure 10101 {object} response.Response "用户已存在"
-// @Router /api/v1/auth/register [post]
+// @Router /auth/register [post]
 func (h *AuthHandler) Register(c *gin.Context) {
 	var req RegisterReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -148,7 +148,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 // @Success 200 {object} response.Response{data=LoginResp} "登录成功"
 // @Failure 400 {object} response.Response "参数错误"
 // @Failure 10103 {object} response.Response "用户名或密码错误"
-// @Router /api/v1/auth/login [post]
+// @Router /auth/login [post]
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req LoginReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -173,7 +173,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 // @Security BearerAuth
 // @Success 200 {object} response.Response "退出成功"
 // @Failure 401 {object} response.Response "未认证"
-// @Router /api/v1/auth/logout [post]
+// @Router /auth/logout [post]
 func (h *AuthHandler) Logout(c *gin.Context) {
 	hdr := c.GetHeader("Authorization")
 	if hdr == "" || !strings.HasPrefix(hdr, "Bearer ") {
@@ -198,7 +198,7 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 // @Param body body RefreshReq true "刷新请求"
 // @Success 200 {object} response.Response{data=object{access_token=string}} "刷新成功"
 // @Failure 10105 {object} response.Response "Token 无效"
-// @Router /api/v1/auth/refresh [post]
+// @Router /auth/refresh [post]
 func (h *AuthHandler) Refresh(c *gin.Context) {
 	var req RefreshReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -226,7 +226,7 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 // @Success 200 {object} response.Response{data=domain.User} "创建成功"
 // @Failure 400 {object} response.Response "参数错误"
 // @Failure 10101 {object} response.Response "用户已存在"
-// @Router /api/v1/users [post]
+// @Router /users [post]
 func (h *UserHandler) Create(c *gin.Context) {
 	var req CreateUserReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -250,7 +250,7 @@ func (h *UserHandler) Create(c *gin.Context) {
 // @Param id path int true "用户ID"
 // @Success 200 {object} response.Response{data=domain.User} "用户信息"
 // @Failure 404 {object} response.Response "用户不存在"
-// @Router /api/v1/users/{id} [get]
+// @Router /users/{id} [get]
 func (h *UserHandler) GetByID(c *gin.Context) {
 	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
 	user, err := h.svc.GetByID(c.Request.Context(), uint(id))
@@ -268,7 +268,7 @@ func (h *UserHandler) GetByID(c *gin.Context) {
 // @Security BearerAuth
 // @Success 200 {object} response.Response{data=domain.User} "用户信息"
 // @Failure 404 {object} response.Response "用户不存在"
-// @Router /api/v1/users/me [get]
+// @Router /users/me [get]
 func (h *UserHandler) GetMe(c *gin.Context) {
 	userID := c.GetUint("user_id")
 	user, err := h.svc.GetByID(c.Request.Context(), userID)
@@ -289,7 +289,7 @@ func (h *UserHandler) GetMe(c *gin.Context) {
 // @Param body body UpdateMeReq true "资料更新请求"
 // @Success 200 {object} response.Response{data=domain.User} "更新后的用户信息"
 // @Failure 400 {object} response.Response "参数错误"
-// @Router /api/v1/users/me [put]
+// @Router /users/me [put]
 func (h *UserHandler) UpdateMe(c *gin.Context) {
 	userID := c.GetUint("user_id")
 	var req UpdateMeReq
@@ -315,7 +315,7 @@ func (h *UserHandler) UpdateMe(c *gin.Context) {
 // @Produce json
 // @Security BearerAuth
 // @Success 200 {object} response.Response{data=[]string} "权限代码列表"
-// @Router /api/v1/users/me/permissions [get]
+// @Router /users/me/permissions [get]
 func (h *UserHandler) GetMyPermissions(c *gin.Context) {
 	userID := c.GetUint("user_id")
 	if h.getUserPerms != nil {
@@ -343,7 +343,7 @@ func (h *UserHandler) GetMyPermissions(c *gin.Context) {
 // @Param page_size query int false "每页数量" default(20)
 // @Param sort query string false "排序" default(-created_at)
 // @Success 200 {object} response.Response{data=response.PageData} "登录日志列表"
-// @Router /api/v1/users/me/login-logs [get]
+// @Router /users/me/login-logs [get]
 func (h *UserHandler) GetMyLoginLogs(c *gin.Context) {
 	if h.auditSvc == nil {
 		response.OKJSON(c, []any{})
@@ -374,7 +374,7 @@ func (h *UserHandler) GetMyLoginLogs(c *gin.Context) {
 // @Param file formData file true "头像图片"
 // @Success 200 {object} response.Response{data=object{url=string}} "头像URL"
 // @Failure 400 {object} response.Response "文件类型或大小不符合要求"
-// @Router /api/v1/users/me/avatar [post]
+// @Router /users/me/avatar [post]
 func (h *UserHandler) UploadAvatar(c *gin.Context) {
 	userID := c.GetUint("user_id")
 	file, header, err := c.Request.FormFile("file")
@@ -452,7 +452,7 @@ func (h *UserHandler) UploadAvatar(c *gin.Context) {
 // @Success 200 {object} response.Response "修改成功"
 // @Failure 400 {object} response.Response "参数错误"
 // @Failure 10103 {object} response.Response "旧密码错误"
-// @Router /api/v1/users/me/password [put]
+// @Router /users/me/password [put]
 func (h *UserHandler) ChangePassword(c *gin.Context) {
 	userID := c.GetUint("user_id")
 	var req ChangePwdReq
@@ -478,7 +478,7 @@ func (h *UserHandler) ChangePassword(c *gin.Context) {
 // @Param q query string false "关键词（搜索 username/email）"
 // @Param sort query string false "排序" default(-created_at)
 // @Success 200 {object} response.Response{data=response.PageData} "用户列表"
-// @Router /api/v1/users [get]
+// @Router /users [get]
 func (h *UserHandler) List(c *gin.Context) {
 	pq, err := query.Parse(c, userQueryDefs)
 	if err != nil {
@@ -504,7 +504,7 @@ func (h *UserHandler) List(c *gin.Context) {
 // @Param body body UpdateUserReq true "更新请求"
 // @Success 200 {object} response.Response "更新成功"
 // @Failure 400 {object} response.Response "参数错误"
-// @Router /api/v1/users/{id} [put]
+// @Router /users/{id} [put]
 func (h *UserHandler) Update(c *gin.Context) {
 	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
 	if uint(id) == c.GetUint("user_id") {
@@ -546,7 +546,7 @@ func (h *UserHandler) Update(c *gin.Context) {
 // @Param id path int true "用户ID"
 // @Success 200 {object} response.Response "删除成功"
 // @Failure 400 {object} response.Response "参数错误"
-// @Router /api/v1/users/{id} [delete]
+// @Router /users/{id} [delete]
 func (h *UserHandler) Delete(c *gin.Context) {
 	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
 	if uint(id) == c.GetUint("user_id") {
@@ -570,7 +570,7 @@ func (h *UserHandler) Delete(c *gin.Context) {
 // @Param body body BatchUserOp true "批量删除请求"
 // @Success 200 {object} response.Response "删除成功"
 // @Failure 400 {object} response.Response "参数错误"
-// @Router /api/v1/users/batch-delete [post]
+// @Router /users/batch-delete [post]
 func (h *UserHandler) BatchDelete(c *gin.Context) {
 	var req BatchUserOp
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -594,7 +594,7 @@ func (h *UserHandler) BatchDelete(c *gin.Context) {
 // @Param body body BatchStatusReq true "批量更新请求"
 // @Success 200 {object} response.Response "更新成功"
 // @Failure 400 {object} response.Response "参数错误"
-// @Router /api/v1/users/batch-status [post]
+// @Router /users/batch-status [post]
 func (h *UserHandler) BatchUpdateStatus(c *gin.Context) {
 	var req BatchStatusReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -617,7 +617,7 @@ func (h *UserHandler) BatchUpdateStatus(c *gin.Context) {
 // @Param id path int true "用户ID"
 // @Success 200 {object} response.Response "操作成功"
 // @Failure 400 {object} response.Response "参数错误"
-// @Router /api/v1/users/{id}/sessions [delete]
+// @Router /users/{id}/sessions [delete]
 func (h *UserHandler) RevokeSessions(c *gin.Context) {
 	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err := h.svc.RevokeSessions(c.Request.Context(), uint(id)); err != nil {

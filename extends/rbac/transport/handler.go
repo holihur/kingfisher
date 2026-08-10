@@ -37,7 +37,7 @@ func NewPermHandler(svc *app.PermService) *PermHandler { return &PermHandler{svc
 // @Param page query int false "页码" default(1)
 // @Param page_size query int false "每页数量" default(20)
 // @Success 200 {object} response.Response{data=response.PageData} "角色列表"
-// @Router /api/v1/roles [get]
+// @Router /roles [get]
 // roleQueryDefs 角色列表可查询字段白名单
 var roleQueryDefs = query.Defs{
 	"name":        {Name: "name", Type: query.TypeString, Searchable: true, Filterable: true},
@@ -200,7 +200,7 @@ func (h *RoleHandler) AssignMenus(c *gin.Context) {
 // @Produce json
 // @Security BearerAuth
 // @Success 200 {object} response.Response "权限列表"
-// @Router /api/v1/permissions [get]
+// @Router /permissions [get]
 func (h *PermHandler) List(c *gin.Context) {
 	perms, err := h.svc.List(c.Request.Context())
 	if err != nil {

@@ -31,7 +31,7 @@ func appErrCode(err error) int {
 // @Param page query int false "页码" default(1)
 // @Param page_size query int false "每页数量" default(20)
 // @Success 200 {object} response.Response{data=response.PageData} "模版列表"
-// @Router /api/v1/templates [get]
+// @Router /templates [get]
 // templateQueryDefs 模版可查询字段白名单
 var templateQueryDefs = query.Defs{
 	"name":          {Name: "name", Type: query.TypeString, Searchable: true, Filterable: true},
@@ -59,7 +59,7 @@ func (h *TemplateHandler) List(c *gin.Context) {
 // GetByID 模版详情
 // @Summary 模版详情
 // @Tags Template
-// @Router /api/v1/templates/:id [get]
+// @Router /templates/:id [get]
 func (h *TemplateHandler) GetByID(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -93,7 +93,7 @@ type TemplateReq struct {
 // Create 创建模版
 // @Summary 创建模版
 // @Tags Template
-// @Router /api/v1/templates [post]
+// @Router /templates [post]
 func (h *TemplateHandler) Create(c *gin.Context) {
 	var req TemplateReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -116,7 +116,7 @@ func (h *TemplateHandler) Create(c *gin.Context) {
 // Update 更新模版
 // @Summary 更新模版
 // @Tags Template
-// @Router /api/v1/templates/:id [put]
+// @Router /templates/:id [put]
 func (h *TemplateHandler) Update(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -143,7 +143,7 @@ func (h *TemplateHandler) Update(c *gin.Context) {
 // Delete 删除模版
 // @Summary 删除模版
 // @Tags Template
-// @Router /api/v1/templates/:id [delete]
+// @Router /templates/:id [delete]
 func (h *TemplateHandler) Delete(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -165,7 +165,7 @@ type batchIDsReq struct {
 // BatchDelete 批量删除
 // @Summary 批量删除模版
 // @Tags Template
-// @Router /api/v1/templates/batch-delete [post]
+// @Router /templates/batch-delete [post]
 func (h *TemplateHandler) BatchDelete(c *gin.Context) {
 	var req batchIDsReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -188,7 +188,7 @@ type BatchStatusReq struct {
 // BatchUpdateStatus 批量启用/禁用
 // @Summary 批量启用/禁用模版
 // @Tags Template
-// @Router /api/v1/templates/batch-status [post]
+// @Router /templates/batch-status [post]
 func (h *TemplateHandler) BatchUpdateStatus(c *gin.Context) {
 	var req BatchStatusReq
 	if err := c.ShouldBindJSON(&req); err != nil {

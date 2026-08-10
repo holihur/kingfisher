@@ -15,7 +15,7 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/api/v1/auth/login": {
+        "/auth/login": {
             "post": {
                 "description": "使用用户名和密码登录，成功后返回 access/refresh token",
                 "consumes": [
@@ -73,7 +73,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/auth/logout": {
+        "/auth/logout": {
             "post": {
                 "security": [
                     {
@@ -104,7 +104,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/auth/refresh": {
+        "/auth/refresh": {
             "post": {
                 "description": "使用 refresh_token 换取新的 access_token",
                 "consumes": [
@@ -161,7 +161,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/auth/register": {
+        "/auth/register": {
             "post": {
                 "description": "使用用户名、密码、邮箱注册新账号；受注册开关控制",
                 "consumes": [
@@ -219,7 +219,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/config-groups": {
+        "/config-groups": {
             "get": {
                 "tags": [
                     "Config"
@@ -228,7 +228,7 @@ const docTemplate = `{
                 "responses": {}
             }
         },
-        "/api/v1/configs": {
+        "/configs": {
             "get": {
                 "security": [
                     {
@@ -252,7 +252,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/configs/upload-image": {
+        "/configs/upload-image": {
             "post": {
                 "security": [
                     {
@@ -311,7 +311,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/dict-types": {
+        "/dict-types": {
             "post": {
                 "security": [
                     {
@@ -361,7 +361,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/dict-types/:id": {
+        "/dict-types/:id": {
             "get": {
                 "security": [
                     {
@@ -504,7 +504,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/dict-types/:id/entries": {
+        "/dict-types/:id/entries": {
             "post": {
                 "security": [
                     {
@@ -555,7 +555,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/dict-types/:id/entries/:entryId": {
+        "/dict-types/:id/entries/:entryId": {
             "put": {
                 "security": [
                     {
@@ -657,7 +657,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/dict-types/:id/entries/batch-delete": {
+        "/dict-types/:id/entries/batch-delete": {
             "post": {
                 "tags": [
                     "Dict"
@@ -666,7 +666,7 @@ const docTemplate = `{
                 "responses": {}
             }
         },
-        "/api/v1/dict-types/:id/entries/batch-status": {
+        "/dict-types/:id/entries/batch-status": {
             "post": {
                 "tags": [
                     "Dict"
@@ -675,7 +675,7 @@ const docTemplate = `{
                 "responses": {}
             }
         },
-        "/api/v1/dict-types/batch-delete": {
+        "/dict-types/batch-delete": {
             "post": {
                 "tags": [
                     "Dict"
@@ -684,7 +684,7 @@ const docTemplate = `{
                 "responses": {}
             }
         },
-        "/api/v1/dict-types/batch-status": {
+        "/dict-types/batch-status": {
             "post": {
                 "tags": [
                     "Dict"
@@ -693,7 +693,7 @@ const docTemplate = `{
                 "responses": {}
             }
         },
-        "/api/v1/me/messages": {
+        "/me/messages": {
             "get": {
                 "tags": [
                     "Message"
@@ -702,7 +702,7 @@ const docTemplate = `{
                 "responses": {}
             }
         },
-        "/api/v1/me/messages/:id": {
+        "/me/messages/:id": {
             "get": {
                 "tags": [
                     "Message"
@@ -711,7 +711,7 @@ const docTemplate = `{
                 "responses": {}
             }
         },
-        "/api/v1/me/messages/:id/read": {
+        "/me/messages/:id/read": {
             "put": {
                 "tags": [
                     "Message"
@@ -720,7 +720,7 @@ const docTemplate = `{
                 "responses": {}
             }
         },
-        "/api/v1/me/messages/batch-delete": {
+        "/me/messages/batch-delete": {
             "post": {
                 "tags": [
                     "Message"
@@ -729,7 +729,7 @@ const docTemplate = `{
                 "responses": {}
             }
         },
-        "/api/v1/me/messages/unread-count": {
+        "/me/messages/unread-count": {
             "get": {
                 "tags": [
                     "Message"
@@ -738,7 +738,7 @@ const docTemplate = `{
                 "responses": {}
             }
         },
-        "/api/v1/menus": {
+        "/menus": {
             "post": {
                 "security": [
                     {
@@ -782,7 +782,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/menus/tree": {
+        "/menus/tree": {
             "get": {
                 "security": [
                     {
@@ -806,7 +806,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/messages": {
+        "/messages": {
             "post": {
                 "tags": [
                     "Message"
@@ -815,7 +815,7 @@ const docTemplate = `{
                 "responses": {}
             }
         },
-        "/api/v1/permissions": {
+        "/permissions": {
             "get": {
                 "security": [
                     {
@@ -839,7 +839,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/public/configs": {
+        "/public/configs": {
             "get": {
                 "produces": [
                     "application/json"
@@ -858,7 +858,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/public/configs/:key": {
+        "/public/configs/:key": {
             "get": {
                 "produces": [
                     "application/json"
@@ -892,7 +892,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/public/dicts/:code/entries": {
+        "/public/dicts/:code/entries": {
             "get": {
                 "produces": [
                     "application/json"
@@ -932,7 +932,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/scheduled-tasks": {
+        "/scheduled-tasks": {
             "get": {
                 "tags": [
                     "ScheduledTask"
@@ -948,7 +948,7 @@ const docTemplate = `{
                 "responses": {}
             }
         },
-        "/api/v1/scheduled-tasks/:id": {
+        "/scheduled-tasks/:id": {
             "get": {
                 "tags": [
                     "ScheduledTask"
@@ -971,7 +971,7 @@ const docTemplate = `{
                 "responses": {}
             }
         },
-        "/api/v1/scheduled-tasks/:id/run": {
+        "/scheduled-tasks/:id/run": {
             "post": {
                 "tags": [
                     "ScheduledTask"
@@ -980,7 +980,7 @@ const docTemplate = `{
                 "responses": {}
             }
         },
-        "/api/v1/scheduled-tasks/batch-delete": {
+        "/scheduled-tasks/batch-delete": {
             "post": {
                 "tags": [
                     "ScheduledTask"
@@ -989,7 +989,7 @@ const docTemplate = `{
                 "responses": {}
             }
         },
-        "/api/v1/scheduled-tasks/batch-status": {
+        "/scheduled-tasks/batch-status": {
             "post": {
                 "tags": [
                     "ScheduledTask"
@@ -998,7 +998,7 @@ const docTemplate = `{
                 "responses": {}
             }
         },
-        "/api/v1/scheduled-tasks/types": {
+        "/scheduled-tasks/types": {
             "get": {
                 "tags": [
                     "ScheduledTask"
@@ -1007,7 +1007,7 @@ const docTemplate = `{
                 "responses": {}
             }
         },
-        "/api/v1/system/info": {
+        "/system/info": {
             "get": {
                 "tags": [
                     "System"
@@ -1016,7 +1016,7 @@ const docTemplate = `{
                 "responses": {}
             }
         },
-        "/api/v1/templates": {
+        "/templates": {
             "post": {
                 "tags": [
                     "Template"
@@ -1025,7 +1025,7 @@ const docTemplate = `{
                 "responses": {}
             }
         },
-        "/api/v1/templates/:id": {
+        "/templates/:id": {
             "get": {
                 "tags": [
                     "Template"
@@ -1048,7 +1048,7 @@ const docTemplate = `{
                 "responses": {}
             }
         },
-        "/api/v1/templates/batch-delete": {
+        "/templates/batch-delete": {
             "post": {
                 "tags": [
                     "Template"
@@ -1057,7 +1057,7 @@ const docTemplate = `{
                 "responses": {}
             }
         },
-        "/api/v1/templates/batch-status": {
+        "/templates/batch-status": {
             "post": {
                 "tags": [
                     "Template"
@@ -1066,7 +1066,7 @@ const docTemplate = `{
                 "responses": {}
             }
         },
-        "/api/v1/users": {
+        "/users": {
             "get": {
                 "security": [
                     {
@@ -1193,7 +1193,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/users/batch-delete": {
+        "/users/batch-delete": {
             "post": {
                 "security": [
                     {
@@ -1238,7 +1238,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/users/batch-status": {
+        "/users/batch-status": {
             "post": {
                 "security": [
                     {
@@ -1283,7 +1283,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/users/me": {
+        "/users/me": {
             "get": {
                 "security": [
                     {
@@ -1380,7 +1380,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/users/me/avatar": {
+        "/users/me/avatar": {
             "post": {
                 "security": [
                     {
@@ -1440,7 +1440,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/users/me/login-logs": {
+        "/users/me/login-logs": {
             "get": {
                 "security": [
                     {
@@ -1500,7 +1500,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/users/me/password": {
+        "/users/me/password": {
             "put": {
                 "security": [
                     {
@@ -1551,7 +1551,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/users/me/permissions": {
+        "/users/me/permissions": {
             "get": {
                 "security": [
                     {
@@ -1590,7 +1590,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/users/{id}": {
+        "/users/{id}": {
             "get": {
                 "security": [
                     {
@@ -1730,7 +1730,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/users/{id}/sessions": {
+        "/users/{id}/sessions": {
             "delete": {
                 "security": [
                     {

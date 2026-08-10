@@ -34,7 +34,7 @@ func NewDictTypeHandler(svc *app.DictTypeService) *DictTypeHandler { return &Dic
 // @Param page query int false "页码" default(1)
 // @Param page_size query int false "每页数量" default(20)
 // @Success 200 {object} response.Response{data=response.PageData} "字典类型列表"
-// @Router /api/v1/dict-types [get]
+// @Router /dict-types [get]
 // dictTypeQueryDefs 字典类型可查询字段白名单
 var dictTypeQueryDefs = query.Defs{
 	"code":       {Name: "code", Type: query.TypeString, Searchable: true, Filterable: true},
@@ -67,7 +67,7 @@ func (h *DictTypeHandler) List(c *gin.Context) {
 // @Success 200 {object} response.Response{object} "字典类型详情"
 // @Failure 400 {object} response.Response "参数错误"
 // @Failure 10501 {object} response.Response "字典类型不存在"
-// @Router /api/v1/dict-types/:id [get]
+// @Router /dict-types/:id [get]
 func (h *DictTypeHandler) GetByID(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -101,7 +101,7 @@ type DictTypeReq struct {
 // @Success 200 {object} response.Response{object} "创建成功"
 // @Failure 400 {object} response.Response "参数错误"
 // @Failure 10502 {object} response.Response "编码已存在"
-// @Router /api/v1/dict-types [post]
+// @Router /dict-types [post]
 func (h *DictTypeHandler) Create(c *gin.Context) {
 	var req DictTypeReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -138,7 +138,7 @@ func (h *DictTypeHandler) Create(c *gin.Context) {
 // @Success 200 {object} response.Response "更新成功"
 // @Failure 400 {object} response.Response "参数错误"
 // @Failure 10502 {object} response.Response "编码已存在"
-// @Router /api/v1/dict-types/:id [put]
+// @Router /dict-types/:id [put]
 func (h *DictTypeHandler) Update(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -177,7 +177,7 @@ func (h *DictTypeHandler) Update(c *gin.Context) {
 // @Success 200 {object} response.Response "删除成功"
 // @Failure 400 {object} response.Response "参数错误"
 // @Failure 10504 {object} response.Response "存在条目不可删除"
-// @Router /api/v1/dict-types/:id [delete]
+// @Router /dict-types/:id [delete]
 func (h *DictTypeHandler) Delete(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -208,7 +208,7 @@ type batchStatusReq struct {
 
 // @Summary 批量删除字典类型
 // @Tags Dict
-// @Router /api/v1/dict-types/batch-delete [post]
+// @Router /dict-types/batch-delete [post]
 func (h *DictTypeHandler) BatchDelete(c *gin.Context) {
 	var req batchIDsReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -228,7 +228,7 @@ func (h *DictTypeHandler) BatchDelete(c *gin.Context) {
 
 // @Summary 批量启用/禁用字典类型
 // @Tags Dict
-// @Router /api/v1/dict-types/batch-status [post]
+// @Router /dict-types/batch-status [post]
 func (h *DictTypeHandler) BatchUpdateStatus(c *gin.Context) {
 	var req batchStatusReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -258,7 +258,7 @@ func NewDictEntryHandler(svc *app.DictEntryService) *DictEntryHandler {
 // @Param page query int false "页码" default(1)
 // @Param page_size query int false "每页数量" default(20)
 // @Success 200 {object} response.Response{data=response.PageData} "条目列表"
-// @Router /api/v1/dict-types/:id/entries [get]
+// @Router /dict-types/:id/entries [get]
 // dictEntryQueryDefs 字典条目可查询字段白名单（type_id 由路径参数固定）
 var dictEntryQueryDefs = query.Defs{
 	"label":      {Name: "label", Type: query.TypeString, Searchable: true, Filterable: true},
@@ -295,7 +295,7 @@ func (h *DictEntryHandler) ListByTypeID(c *gin.Context) {
 // @Success 200 {object} response.Response{object} "条目列表"
 // @Failure 10501 {object} response.Response "类型不存在"
 // @Failure 10505 {object} response.Response "类型未公开"
-// @Router /api/v1/public/dicts/:code/entries [get]
+// @Router /public/dicts/:code/entries [get]
 func (h *DictEntryHandler) GetPublicEntries(c *gin.Context) {
 	code := c.Param("code")
 	entries, err := h.svc.ListPublicByCode(c.Request.Context(), code)
@@ -329,7 +329,7 @@ type DictEntryReq struct {
 // @Param body body DictEntryReq true "创建请求"
 // @Success 200 {object} response.Response{object} "创建成功"
 // @Failure 400 {object} response.Response "参数错误"
-// @Router /api/v1/dict-types/:id/entries [post]
+// @Router /dict-types/:id/entries [post]
 func (h *DictEntryHandler) Create(c *gin.Context) {
 	typeID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -363,7 +363,7 @@ func (h *DictEntryHandler) Create(c *gin.Context) {
 // @Param body body DictEntryReq true "更新请求"
 // @Success 200 {object} response.Response "更新成功"
 // @Failure 400 {object} response.Response "参数错误"
-// @Router /api/v1/dict-types/:id/entries/:entryId [put]
+// @Router /dict-types/:id/entries/:entryId [put]
 func (h *DictEntryHandler) Update(c *gin.Context) {
 	typeID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -399,7 +399,7 @@ func (h *DictEntryHandler) Update(c *gin.Context) {
 // @Param entryId path int true "条目ID"
 // @Success 200 {object} response.Response "删除成功"
 // @Failure 400 {object} response.Response "参数错误"
-// @Router /api/v1/dict-types/:id/entries/:entryId [delete]
+// @Router /dict-types/:id/entries/:entryId [delete]
 func (h *DictEntryHandler) Delete(c *gin.Context) {
 	entryID, err := strconv.ParseUint(c.Param("entryId"), 10, 64)
 	if err != nil {
@@ -415,7 +415,7 @@ func (h *DictEntryHandler) Delete(c *gin.Context) {
 
 // @Summary 批量删除字典条目
 // @Tags Dict
-// @Router /api/v1/dict-types/:id/entries/batch-delete [post]
+// @Router /dict-types/:id/entries/batch-delete [post]
 func (h *DictEntryHandler) BatchDelete(c *gin.Context) {
 	typeID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -437,7 +437,7 @@ func (h *DictEntryHandler) BatchDelete(c *gin.Context) {
 
 // @Summary 批量启用/禁用字典条目
 // @Tags Dict
-// @Router /api/v1/dict-types/:id/entries/batch-status [post]
+// @Router /dict-types/:id/entries/batch-status [post]
 func (h *DictEntryHandler) BatchUpdateStatus(c *gin.Context) {
 	typeID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {

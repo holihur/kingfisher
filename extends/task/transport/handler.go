@@ -26,7 +26,7 @@ func NewScheduledTaskHandler(svc *app.ScheduledTaskService, producer taskqueue.P
 // TaskTypes 可用任务类型列表（各模块 worker 声明），供前端下拉动态加载。
 // @Summary 可用任务类型
 // @Tags ScheduledTask
-// @Router /api/v1/scheduled-tasks/types [get]
+// @Router /scheduled-tasks/types [get]
 func (h *ScheduledTaskHandler) TaskTypes(c *gin.Context) {
 	if h.taskTypesFn == nil {
 		response.OKJSON(c, []taskqueue.TaskTypeInfo{})
@@ -56,7 +56,7 @@ var scheduledTaskQueryDefs = query.Defs{
 // List 周期任务列表
 // @Summary 周期任务列表
 // @Tags ScheduledTask
-// @Router /api/v1/scheduled-tasks [get]
+// @Router /scheduled-tasks [get]
 func (h *ScheduledTaskHandler) List(c *gin.Context) {
 	pq, err := query.Parse(c, scheduledTaskQueryDefs)
 	if err != nil {
@@ -74,7 +74,7 @@ func (h *ScheduledTaskHandler) List(c *gin.Context) {
 // GetByID 周期任务详情
 // @Summary 周期任务详情
 // @Tags ScheduledTask
-// @Router /api/v1/scheduled-tasks/:id [get]
+// @Router /scheduled-tasks/:id [get]
 func (h *ScheduledTaskHandler) GetByID(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -114,7 +114,7 @@ func validateCronSpec(spec string) bool {
 // Create 创建周期任务
 // @Summary 创建周期任务
 // @Tags ScheduledTask
-// @Router /api/v1/scheduled-tasks [post]
+// @Router /scheduled-tasks [post]
 func (h *ScheduledTaskHandler) Create(c *gin.Context) {
 	var req ScheduledTaskReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -137,7 +137,7 @@ func (h *ScheduledTaskHandler) Create(c *gin.Context) {
 // Update 更新周期任务
 // @Summary 更新周期任务
 // @Tags ScheduledTask
-// @Router /api/v1/scheduled-tasks/:id [put]
+// @Router /scheduled-tasks/:id [put]
 func (h *ScheduledTaskHandler) Update(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -168,7 +168,7 @@ func (h *ScheduledTaskHandler) Update(c *gin.Context) {
 // Delete 删除周期任务
 // @Summary 删除周期任务
 // @Tags ScheduledTask
-// @Router /api/v1/scheduled-tasks/:id [delete]
+// @Router /scheduled-tasks/:id [delete]
 func (h *ScheduledTaskHandler) Delete(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -190,7 +190,7 @@ type batchIDsReq struct {
 // BatchDelete 批量删除
 // @Summary 批量删除周期任务
 // @Tags ScheduledTask
-// @Router /api/v1/scheduled-tasks/batch-delete [post]
+// @Router /scheduled-tasks/batch-delete [post]
 func (h *ScheduledTaskHandler) BatchDelete(c *gin.Context) {
 	var req batchIDsReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -213,7 +213,7 @@ type BatchStatusReq struct {
 // BatchUpdateStatus 批量启用/禁用
 // @Summary 批量启用/禁用周期任务
 // @Tags ScheduledTask
-// @Router /api/v1/scheduled-tasks/batch-status [post]
+// @Router /scheduled-tasks/batch-status [post]
 func (h *ScheduledTaskHandler) BatchUpdateStatus(c *gin.Context) {
 	var req BatchStatusReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -230,7 +230,7 @@ func (h *ScheduledTaskHandler) BatchUpdateStatus(c *gin.Context) {
 // Run 手动执行周期任务：立即入队一次（不受 cron 调度影响），由对应 worker 消费。
 // @Summary 手动执行周期任务
 // @Tags ScheduledTask
-// @Router /api/v1/scheduled-tasks/:id/run [post]
+// @Router /scheduled-tasks/:id/run [post]
 func (h *ScheduledTaskHandler) Run(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {

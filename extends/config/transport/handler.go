@@ -40,7 +40,7 @@ var configQueryDefs = query.Defs{
 // @Produce json
 // @Security BearerAuth
 // @Success 200 {object} response.Response{object} "配置列表"
-// @Router /api/v1/configs [get]
+// @Router /configs [get]
 func (h *ConfigHandler) GetAll(c *gin.Context) {
 	pq, err := query.Parse(c, configQueryDefs)
 	if err != nil {
@@ -60,7 +60,7 @@ func (h *ConfigHandler) GetAll(c *gin.Context) {
 // @Tags Config
 // @Produce json
 // @Success 200 {object} response.Response{object} "公开配置列表"
-// @Router /api/v1/public/configs [get]
+// @Router /public/configs [get]
 func (h *ConfigHandler) GetPublicAll(c *gin.Context) {
 	configs, err := h.svc.GetAllPublic(c.Request.Context())
 	if err != nil {
@@ -77,7 +77,7 @@ func (h *ConfigHandler) GetPublicAll(c *gin.Context) {
 // @Param key path string true "配置键"
 // @Success 200 {object} response.Response{object} "配置详情"
 // @Failure 10401 {object} response.Response "不存在"
-// @Router /api/v1/public/configs/:key [get]
+// @Router /public/configs/:key [get]
 func (h *ConfigHandler) GetPublic(c *gin.Context) {
 	v, err := h.svc.GetPublic(c.Request.Context(), c.Param("key"))
 	if err != nil {
@@ -170,7 +170,7 @@ func (h *ConfigHandler) BatchDelete(c *gin.Context) {
 // @Param file formData file true "图片文件（png/jpg/jpeg/gif/webp，≤2MB）"
 // @Success 200 {object} response.Response{data=object{url=string}} "上传成功"
 // @Failure 400 {object} response.Response "参数错误"
-// @Router /api/v1/configs/upload-image [post]
+// @Router /configs/upload-image [post]
 func (h *ConfigHandler) UploadImage(c *gin.Context) {
 	file, header, err := c.Request.FormFile("file")
 	if err != nil {
@@ -237,7 +237,7 @@ func NewConfigGroupHandler(svc *app.ConfigGroupService) *ConfigGroupHandler {
 
 // @Summary 配置分组列表
 // @Tags Config
-// @Router /api/v1/config-groups [get]
+// @Router /config-groups [get]
 func (h * // @Produce json
 // @Security BearerAuth
 // @Success 200 {object} response.Response{data=[]domain.ConfigGroup} "分组列表"

@@ -27,7 +27,7 @@ type batchStatusReq struct {
 // @Produce json
 // @Security BearerAuth
 // @Success 200 {object} response.Response "完整菜单树"
-// @Router /api/v1/menus/tree [get]
+// @Router /menus/tree [get]
 func (h *MenuHandler) GetTree(c *gin.Context) {
 	tree, err := h.svc.GetTree(c.Request.Context())
 	if err != nil {
@@ -70,7 +70,7 @@ func (h *MenuHandler) GetByID(c *gin.Context) {
 // @Param body body object true "创建请求"
 // @Success 200 {object} response.Response "创建成功"
 // @Failure 400 {object} response.Response "参数错误"
-// @Router /api/v1/menus [post]
+// @Router /menus [post]
 func (h *MenuHandler) Create(c *gin.Context) {
 	var m domain.Menu
 	if err := c.ShouldBindJSON(&m); err != nil {

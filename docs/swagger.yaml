@@ -228,7 +228,7 @@ info:
   title: Kingfisher Admin API
   version: "1.0"
 paths:
-  /api/v1/auth/login:
+  /auth/login:
     post:
       consumes:
       - application/json
@@ -263,7 +263,7 @@ paths:
       summary: 用户登录
       tags:
       - Auth
-  /api/v1/auth/logout:
+  /auth/logout:
     post:
       description: 撤销当前 Bearer token
       produces:
@@ -282,7 +282,7 @@ paths:
       summary: 退出登录
       tags:
       - Auth
-  /api/v1/auth/refresh:
+  /auth/refresh:
     post:
       consumes:
       - application/json
@@ -316,7 +316,7 @@ paths:
       summary: 刷新Token
       tags:
       - Auth
-  /api/v1/auth/register:
+  /auth/register:
     post:
       consumes:
       - application/json
@@ -351,13 +351,13 @@ paths:
       summary: 用户注册
       tags:
       - Auth
-  /api/v1/config-groups:
+  /config-groups:
     get:
       responses: {}
       summary: 配置分组列表
       tags:
       - Config
-  /api/v1/configs:
+  /configs:
     get:
       produces:
       - application/json
@@ -371,7 +371,7 @@ paths:
       summary: 配置列表
       tags:
       - Config
-  /api/v1/configs/upload-image:
+  /configs/upload-image:
     post:
       consumes:
       - multipart/form-data
@@ -405,7 +405,7 @@ paths:
       summary: 上传配置图片
       tags:
       - Config
-  /api/v1/dict-types:
+  /dict-types:
     post:
       consumes:
       - application/json
@@ -436,7 +436,7 @@ paths:
       summary: 创建字典类型
       tags:
       - Dict
-  /api/v1/dict-types/:id:
+  /dict-types/:id:
     delete:
       parameters:
       - description: 类型ID
@@ -526,7 +526,7 @@ paths:
       summary: 更新字典类型
       tags:
       - Dict
-  /api/v1/dict-types/:id/entries:
+  /dict-types/:id/entries:
     post:
       consumes:
       - application/json
@@ -558,7 +558,7 @@ paths:
       summary: 创建字典条目
       tags:
       - Dict
-  /api/v1/dict-types/:id/entries/:entryId:
+  /dict-types/:id/entries/:entryId:
     delete:
       parameters:
       - description: 类型ID
@@ -623,61 +623,61 @@ paths:
       summary: 更新字典条目
       tags:
       - Dict
-  /api/v1/dict-types/:id/entries/batch-delete:
+  /dict-types/:id/entries/batch-delete:
     post:
       responses: {}
       summary: 批量删除字典条目
       tags:
       - Dict
-  /api/v1/dict-types/:id/entries/batch-status:
+  /dict-types/:id/entries/batch-status:
     post:
       responses: {}
       summary: 批量启用/禁用字典条目
       tags:
       - Dict
-  /api/v1/dict-types/batch-delete:
+  /dict-types/batch-delete:
     post:
       responses: {}
       summary: 批量删除字典类型
       tags:
       - Dict
-  /api/v1/dict-types/batch-status:
+  /dict-types/batch-status:
     post:
       responses: {}
       summary: 批量启用/禁用字典类型
       tags:
       - Dict
-  /api/v1/me/messages:
+  /me/messages:
     get:
       responses: {}
       summary: 我的收件箱
       tags:
       - Message
-  /api/v1/me/messages/:id:
+  /me/messages/:id:
     get:
       responses: {}
       summary: 消息详情
       tags:
       - Message
-  /api/v1/me/messages/:id/read:
+  /me/messages/:id/read:
     put:
       responses: {}
       summary: 标记已读
       tags:
       - Message
-  /api/v1/me/messages/batch-delete:
+  /me/messages/batch-delete:
     post:
       responses: {}
       summary: 批量删除消息
       tags:
       - Message
-  /api/v1/me/messages/unread-count:
+  /me/messages/unread-count:
     get:
       responses: {}
       summary: 未读消息数
       tags:
       - Message
-  /api/v1/menus:
+  /menus:
     post:
       consumes:
       - application/json
@@ -704,7 +704,7 @@ paths:
       summary: 创建菜单
       tags:
       - Menu
-  /api/v1/menus/tree:
+  /menus/tree:
     get:
       produces:
       - application/json
@@ -718,13 +718,13 @@ paths:
       summary: 菜单树（导航结构，权限校验在业务接口层）
       tags:
       - Menu
-  /api/v1/messages:
+  /messages:
     post:
       responses: {}
       summary: 发送站内信
       tags:
       - Message
-  /api/v1/permissions:
+  /permissions:
     get:
       produces:
       - application/json
@@ -738,7 +738,7 @@ paths:
       summary: 权限列表
       tags:
       - Role
-  /api/v1/public/configs:
+  /public/configs:
     get:
       produces:
       - application/json
@@ -750,7 +750,7 @@ paths:
       summary: 公开配置列表
       tags:
       - Config
-  /api/v1/public/configs/:key:
+  /public/configs/:key:
     get:
       parameters:
       - description: 配置键
@@ -772,7 +772,7 @@ paths:
       summary: 公开配置单条
       tags:
       - Config
-  /api/v1/public/dicts/:code/entries:
+  /public/dicts/:code/entries:
     get:
       parameters:
       - description: 类型编码
@@ -798,7 +798,7 @@ paths:
       summary: 公开字典条目（无需登录）
       tags:
       - Dict
-  /api/v1/scheduled-tasks:
+  /scheduled-tasks:
     get:
       responses: {}
       summary: 周期任务列表
@@ -809,7 +809,7 @@ paths:
       summary: 创建周期任务
       tags:
       - ScheduledTask
-  /api/v1/scheduled-tasks/:id:
+  /scheduled-tasks/:id:
     delete:
       responses: {}
       summary: 删除周期任务
@@ -825,43 +825,43 @@ paths:
       summary: 更新周期任务
       tags:
       - ScheduledTask
-  /api/v1/scheduled-tasks/:id/run:
+  /scheduled-tasks/:id/run:
     post:
       responses: {}
       summary: 手动执行周期任务
       tags:
       - ScheduledTask
-  /api/v1/scheduled-tasks/batch-delete:
+  /scheduled-tasks/batch-delete:
     post:
       responses: {}
       summary: 批量删除周期任务
       tags:
       - ScheduledTask
-  /api/v1/scheduled-tasks/batch-status:
+  /scheduled-tasks/batch-status:
     post:
       responses: {}
       summary: 批量启用/禁用周期任务
       tags:
       - ScheduledTask
-  /api/v1/scheduled-tasks/types:
+  /scheduled-tasks/types:
     get:
       responses: {}
       summary: 可用任务类型
       tags:
       - ScheduledTask
-  /api/v1/system/info:
+  /system/info:
     get:
       responses: {}
       summary: 系统信息
       tags:
       - System
-  /api/v1/templates:
+  /templates:
     post:
       responses: {}
       summary: 创建模版
       tags:
       - Template
-  /api/v1/templates/:id:
+  /templates/:id:
     delete:
       responses: {}
       summary: 删除模版
@@ -877,19 +877,19 @@ paths:
       summary: 更新模版
       tags:
       - Template
-  /api/v1/templates/batch-delete:
+  /templates/batch-delete:
     post:
       responses: {}
       summary: 批量删除模版
       tags:
       - Template
-  /api/v1/templates/batch-status:
+  /templates/batch-status:
     post:
       responses: {}
       summary: 批量启用/禁用模版
       tags:
       - Template
-  /api/v1/users:
+  /users:
     get:
       description: 查询用户列表，支持关键词搜索和字段过滤
       parameters:
@@ -965,7 +965,7 @@ paths:
       summary: 创建用户
       tags:
       - User
-  /api/v1/users/{id}:
+  /users/{id}:
     delete:
       description: 软删除指定用户（不可删除自己）
       parameters:
@@ -1051,7 +1051,7 @@ paths:
       summary: 更新用户
       tags:
       - User
-  /api/v1/users/{id}/sessions:
+  /users/{id}/sessions:
     delete:
       description: 使指定用户的全部 session 失效
       parameters:
@@ -1076,7 +1076,7 @@ paths:
       summary: 踢下线
       tags:
       - User
-  /api/v1/users/batch-delete:
+  /users/batch-delete:
     post:
       consumes:
       - application/json
@@ -1104,7 +1104,7 @@ paths:
       summary: 批量删除用户
       tags:
       - User
-  /api/v1/users/batch-status:
+  /users/batch-status:
     post:
       consumes:
       - application/json
@@ -1132,7 +1132,7 @@ paths:
       summary: 批量更新用户状态
       tags:
       - User
-  /api/v1/users/me:
+  /users/me:
     get:
       produces:
       - application/json
@@ -1187,7 +1187,7 @@ paths:
       summary: 更新个人资料
       tags:
       - User
-  /api/v1/users/me/avatar:
+  /users/me/avatar:
     post:
       consumes:
       - multipart/form-data
@@ -1222,7 +1222,7 @@ paths:
       summary: 上传头像
       tags:
       - User
-  /api/v1/users/me/login-logs:
+  /users/me/login-logs:
     get:
       description: 查询当前用户的历史登录记录（分页）
       parameters:
@@ -1258,7 +1258,7 @@ paths:
       summary: 我的登录日志
       tags:
       - User
-  /api/v1/users/me/password:
+  /users/me/password:
     put:
       consumes:
       - application/json
@@ -1290,7 +1290,7 @@ paths:
       summary: 修改密码
       tags:
       - User
-  /api/v1/users/me/permissions:
+  /users/me/permissions:
     get:
       produces:
       - application/json

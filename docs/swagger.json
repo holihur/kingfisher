@@ -9,7 +9,7 @@
     "host": "localhost:8080",
     "basePath": "/api/v1",
     "paths": {
-        "/api/v1/auth/login": {
+        "/auth/login": {
             "post": {
                 "description": "使用用户名和密码登录，成功后返回 access/refresh token",
                 "consumes": [
@@ -67,7 +67,7 @@
                 }
             }
         },
-        "/api/v1/auth/logout": {
+        "/auth/logout": {
             "post": {
                 "security": [
                     {
@@ -98,7 +98,7 @@
                 }
             }
         },
-        "/api/v1/auth/refresh": {
+        "/auth/refresh": {
             "post": {
                 "description": "使用 refresh_token 换取新的 access_token",
                 "consumes": [
@@ -155,7 +155,7 @@
                 }
             }
         },
-        "/api/v1/auth/register": {
+        "/auth/register": {
             "post": {
                 "description": "使用用户名、密码、邮箱注册新账号；受注册开关控制",
                 "consumes": [
@@ -213,7 +213,7 @@
                 }
             }
         },
-        "/api/v1/config-groups": {
+        "/config-groups": {
             "get": {
                 "tags": [
                     "Config"
@@ -222,7 +222,7 @@
                 "responses": {}
             }
         },
-        "/api/v1/configs": {
+        "/configs": {
             "get": {
                 "security": [
                     {
@@ -246,7 +246,7 @@
                 }
             }
         },
-        "/api/v1/configs/upload-image": {
+        "/configs/upload-image": {
             "post": {
                 "security": [
                     {
@@ -305,7 +305,7 @@
                 }
             }
         },
-        "/api/v1/dict-types": {
+        "/dict-types": {
             "post": {
                 "security": [
                     {
@@ -355,7 +355,7 @@
                 }
             }
         },
-        "/api/v1/dict-types/:id": {
+        "/dict-types/:id": {
             "get": {
                 "security": [
                     {
@@ -498,7 +498,7 @@
                 }
             }
         },
-        "/api/v1/dict-types/:id/entries": {
+        "/dict-types/:id/entries": {
             "post": {
                 "security": [
                     {
@@ -549,7 +549,7 @@
                 }
             }
         },
-        "/api/v1/dict-types/:id/entries/:entryId": {
+        "/dict-types/:id/entries/:entryId": {
             "put": {
                 "security": [
                     {
@@ -651,7 +651,7 @@
                 }
             }
         },
-        "/api/v1/dict-types/:id/entries/batch-delete": {
+        "/dict-types/:id/entries/batch-delete": {
             "post": {
                 "tags": [
                     "Dict"
@@ -660,7 +660,7 @@
                 "responses": {}
             }
         },
-        "/api/v1/dict-types/:id/entries/batch-status": {
+        "/dict-types/:id/entries/batch-status": {
             "post": {
                 "tags": [
                     "Dict"
@@ -669,7 +669,7 @@
                 "responses": {}
             }
         },
-        "/api/v1/dict-types/batch-delete": {
+        "/dict-types/batch-delete": {
             "post": {
                 "tags": [
                     "Dict"
@@ -678,7 +678,7 @@
                 "responses": {}
             }
         },
-        "/api/v1/dict-types/batch-status": {
+        "/dict-types/batch-status": {
             "post": {
                 "tags": [
                     "Dict"
@@ -687,7 +687,7 @@
                 "responses": {}
             }
         },
-        "/api/v1/me/messages": {
+        "/me/messages": {
             "get": {
                 "tags": [
                     "Message"
@@ -696,7 +696,7 @@
                 "responses": {}
             }
         },
-        "/api/v1/me/messages/:id": {
+        "/me/messages/:id": {
             "get": {
                 "tags": [
                     "Message"
@@ -705,7 +705,7 @@
                 "responses": {}
             }
         },
-        "/api/v1/me/messages/:id/read": {
+        "/me/messages/:id/read": {
             "put": {
                 "tags": [
                     "Message"
@@ -714,7 +714,7 @@
                 "responses": {}
             }
         },
-        "/api/v1/me/messages/batch-delete": {
+        "/me/messages/batch-delete": {
             "post": {
                 "tags": [
                     "Message"
@@ -723,7 +723,7 @@
                 "responses": {}
             }
         },
-        "/api/v1/me/messages/unread-count": {
+        "/me/messages/unread-count": {
             "get": {
                 "tags": [
                     "Message"
@@ -732,7 +732,7 @@
                 "responses": {}
             }
         },
-        "/api/v1/menus": {
+        "/menus": {
             "post": {
                 "security": [
                     {
@@ -776,7 +776,7 @@
                 }
             }
         },
-        "/api/v1/menus/tree": {
+        "/menus/tree": {
             "get": {
                 "security": [
                     {
@@ -800,7 +800,7 @@
                 }
             }
         },
-        "/api/v1/messages": {
+        "/messages": {
             "post": {
                 "tags": [
                     "Message"
@@ -809,7 +809,7 @@
                 "responses": {}
             }
         },
-        "/api/v1/permissions": {
+        "/permissions": {
             "get": {
                 "security": [
                     {
@@ -833,7 +833,7 @@
                 }
             }
         },
-        "/api/v1/public/configs": {
+        "/public/configs": {
             "get": {
                 "produces": [
                     "application/json"
@@ -852,7 +852,7 @@
                 }
             }
         },
-        "/api/v1/public/configs/:key": {
+        "/public/configs/:key": {
             "get": {
                 "produces": [
                     "application/json"
@@ -886,7 +886,7 @@
                 }
             }
         },
-        "/api/v1/public/dicts/:code/entries": {
+        "/public/dicts/:code/entries": {
             "get": {
                 "produces": [
                     "application/json"
@@ -926,7 +926,7 @@
                 }
             }
         },
-        "/api/v1/scheduled-tasks": {
+        "/scheduled-tasks": {
             "get": {
                 "tags": [
                     "ScheduledTask"
@@ -942,7 +942,7 @@
                 "responses": {}
             }
         },
-        "/api/v1/scheduled-tasks/:id": {
+        "/scheduled-tasks/:id": {
             "get": {
                 "tags": [
                     "ScheduledTask"
@@ -965,7 +965,7 @@
                 "responses": {}
             }
         },
-        "/api/v1/scheduled-tasks/:id/run": {
+        "/scheduled-tasks/:id/run": {
             "post": {
                 "tags": [
                     "ScheduledTask"
@@ -974,7 +974,7 @@
                 "responses": {}
             }
         },
-        "/api/v1/scheduled-tasks/batch-delete": {
+        "/scheduled-tasks/batch-delete": {
             "post": {
                 "tags": [
                     "ScheduledTask"
@@ -983,7 +983,7 @@
                 "responses": {}
             }
         },
-        "/api/v1/scheduled-tasks/batch-status": {
+        "/scheduled-tasks/batch-status": {
             "post": {
                 "tags": [
                     "ScheduledTask"
@@ -992,7 +992,7 @@
                 "responses": {}
             }
         },
-        "/api/v1/scheduled-tasks/types": {
+        "/scheduled-tasks/types": {
             "get": {
                 "tags": [
                     "ScheduledTask"
@@ -1001,7 +1001,7 @@
                 "responses": {}
             }
         },
-        "/api/v1/system/info": {
+        "/system/info": {
             "get": {
                 "tags": [
                     "System"
@@ -1010,7 +1010,7 @@
                 "responses": {}
             }
         },
-        "/api/v1/templates": {
+        "/templates": {
             "post": {
                 "tags": [
                     "Template"
@@ -1019,7 +1019,7 @@
                 "responses": {}
             }
         },
-        "/api/v1/templates/:id": {
+        "/templates/:id": {
             "get": {
                 "tags": [
                     "Template"
@@ -1042,7 +1042,7 @@
                 "responses": {}
             }
         },
-        "/api/v1/templates/batch-delete": {
+        "/templates/batch-delete": {
             "post": {
                 "tags": [
                     "Template"
@@ -1051,7 +1051,7 @@
                 "responses": {}
             }
         },
-        "/api/v1/templates/batch-status": {
+        "/templates/batch-status": {
             "post": {
                 "tags": [
                     "Template"
@@ -1060,7 +1060,7 @@
                 "responses": {}
             }
         },
-        "/api/v1/users": {
+        "/users": {
             "get": {
                 "security": [
                     {
@@ -1187,7 +1187,7 @@
                 }
             }
         },
-        "/api/v1/users/batch-delete": {
+        "/users/batch-delete": {
             "post": {
                 "security": [
                     {
@@ -1232,7 +1232,7 @@
                 }
             }
         },
-        "/api/v1/users/batch-status": {
+        "/users/batch-status": {
             "post": {
                 "security": [
                     {
@@ -1277,7 +1277,7 @@
                 }
             }
         },
-        "/api/v1/users/me": {
+        "/users/me": {
             "get": {
                 "security": [
                     {
@@ -1374,7 +1374,7 @@
                 }
             }
         },
-        "/api/v1/users/me/avatar": {
+        "/users/me/avatar": {
             "post": {
                 "security": [
                     {
@@ -1434,7 +1434,7 @@
                 }
             }
         },
-        "/api/v1/users/me/login-logs": {
+        "/users/me/login-logs": {
             "get": {
                 "security": [
                     {
@@ -1494,7 +1494,7 @@
                 }
             }
         },
-        "/api/v1/users/me/password": {
+        "/users/me/password": {
             "put": {
                 "security": [
                     {
@@ -1545,7 +1545,7 @@
                 }
             }
         },
-        "/api/v1/users/me/permissions": {
+        "/users/me/permissions": {
             "get": {
                 "security": [
                     {
@@ -1584,7 +1584,7 @@
                 }
             }
         },
-        "/api/v1/users/{id}": {
+        "/users/{id}": {
             "get": {
                 "security": [
                     {
@@ -1724,7 +1724,7 @@
                 }
             }
         },
-        "/api/v1/users/{id}/sessions": {
+        "/users/{id}/sessions": {
             "delete": {
                 "security": [
                     {

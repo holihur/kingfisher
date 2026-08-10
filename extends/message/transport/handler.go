@@ -32,7 +32,7 @@ var messageQueryDefs = query.Defs{
 // List 当前用户收件箱
 // @Summary 我的收件箱
 // @Tags Message
-// @Router /api/v1/me/messages [get]
+// @Router /me/messages [get]
 func (h *MessageHandler) List(c *gin.Context) {
 	pq, err := query.Parse(c, messageQueryDefs)
 	if err != nil {
@@ -50,7 +50,7 @@ func (h *MessageHandler) List(c *gin.Context) {
 // GetByID 消息详情（仅限自己的）
 // @Summary 消息详情
 // @Tags Message
-// @Router /api/v1/me/messages/:id [get]
+// @Router /me/messages/:id [get]
 func (h *MessageHandler) GetByID(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -76,7 +76,7 @@ type sendReq struct {
 // Send 管理员发送站内信（支持单个/多个收件人，异步投递）
 // @Summary 发送站内信
 // @Tags Message
-// @Router /api/v1/messages [post]
+// @Router /messages [post]
 func (h *MessageHandler) Send(c *gin.Context) {
 	var req sendReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -115,7 +115,7 @@ func (h *MessageHandler) Send(c *gin.Context) {
 // MarkRead 标记已读
 // @Summary 标记已读
 // @Tags Message
-// @Router /api/v1/me/messages/:id/read [put]
+// @Router /me/messages/:id/read [put]
 func (h *MessageHandler) MarkRead(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -137,7 +137,7 @@ type batchIDsReq struct {
 // BatchDelete 批量删除
 // @Summary 批量删除消息
 // @Tags Message
-// @Router /api/v1/me/messages/batch-delete [post]
+// @Router /me/messages/batch-delete [post]
 func (h *MessageHandler) BatchDelete(c *gin.Context) {
 	var req batchIDsReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -154,7 +154,7 @@ func (h *MessageHandler) BatchDelete(c *gin.Context) {
 // UnreadCount 未读消息数
 // @Summary 未读消息数
 // @Tags Message
-// @Router /api/v1/me/messages/unread-count [get]
+// @Router /me/messages/unread-count [get]
 func (h *MessageHandler) UnreadCount(c *gin.Context) {
 	count, err := h.svc.UnreadCount(c.Request.Context(), c.GetUint("user_id"))
 	if err != nil {

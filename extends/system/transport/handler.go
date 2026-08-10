@@ -16,7 +16,7 @@ func NewSystemHandler(svc *app.SystemService) *SystemHandler {
 // GetInfo 系统信息
 // @Summary 系统信息
 // @Tags System
-// @Router /api/v1/system/info [get]
+// @Router /system/info [get]
 func (h *SystemHandler) GetInfo(c *gin.Context) {
 	info, err := h.svc.GetInfo(c.Request.Context())
 	if err != nil {
