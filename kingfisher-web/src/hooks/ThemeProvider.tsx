@@ -1,13 +1,7 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
+import { ThemeContext } from './useTheme';
 
 type Theme = 'light' | 'dark';
-
-interface ThemeCtx {
-  theme: Theme;
-  toggle: () => void;
-}
-
-const ThemeContext = createContext<ThemeCtx>({ theme: 'light', toggle: () => {} });
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>(() => {
@@ -23,8 +17,4 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const toggle = useCallback(() => setTheme((t) => (t === 'light' ? 'dark' : 'light')), []);
 
   return <ThemeContext value={{ theme, toggle }}>{children}</ThemeContext>;
-}
-
-export function useTheme() {
-  return useContext(ThemeContext);
 }

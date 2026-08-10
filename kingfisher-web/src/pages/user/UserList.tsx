@@ -63,7 +63,7 @@ const UserList: React.FC = () => {
       dataIndex: 'username',
       render: (_: unknown, r: UserRow) => (
         <Space>
-          <Avatar size="small" src={r.avatar} icon={undefined}>{r.username?.charAt(0)?.toUpperCase()}</Avatar>
+          <Avatar size="small" src={r.avatar || undefined}>{r.username?.charAt(0)?.toUpperCase()}</Avatar>
           <span>
             {r.username}
             {r.nickname ? <span style={{ color: '#8c8c8c', marginLeft: 6, fontSize: 12 }}>({r.nickname})</span> : null}

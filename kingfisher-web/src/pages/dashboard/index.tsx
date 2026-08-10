@@ -140,7 +140,7 @@ const Dashboard: React.FC = () => {
               renderItem={(u) => (
                 <List.Item>
                   <List.Item.Meta
-                    avatar={<Avatar size="small" src={u.avatar}>{u.username?.charAt(0)?.toUpperCase()}</Avatar>}
+                    avatar={<Avatar size="small" src={u.avatar || undefined}>{u.username?.charAt(0)?.toUpperCase()}</Avatar>}
                     title={
                       <span>
                         {u.username}

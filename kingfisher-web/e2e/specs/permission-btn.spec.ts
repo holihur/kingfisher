@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../fixtures/test';
 import { CREDENTIALS } from '../utils/constants';
 
 async function loginAs(page, role: 'admin' | 'editor' | 'viewer') {

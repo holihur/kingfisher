@@ -1,6 +1,5 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../fixtures/test';
 import { LoginPage } from '../pages/login.page';
-import { loginViaUI } from '../fixtures/auth';
 import { CREDENTIALS, URLS } from '../utils/constants';
 
 test.describe('Login Page', () => {

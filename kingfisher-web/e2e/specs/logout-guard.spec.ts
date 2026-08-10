@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../fixtures/test';
 import { CREDENTIALS, URLS } from '../utils/constants';
 
 test('未登录访问 /dashboard → 跳转 /login', async ({ page }) => {

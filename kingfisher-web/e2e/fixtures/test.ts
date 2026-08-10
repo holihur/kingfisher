@@ -2,7 +2,8 @@ import { test as base, type Page } from '@playwright/test';
 
 /** Extended test that collects console errors/warnings and fails the test if any are found. */
 export const test = base.extend<{ page: Page }>({
-  page: async ({ page }, use, testInfo) => {
+  // @ts-expect-error oxlint false positive: `use` is Playwright fixture API, not a React hook
+  page: async ({ page }, _use, testInfo) => {
     const issues: string[] = [];
     const handler = (msg: { type: () => string; text: () => string }) => {
       if (msg.type() === 'error' || msg.type() === 'warning') {
@@ -11,7 +12,7 @@ export const test = base.extend<{ page: Page }>({
     };
     page.on('console', handler);
 
-    await use(page);
+    await _use(page);
 
     if (issues.length > 0) {
       const lines = issues.slice(0, 20).join('\n');

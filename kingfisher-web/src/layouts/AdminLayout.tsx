@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { Layout, Menu, Breadcrumb, Avatar, Dropdown, Spin, Drawer, Badge } from 'antd';
+import { Layout, Menu, Breadcrumb, Avatar, Dropdown, Spin, Drawer, Badge, theme as antdTheme } from 'antd';
 import { findBreadcrumb } from '../utils/menu';
 import {
   MenuFoldOutlined,
@@ -16,8 +16,12 @@ import {
   QuestionOutlined,
   InboxOutlined,
   MailOutlined,
+  FileTextOutlined,
+  BulbOutlined,
+  BulbFilled,
 } from '@ant-design/icons';
 import { useAuthStore } from '../stores/auth';
+import { useTheme } from '../hooks/useTheme';
 import { useMenuStore } from '../stores/menu';
 import { clearTokens } from '../utils/token';
 import { configApi } from '../api/config';
@@ -45,7 +49,9 @@ const AdminLayout: React.FC = () => {
   const [siteName, setSiteName] = useState('Kingfisher');
   const [siteLogo, setSiteLogo] = useState('');
   const [unreadCount, setUnreadCount] = useState(0);
-  const { menuTree, fetchMenus, loading } = useMenuStore();
+  const { theme, toggle: toggleTheme } = useTheme();
+  const { token: themeToken } = antdTheme.useToken();
+  const { menuTree, loading } = useMenuStore();
   const { userInfo } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
@@ -115,7 +121,7 @@ const AdminLayout: React.FC = () => {
   };
 
   const menuProps = {
-    theme: 'dark' as const,
+    theme: (theme === 'dark' ? 'dark' : 'light') as 'dark' | 'light',
     mode: 'inline' as const,
     selectedKeys: [location.pathname],
     openKeys,
@@ -127,6 +133,10 @@ const AdminLayout: React.FC = () => {
     items: buildItems(menuTree as unknown as Record<string, unknown>[]) as any,
   };
 
+  const isSidebarDark = theme === 'dark';
+  const sidebarBg = isSidebarDark ? '#001529' : '#fff';
+  const sidebarTextColor = isSidebarDark ? '#fff' : 'inherit';
+  const sidebarBorderColor = isSidebarDark ? 'rgba(255,255,255,0.1)' : '#f0f0f0';
   const siderContent = loading ? <Spin style={{ display: 'block', marginTop: 40 }} /> : <Menu {...menuProps} />;
 
   return (
@@ -137,7 +147,7 @@ const AdminLayout: React.FC = () => {
           onClose={() => setMobileDrawer(false)}
           placement="left"
           width={220}
-          styles={{ body: { padding: 0, background: '#001529' } }}
+          styles={{ body: { padding: 0, background: sidebarBg } }}
         >
           <div
             style={{
@@ -146,15 +156,15 @@ const AdminLayout: React.FC = () => {
               alignItems: 'center',
               justifyContent: 'center',
               gap: 10,
-              color: '#fff',
+              color: sidebarTextColor,
               fontSize: 18,
               fontWeight: 'bold',
-              borderBottom: '1px solid rgba(255,255,255,0.1)',
+              borderBottom: `1px solid ${sidebarBorderColor}`,
             }}
           >
             {siteLogo ? <img src={siteLogo} alt="logo" style={{ height: 32, borderRadius: 4 }} /> : (
             <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ width: 32, height: 32, borderRadius: 6, background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 600 }}>
+              <span style={{ width: 32, height: 32, borderRadius: 6, background: isSidebarDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 600 }}>
                 {(siteName || 'K').charAt(0)}
               </span>
               {siteName}
@@ -164,7 +174,7 @@ const AdminLayout: React.FC = () => {
           {siderContent}
         </Drawer>
       ) : (
-        <Layout.Sider collapsible collapsed={collapsed} onCollapse={setCollapsed} theme="dark" width={220}>
+        <Layout.Sider collapsible collapsed={collapsed} onCollapse={setCollapsed} theme={theme === 'dark' ? 'dark' : 'light'} width={220}>
           <div
             style={{
               height: 64,
@@ -172,10 +182,10 @@ const AdminLayout: React.FC = () => {
               alignItems: 'center',
               justifyContent: 'center',
               gap: collapsed ? 0 : 10,
-              color: '#fff',
+              color: sidebarTextColor,
               fontSize: collapsed ? 22 : 18,
               fontWeight: 'bold',
-              borderBottom: '1px solid rgba(255,255,255,0.1)',
+              borderBottom: `1px solid ${sidebarBorderColor}`,
             }}
           >
             {siteLogo ? (
@@ -184,7 +194,7 @@ const AdminLayout: React.FC = () => {
               collapsed ? (
                 <span style={{
                   width: 34, height: 34, borderRadius: 6,
-                  background: 'rgba(255,255,255,0.15)', display: 'flex',
+                  background: isSidebarDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.06)', display: 'flex',
                   alignItems: 'center', justifyContent: 'center', fontSize: 18,
                 }}>
                   {(siteName || 'K').charAt(0)}
@@ -193,7 +203,7 @@ const AdminLayout: React.FC = () => {
                 <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <span style={{
                     width: 32, height: 32, borderRadius: 6,
-                    background: 'rgba(255,255,255,0.15)', display: 'flex',
+                    background: isSidebarDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.06)', display: 'flex',
                     alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 600,
                   }}>
                     {(siteName || 'K').charAt(0)}
@@ -209,7 +219,7 @@ const AdminLayout: React.FC = () => {
       <Layout>
         <Layout.Header
           style={{
-            background: '#fff',
+            background: themeToken.colorBgContainer,
             padding: '0 24px',
             display: 'flex',
             justifyContent: 'space-between',
@@ -234,6 +244,12 @@ const AdminLayout: React.FC = () => {
             })()} />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <a href="/swagger/index.html" target="_blank" rel="noopener noreferrer" title="API 文档" style={{ color: '#666', fontSize: 17, display: 'flex', alignItems: 'center' }}>
+              <FileTextOutlined />
+            </a>
+            <span onClick={toggleTheme} title={theme === 'dark' ? '切换浅色' : '切换暗色'} style={{ color: '#666', fontSize: 17, cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+              {theme === 'dark' ? <BulbFilled /> : <BulbOutlined />}
+            </span>
             <Badge count={unreadCount} size="small" offset={[-2, 2]}>
               <InboxOutlined
                 style={{ fontSize: 18, cursor: 'pointer', color: '#666' }}
@@ -249,7 +265,12 @@ const AdminLayout: React.FC = () => {
                 }}
             >
               <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Avatar src={(userInfo as Record<string, unknown>)?.avatar as string} />
+                <Avatar
+                  src={((userInfo as Record<string, unknown>)?.avatar as string) || undefined}
+                  style={!((userInfo as Record<string, unknown>)?.avatar as string) ? { background: '#1677ff' } : undefined}
+                >
+                  {((userInfo as Record<string, unknown>)?.nickname || (userInfo as Record<string, unknown>)?.username || '?')?.toString().charAt(0).toUpperCase()}
+                </Avatar>
                 <span>{(userInfo as Record<string, unknown>)?.username as string}</span>
               </div>
             </Dropdown>
