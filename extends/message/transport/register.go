@@ -6,19 +6,29 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
-	"kingfisher/core/cache"
+	"kingfisher/core/taskqueue"
 	adapter "kingfisher/extends/message/adapter/mysql"
 	"kingfisher/extends/message/app"
+	messageWorker "kingfisher/extends/message/worker"
 	rbacTransport "kingfisher/extends/rbac/transport"
 )
 
-type MessageModule struct{ handler *MessageHandler }
+type MessageModule struct {
+	handler *MessageHandler
+	worker  *messageWorker.MessageWorker
+}
 
-func NewMessageModule(db *gorm.DB, _ cache.Cache) *MessageModule {
+func NewMessageModule(db *gorm.DB, producer taskqueue.Producer) *MessageModule {
 	repo := adapter.NewMessageRepo(db)
 	svc := app.NewMessageService(repo)
-	return &MessageModule{handler: NewMessageHandler(svc)}
+	return &MessageModule{
+		handler: NewMessageHandler(svc, producer),
+		worker:  messageWorker.NewMessageWorker(svc),
+	}
 }
+
+// Worker 注册模式：主程序通过该可选接口收集本站内信模块的独立 worker。
+func (m *MessageModule) Worker() taskqueue.WorkerModule { return m.worker }
 
 func (m *MessageModule) Name() string                       { return "message" }
 func (m *MessageModule) Init(ctx context.Context) error     { return nil }

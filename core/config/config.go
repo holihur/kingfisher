@@ -17,6 +17,7 @@ type Config struct {
 	JWT       JWTConfig       `mapstructure:"jwt"`
 	Log       LogConfig       `mapstructure:"log"`
 	RateLimit RateLimitConfig `mapstructure:"rate_limit"`
+	TaskQueue TaskQueueConfig `mapstructure:"taskqueue"`
 	Telemetry TelemetryConfig `mapstructure:"telemetry"`
 	CORS      CORSConfig      `mapstructure:"cors"`
 }
@@ -100,6 +101,12 @@ type RateLimitConfig struct {
 	Enabled           bool `mapstructure:"enabled"`
 	RequestsPerMinute int  `mapstructure:"requests_per_minute"`
 	LoginPerMinute    int  `mapstructure:"login_per_minute"`
+}
+
+// TaskQueueConfig asynq 任务队列配置。Redis 必须可用（main 启动时强依赖）。
+type TaskQueueConfig struct {
+	Enabled     bool `mapstructure:"enabled"`
+	Concurrency int  `mapstructure:"concurrency"`
 }
 
 type CORSConfig struct {

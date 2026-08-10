@@ -13,17 +13,29 @@ const MessageManage: React.FC = () => {
   const { message } = App.useApp();
   const [form] = Form.useForm();
   const [users, setUsers] = useState<UserOption[]>([]);
+  const [searching, setSearching] = useState(false);
   const [sending, setSending] = useState(false);
 
-  useEffect(() => {
-    userApi.getList({ page: 1, page_size: 100 }).then((r) => {
+  // 远程搜索收件人（按 username/nickname 模糊匹配，避免一次性拉全量用户）
+  const searchUsers = async (keyword?: string) => {
+    setSearching(true);
+    try {
+      const r = await userApi.getList({ page: 1, page_size: 20, q: keyword || '' });
       const data = r.data as Record<string, unknown>;
       const items = (data.items as Record<string, unknown>[]) || [];
       setUsers(items.map((u) => ({
         label: `${u.username as string}${u.nickname ? `（${u.nickname as string}）` : ''}`,
         value: u.id as number,
       })));
-    }).catch(() => {});
+    } catch {
+      /* interceptor handles */
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  useEffect(() => {
+    searchUsers();
   }, []);
 
   const handleSend = async () => {
@@ -31,11 +43,11 @@ const MessageManage: React.FC = () => {
     setSending(true);
     try {
       await messageApi.send({
-        recipient_id: v.recipient_id as number,
+        recipient_ids: v.recipient_ids as number[],
         title: v.title as string,
         content: (v.content as string) || '',
       });
-      message.success('站内信已发送');
+      message.success(`站内信已发送给 ${(v.recipient_ids as number[]).length} 位用户`);
       form.resetFields();
     } catch {
       /* interceptor handles */
@@ -47,12 +59,16 @@ const MessageManage: React.FC = () => {
   return (
     <Card title="发送站内信" style={{ borderRadius: 8, border: 'none', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
       <Form form={form} layout="vertical" style={{ maxWidth: 480 }}>
-        <Form.Item name="recipient_id" label="收件人" rules={[{ required: true, message: '请选择收件人' }]}>
+        <Form.Item name="recipient_ids" label="收件人" rules={[{ required: true, message: '请选择收件人' }]}>
           <Select
+            mode="multiple"
             showSearch
-            placeholder="选择用户"
+            placeholder="搜索并选择用户（可多选）"
             options={users}
-            optionFilterProp="label"
+            filterOption={false}
+            onSearch={(kw) => searchUsers(kw)}
+            loading={searching}
+            notFoundContent={searching ? null : '未找到匹配用户'}
             allowClear
           />
         </Form.Item>

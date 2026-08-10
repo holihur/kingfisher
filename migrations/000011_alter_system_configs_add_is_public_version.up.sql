@@ -9,5 +9,5 @@ UPDATE system_configs SET version = '1.0.0' WHERE version = '';
 
 -- 系统描述（登录页副标题），公开可读
 INSERT INTO system_configs (`key`, value, remark, is_public, version)
-SELECT 'site_description', '后台管理系统', '系统描述', 1, '1.0.0'
+SELECT 'site_description', 'Kingfisher 后台管理平台', '系统描述', 1, '1.0.0'
 WHERE NOT EXISTS (SELECT 1 FROM system_configs WHERE `key` = 'site_description');

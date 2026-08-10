@@ -36,6 +36,7 @@ import (
 	"kingfisher/core/logger"
 	"kingfisher/core/middleware"
 	"kingfisher/core/router"
+	"kingfisher/core/taskqueue"
 	_ "kingfisher/docs"
 
 	auditTransport "kingfisher/extends/audit/transport"
@@ -115,6 +116,15 @@ func main() {
 	// 5. Initialize JWT
 	jwtMgr := jwt.NewJWTManager(cfg.JWT, redisCache)
 
+	// 5.5 Initialize task queue (asynq)：Redis 已必选，producer 一定可用
+	asynqOpt := taskqueue.RedisClientOpt(cfg.Redis)
+	producer := taskqueue.NewProducer(asynqOpt)
+	defer func() {
+		if cp, ok := producer.(taskqueue.ClosableProducer); ok {
+			_ = cp.Close()
+		}
+	}()
+
 	// 6. Build Gin engine
 	r := router.NewEngine(cfg, zapLog)
 
@@ -152,11 +162,27 @@ func main() {
 		menuTransport.NewMenuModule(db, redisCache),
 		configTransport.NewConfigModule(db, redisCache),
 		dictTransport.NewDictModule(db, redisCache),
-		messageTransport.NewMessageModule(db, redisCache),
+		messageTransport.NewMessageModule(db, producer),
 		templateTransport.NewTemplateModule(db, redisCache),
 		auditMod,
 	}
 	r.Use(auditMod.Middleware()) // audit all write operations
+
+	// 9.5 收集各模块独立 worker（注册模式：模块实现 WorkerProvider 即注册自己的 worker）
+	var workers []taskqueue.WorkerModule
+	for _, m := range mods {
+		if wp, ok := m.(taskqueue.WorkerProvider); ok {
+			workers = append(workers, wp.Worker())
+		}
+	}
+	var taskSrv *taskqueue.Server
+	if cfg.TaskQueue.Enabled {
+		taskSrv = taskqueue.NewServer(asynqOpt, cfg.TaskQueue, workers, zapLog)
+		if err := taskSrv.Start(); err != nil {
+			zapLog.Fatal("taskqueue server start failed", zap.Error(err))
+		}
+		zapLog.Info("taskqueue server started", zap.Int("workers", len(workers)))
+	}
 
 	ctx := context.Background()
 	for _, m := range mods {
@@ -192,6 +218,13 @@ func main() {
 
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		zapLog.Error("forced shutdown", zap.Error(err))
+	}
+
+	// Shutdown task queue server（停止消费，等待在途任务）
+	if taskSrv != nil {
+		if err := taskSrv.Shutdown(shutdownCtx); err != nil {
+			zapLog.Error("taskqueue server shutdown error", zap.Error(err))
+		}
 	}
 
 	// Shutdown modules in reverse order

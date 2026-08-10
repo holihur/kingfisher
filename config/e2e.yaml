@@ -27,6 +27,10 @@ log:
   format: console
   output: stderr
 
+taskqueue:
+  enabled: true
+  concurrency: 4
+
 rate_limit:
   enabled: true
   requests_per_minute: 300

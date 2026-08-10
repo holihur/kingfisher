@@ -14,8 +14,10 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/hibiken/asynq"
 
 	"kingfisher/core/config"
 	"kingfisher/core/database"
@@ -29,6 +31,7 @@ import (
 	dictTransport "kingfisher/extends/dict/transport"
 	menuTransport "kingfisher/extends/menu/transport"
 	messageTransport "kingfisher/extends/message/transport"
+	messageWorker "kingfisher/extends/message/worker"
 	rbacTransport "kingfisher/extends/rbac/transport"
 	userTransport "kingfisher/extends/user/transport"
 )
@@ -95,13 +98,18 @@ func setupTestServer(t *testing.T) (*gin.Engine, *jwt.JWTManager) {
 		}
 		return v, nil
 	})
+	// 站内信：测试用同步生产者，内联执行真实 worker 的处理逻辑
+	producer := &syncProducer{}
+	msgMod := messageTransport.NewMessageModule(db, producer)
+	producer.w = msgMod.Worker().(*messageWorker.MessageWorker)
+
 	mods := []router.Module{
 		userMod,
 		rbacTransport.NewRBACModule(db, nil),
 		menuTransport.NewMenuModule(db, nil),
 		configTransport.NewConfigModule(db, nil),
 		dictTransport.NewDictModule(db, nil),
-		messageTransport.NewMessageModule(db, nil),
+		msgMod,
 		auditTransport.NewAuditModule(db),
 	}
 	for _, m := range mods {
@@ -109,6 +117,17 @@ func setupTestServer(t *testing.T) (*gin.Engine, *jwt.JWTManager) {
 		router.Register(r, m, authMw, rbacMw)
 	}
 	return r, jwtMgr
+}
+
+// syncProducer 测试用生产者：入队时内联执行真实 worker 的 HandleSendMessage，
+// 让集成测试覆盖完整的"入队→处理→落库"链路，而无需连接 Redis。
+type syncProducer struct{ w *messageWorker.MessageWorker }
+
+func (p *syncProducer) Enqueue(ctx context.Context, task *asynq.Task, opts ...asynq.Option) (*asynq.TaskInfo, error) {
+	if err := p.w.HandleSendMessage(ctx, task); err != nil {
+		return nil, err
+	}
+	return &asynq.TaskInfo{ID: "sync-task"}, nil
 }
 
 func itoa(n int) string { return strconv.Itoa(n) }
@@ -1109,23 +1128,29 @@ func TestMessageInbox(t *testing.T) {
 	s, _ := setupTestServer(t)
 	adminTok := login(t, s)
 
-	// 发送给 viewer 用户（id=3）
+	// 发送给 viewer 用户（id=3）；异步发送，响应不返回消息 id，需从收件箱轮询取得
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, doRequest("POST", "/api/v1/messages", adminTok, map[string]any{"recipient_id": 3, "title": "测试消息", "content": "hello"}))
-	m := assertCode(t, w, 0)
-	msgID := int(m["data"].(map[string]any)["id"].(float64))
+	assertCode(t, w, 0)
 
-	// viewer 登录，查收件箱
+	// viewer 登录，查收件箱（worker 异步落库，轮询等待）
 	viewerTok := loginAs(t, s, "viewer")
-	w = httptest.NewRecorder()
-	s.ServeHTTP(w, doRequest("GET", "/api/v1/me/messages", viewerTok, nil))
-	m = assertCode(t, w, 0)
-	items := m["data"].(map[string]any)["items"].([]any)
-	if len(items) != 1 {
-		t.Fatalf("want 1 message, got %d", len(items))
-	}
-	if int(items[0].(map[string]any)["id"].(float64)) != msgID {
-		t.Error("unexpected message id")
+	var msgID int
+	var m map[string]any
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		w = httptest.NewRecorder()
+		s.ServeHTTP(w, doRequest("GET", "/api/v1/me/messages", viewerTok, nil))
+		m = assertCode(t, w, 0)
+		items := m["data"].(map[string]any)["items"].([]any)
+		if len(items) > 0 {
+			msgID = int(items[0].(map[string]any)["id"].(float64))
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("message not delivered within timeout")
+		}
+		time.Sleep(100 * time.Millisecond)
 	}
 
 	// 未读数 = 1
@@ -1177,14 +1202,30 @@ func TestMessageDetail(t *testing.T) {
 	s, _ := setupTestServer(t)
 	adminTok := login(t, s)
 
-	// 管理员发信给 viewer(3)
+	// 管理员发信给 viewer(3)；异步发送，从收件箱轮询取得消息 id
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, doRequest("POST", "/api/v1/messages", adminTok, map[string]any{"recipient_id": 3, "title": "详情测试", "content": "完整内容"}))
-	m := assertCode(t, w, 0)
-	msgID := int(m["data"].(map[string]any)["id"].(float64))
+	assertCode(t, w, 0)
 
 	// viewer 查详情
 	viewerTok := loginAs(t, s, "viewer")
+	var msgID int
+	var m map[string]any
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		w = httptest.NewRecorder()
+		s.ServeHTTP(w, doRequest("GET", "/api/v1/me/messages", viewerTok, nil))
+		m = assertCode(t, w, 0)
+		items := m["data"].(map[string]any)["items"].([]any)
+		if len(items) > 0 {
+			msgID = int(items[0].(map[string]any)["id"].(float64))
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("message not delivered within timeout")
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
 	w = httptest.NewRecorder()
 	s.ServeHTTP(w, doRequest("GET", fmt.Sprintf("/api/v1/me/messages/%d", msgID), viewerTok, nil))
 	m = assertCode(t, w, 0)

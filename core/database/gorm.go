@@ -221,7 +221,7 @@ func SeedData(db *gorm.DB) error {
 		// System Configs
 		configs := []SystemConfigPO{
 			{Key: "site_name", Value: "Kingfisher", Remark: "系统名称", IsPublic: true, Version: "1.0.0", Render: "text", GroupID: 1},
-			{Key: "site_description", Value: "后台管理系统", Remark: "系统描述", IsPublic: true, Version: "1.0.0", Render: "textarea", GroupID: 1},
+			{Key: "site_description", Value: "Kingfisher 后台管理平台", Remark: "系统描述", IsPublic: true, Version: "1.0.0", Render: "textarea", GroupID: 1},
 			{Key: "site_logo", Value: "", Remark: "Logo（留空则显示站点名首字母）", IsPublic: true, Version: "1.0.0", Render: "text", GroupID: 1},
 			{Key: "site_login_cover", Value: "", Remark: "登录页封面图（留空则显示纯色背景）", IsPublic: true, Version: "1.0.0", Render: "image", GroupID: 1},
 			{Key: "max_login_attempts", Value: "5", Remark: "最大登录失败次数", Version: "1.0.0", Render: "number", GroupID: 2},

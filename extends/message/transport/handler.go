@@ -7,12 +7,19 @@ import (
 
 	"kingfisher/core/query"
 	"kingfisher/core/response"
+	"kingfisher/core/taskqueue"
 	"kingfisher/extends/message/app"
+	messageTask "kingfisher/extends/message/task"
 )
 
-type MessageHandler struct{ svc *app.MessageService }
+type MessageHandler struct {
+	svc      *app.MessageService
+	producer taskqueue.Producer
+}
 
-func NewMessageHandler(svc *app.MessageService) *MessageHandler { return &MessageHandler{svc: svc} }
+func NewMessageHandler(svc *app.MessageService, producer taskqueue.Producer) *MessageHandler {
+	return &MessageHandler{svc: svc, producer: producer}
+}
 
 // messageQueryDefs 收件箱可查询字段白名单
 var messageQueryDefs = query.Defs{
@@ -58,14 +65,15 @@ func (h *MessageHandler) GetByID(c *gin.Context) {
 	response.OKJSON(c, m)
 }
 
-// sendReq 管理员发送站内信请求体
+// sendReq 管理员发送站内信请求体（recipient_ids 多选；兼容旧的 recipient_id 单发）
 type sendReq struct {
-	RecipientID uint   `json:"recipient_id" binding:"required"`
-	Title       string `json:"title" binding:"required"`
-	Content     string `json:"content"`
+	RecipientIDs []uint `json:"recipient_ids"`
+	RecipientID  uint   `json:"recipient_id"`
+	Title        string `json:"title" binding:"required"`
+	Content      string `json:"content"`
 }
 
-// Send 管理员发送站内信
+// Send 管理员发送站内信（支持单个/多个收件人，异步投递）
 // @Summary 发送站内信
 // @Tags Message
 // @Router /api/v1/messages [post]
@@ -76,12 +84,32 @@ func (h *MessageHandler) Send(c *gin.Context) {
 		return
 	}
 	// 发件人为当前登录的管理员；发送者为"人"（sender_type=admin，与 system 预留区分）
-	m, err := h.svc.Create(c.Request.Context(), c.GetUint("user_id"), "admin", req.RecipientID, req.Title, req.Content)
+	ids := req.RecipientIDs
+	if len(ids) == 0 && req.RecipientID != 0 {
+		ids = []uint{req.RecipientID}
+	}
+	if len(ids) == 0 {
+		response.BadRequest(c, "please provide recipient_ids or recipient_id")
+		return
+	}
+	// 异步发送：入队后立即返回，由站内信 worker 消费并批量落库。
+	// Redis 是必选项（main 启动时强依赖），producer 始终有效，不做同步降级。
+	task, err := messageTask.NewSendMessageTask(messageTask.SendMessagePayload{
+		SenderID:     c.GetUint("user_id"),
+		SenderType:   "admin",
+		RecipientIDs: ids,
+		Title:        req.Title,
+		Content:      req.Content,
+	})
 	if err != nil {
 		response.InternalError(c)
 		return
 	}
-	response.OKJSON(c, m)
+	if _, err := h.producer.Enqueue(c.Request.Context(), task); err != nil {
+		response.InternalError(c)
+		return
+	}
+	response.OKJSON(c, gin.H{"enqueued": true, "recipients": len(ids)})
 }
 
 // MarkRead 标记已读

@@ -36,6 +36,16 @@ func (s *MessageService) Create(ctx context.Context, senderID uint, senderType s
 	return m, nil
 }
 
+// SendBatch 批量发送站内信（同一标题/内容，逐收件人生成独立消息）
+func (s *MessageService) SendBatch(ctx context.Context, senderID uint, senderType string, recipientIDs []uint, title, content string) (int, error) {
+	for _, rid := range recipientIDs {
+		if _, err := s.Create(ctx, senderID, senderType, rid, title, content); err != nil {
+			return 0, err
+		}
+	}
+	return len(recipientIDs), nil
+}
+
 func (s *MessageService) MarkRead(ctx context.Context, id, recipientID uint) error {
 	return s.repo.MarkRead(ctx, id, recipientID)
 }
