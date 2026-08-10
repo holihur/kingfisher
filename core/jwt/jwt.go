@@ -4,6 +4,7 @@ package jwt
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -88,6 +89,10 @@ func (m *JWTManager) GenerateToken(ctx context.Context, userID uint, roleIDs []u
 	return accessToken, refreshToken, nil
 }
 
+// ErrTokenExpired 表示 token 签名有效但已过期（区别于无效/被撤销）。
+// AuthMiddleware 据此返回 10104，前端据此触发 refresh 换新 access token。
+var ErrTokenExpired = errors.New("jwt: token expired")
+
 // parseCore is the shared token parsing with algorithm + issuer validation.
 func (m *JWTManager) parseCore(tokenStr string) (*Claims, error) {
 	token, err := jwtlib.ParseWithClaims(tokenStr, &Claims{}, func(t *jwtlib.Token) (any, error) {
@@ -97,6 +102,10 @@ func (m *JWTManager) parseCore(tokenStr string) (*Claims, error) {
 		jwtlib.WithIssuer(m.issuer),
 	)
 	if err != nil {
+		// 签名/算法/issuer 有效但超过 exp：返回可识别的过期错误，供上层区分"过期→刷新"与"无效→登出"
+		if errors.Is(err, jwtlib.ErrTokenExpired) {
+			return nil, ErrTokenExpired
+		}
 		return nil, fmt.Errorf("parse token: %w", err)
 	}
 	claims, ok := token.Claims.(*Claims)

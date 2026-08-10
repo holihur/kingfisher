@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"errors"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -36,7 +37,13 @@ func AuthMiddleware(jwtMgr *jwt.JWTManager, svp jwt.SessionVersionProvider) gin.
 		}
 		claims, err := jwtMgr.ParseToken(c.Request.Context(), h[7:])
 		if err != nil {
-			response.ErrorJSON(c, errcode.ErrUnauthorized)
+			// token 过期 → 10104（前端据此用 refresh token 换新 access）；
+			// 无效/被撤销 → 10003 未认证（直接登出）
+			if errors.Is(err, jwt.ErrTokenExpired) {
+				response.ErrorJSON(c, errcode.ErrTokenExpired)
+			} else {
+				response.ErrorJSON(c, errcode.ErrUnauthorized)
+			}
 			c.Abort()
 			return
 		}
