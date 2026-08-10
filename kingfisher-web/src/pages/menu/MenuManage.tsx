@@ -3,6 +3,7 @@ import { Button, Modal, Form, Input, InputNumber, TreeSelect, App, Popconfirm, S
 import { PlusOutlined, EditOutlined, DeleteOutlined, FileAddOutlined, DownOutlined, DashboardOutlined, SettingOutlined, UserOutlined, MenuOutlined, SafetyOutlined, ControlOutlined, AuditOutlined, BookOutlined } from '@ant-design/icons';
 import DataTable from '../../components/DataTable';
 import { useAuthStore } from '../../stores/auth';
+import { useThemeToken } from '../../hooks/useThemeToken';
 import { menuApi } from '../../api/menu';
 import { formatTime } from '../../utils/format';
 
@@ -21,6 +22,7 @@ interface MenuItem {
 
 const MenuManage: React.FC = () => {
   const { message, modal } = App.useApp();
+  const token = useThemeToken();
   const [tree, setTree] = useState<MenuItem[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<MenuItem | null>(null);
@@ -74,7 +76,7 @@ const MenuManage: React.FC = () => {
       render: (_: unknown, r: Record<string, unknown>) => (
         <span style={{ paddingLeft: ((r.level as number) || 0) * 24 }}>
           {r.parent_id ? '↳ ' : ''}
-          {iconMap[(r.icon as string) || ''] ? <span style={{ marginRight: 6, color: '#595959' }}>{iconMap[(r.icon as string) || '']}</span> : null}
+          {iconMap[(r.icon as string) || ''] ? <span style={{ marginRight: 6, color: token.colorTextSecondary }}>{iconMap[(r.icon as string) || '']}</span> : null}
           {r.name as string}
         </span>
       ),
@@ -117,7 +119,7 @@ const MenuManage: React.FC = () => {
         ) : null,
         perms.includes('menu:delete') ? (
           (r.children as MenuItem[])?.length > 0 ? (
-            <a key="del-disabled" style={{ color: '#ccc', cursor: 'not-allowed' }} title="有子节点无法删除"><DeleteOutlined /> 删除</a>
+            <a key="del-disabled" style={{ color: token.colorTextDisabled, cursor: 'not-allowed' }} title="有子节点无法删除"><DeleteOutlined /> 删除</a>
           ) : (
             <Popconfirm key="del" title="确认删除？" onConfirm={async () => { try { await menuApi.delete(r.id as number); message.success('已删除'); fetchTree(); } catch { /* error shown by interceptor */ } }}>
               <a style={{ color: 'red' }}><DeleteOutlined /> 删除</a>

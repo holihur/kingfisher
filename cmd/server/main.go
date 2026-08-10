@@ -155,10 +155,12 @@ func main() {
 
 	// 9. Register all extends modules
 	auditMod := auditTransport.NewAuditModule(db)
-	userMod := userTransport.NewUserModule(db, redisCache, jwtMgr, rbacSvc.GetUserPermissions)
+	userMod := userTransport.NewUserModule(db, redisCache, jwtMgr, rbacSvc.GetUserPermissions, cfg.RateLimit.LoginPerMinute)
 	// Inject audit logger into auth handler so login/logout are recorded
 	userMod.InjectAuditLogger(userTransport.AuditLogger(auditMod.AuditLogCallback()))
 	userMod.InjectAuditService(auditMod.Service())
+	// 注入角色落地页查询（登录后跳转页面），依赖 RBAC 模块已初始化
+	userMod.InjectLandingPageProvider(rbacSvc.GetRoleLandingPage)
 	mods := []router.Module{
 		userMod,
 		rbacTransport.NewRBACModule(db, redisCache),

@@ -4,6 +4,7 @@ import { DownOutlined, UpOutlined } from '@ant-design/icons';
 import type { TableProps } from 'antd';
 import { useSearchParams } from 'react-router-dom';
 import { useTableUrlQuery } from '../../hooks/useTableUrlQuery';
+import { useThemeToken } from '../../hooks/useThemeToken';
 import { buildQueryParams } from '../../utils/query';
 
 export type ColumnsType<T> = TableProps<T>['columns'];
@@ -56,6 +57,7 @@ export default function DataTable<T = Record<string, unknown>>({
   selectable,
   batchBarRender,
 }: DataTableProps<T>) {
+  const token = useThemeToken();
   const { urlParams, page, pageSize, syncFormFromUrl, onPageChange } = useTableUrlQuery();
   const [, setSearchParams] = useSearchParams();
   const [form] = Form.useForm();
@@ -155,7 +157,7 @@ export default function DataTable<T = Record<string, unknown>>({
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <span style={{ fontSize: 16, fontWeight: 600 }}>{headerTitle}</span>
             {headerSubtitle ? (
-              <span style={{ color: '#8c8c8c', fontSize: 13 }}>{headerSubtitle}</span>
+              <span style={{ color: token.colorTextTertiary, fontSize: 13 }}>{headerSubtitle}</span>
             ) : null}
           </div>
           {/* 右侧：关键词搜索 + 搜索/重置/高级 + 操作按钮 */}
@@ -193,7 +195,7 @@ export default function DataTable<T = Record<string, unknown>>({
             )}
             {selectable && selectedRowKeys.length > 0 && batchBarRender ? (
               <Space size={8}>
-                <span style={{ color: '#8c8c8c', fontSize: 13 }}>已选 {selectedRowKeys.length} 项</span>
+                <span style={{ color: token.colorTextTertiary, fontSize: 13 }}>已选 {selectedRowKeys.length} 项</span>
                 {batchBarRender(selectedRowKeys, () => setSelectedRowKeys([]))}
               </Space>
             ) : null}
@@ -205,7 +207,7 @@ export default function DataTable<T = Record<string, unknown>>({
     >
       {/* 高级搜索区：点高级后在 head 与 body 之间展开高级字段 */}
       {hasSearch && advancedOpen && advancedFields.length > 0 && (
-        <div style={{ padding: '12px 24px', borderTop: '1px solid #f0f0f0', background: '#fafafa' }}>
+        <div style={{ padding: '12px 24px', borderTop: `1px solid ${token.colorSplit}`, background: token.colorFillAlter }}>
           <Form form={form} layout="inline" onFinish={handleSearch} style={{ rowGap: 8, flexWrap: 'wrap' }}>
             {advancedFields.map((f) => (
               <Form.Item key={f.name} name={f.name} label={f.label} style={{ marginBottom: 0 }}>

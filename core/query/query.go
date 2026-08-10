@@ -296,7 +296,7 @@ func (q *Query) scopes() []func(*gorm.DB) *gorm.DB {
 			conds := make([]string, 0, len(cols))
 			args := make([]any, 0, len(cols))
 			for _, c := range cols {
-				conds = append(conds, c+" LIKE ?")
+				conds = append(conds, c+" LIKE ? ESCAPE '\\'")
 				args = append(args, like)
 			}
 			return db.Where(strings.Join(conds, " OR "), args...)
@@ -317,7 +317,7 @@ func (q *Query) scopes() []func(*gorm.DB) *gorm.DB {
 			case OpNe:
 				return db.Where(col+" <> ?", c.Value)
 			case OpContains:
-				return db.Where(col+" LIKE ?", "%"+escapeLike(fmt.Sprint(c.Value))+"%")
+				return db.Where(col+" LIKE ? ESCAPE '\\'", "%"+escapeLike(fmt.Sprint(c.Value))+"%")
 			case OpIn:
 				if arr, ok := c.Value.([]any); ok {
 					return db.Where(col+" IN ?", arr)

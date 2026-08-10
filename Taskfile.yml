@@ -53,7 +53,7 @@ tasks:
         # （|| true 容错：个别 shell 不支持该 trap 语法时不影响启动）
         trap 'kill 0' INT TERM EXIT 2>/dev/null || true
         (go run -ldflags="{{.LDFLAGS}}" ./cmd/server) &
-        (cd kingfisher-web && npm run dev) &
+        (cd kingfisher-web && pnpm dev) &
         wait
 
   build:
@@ -91,32 +91,32 @@ tasks:
     desc: 前端代码检查
     dir: kingfisher-web
     cmds:
-      - npx eslint src/ && npx prettier --check src/
+      - pnpm exec eslint src/ && pnpm exec prettier --check src/
 
   fmt-fe:
     desc: 前端代码格式化
     dir: kingfisher-web
     cmds:
-      - npx prettier --write src/
+      - pnpm exec prettier --write src/
 
   test-e2e:
     desc: 运行 E2E 测试（需要 Redis 在 localhost:6379）
     dir: kingfisher-web
     cmds:
       - echo "Starting E2E tests..."
-      - npm run test:e2e
+      - pnpm test:e2e
 
   test-e2e-ui:
     desc: Playwright UI 调试模式
     dir: kingfisher-web
     cmds:
-      - npm run test:e2e:ui
+      - pnpm test:e2e:ui
 
   test-e2e-report:
     desc: 查看 E2E 报告
     dir: kingfisher-web
     cmds:
-      - npx playwright show-report ../test/e2e/playwright-report
+      - pnpm exec playwright show-report ../test/e2e/playwright-report
 
   clean:
     desc: 清理

@@ -78,7 +78,7 @@ func setupTestServer(t *testing.T) (*gin.Engine, *jwt.JWTManager) {
 		c.Next()
 	}
 
-	userMod := userTransport.NewUserModule(db, nil, jwtMgr, nil)
+	userMod := userTransport.NewUserModule(db, nil, jwtMgr, nil, 100)
 	// 注入角色落地页查询：集成测试中按 role_id 返回固定落地页
 	userMod.InjectLandingPageProvider(func(ctx context.Context, roleID uint) (string, error) {
 		switch roleID {
@@ -268,8 +268,13 @@ func TestRegisterUsesDefaultRole(t *testing.T) {
 	if len(items) != 1 {
 		t.Fatalf("want 1 user, got %d", len(items))
 	}
-	if int(items[0].(map[string]any)["role_id"].(float64)) != 4 {
-		t.Errorf("want default role 4, got %v", items[0].(map[string]any)["role_id"])
+	roles := items[0].(map[string]any)["roles"].([]any)
+	if len(roles) != 1 || int(roles[0].(map[string]any)["id"].(float64)) != 4 {
+		t.Errorf("want default role [4], got %v", roles)
+	}
+	roleIDs := items[0].(map[string]any)["role_ids"].([]any)
+	if len(roleIDs) != 1 || int(roleIDs[0].(float64)) != 4 {
+		t.Errorf("want role_ids [4], got %v", roleIDs)
 	}
 }
 

@@ -35,7 +35,7 @@ taskqueue:
 rate_limit:
   enabled: true
   requests_per_minute: 300
-  login_per_minute: 5
+  login_per_minute: 100
 
 cors:
   allowed_origins:

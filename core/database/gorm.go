@@ -104,6 +104,7 @@ func autoMigrate(db *gorm.DB) error {
 		&RolePermissionPO{},
 		&MenuPO{},
 		&RoleMenuPO{},
+		&UserRolePO{},
 		&SystemConfigPO{},
 		&ConfigGroupPO{},
 		&AuditLogPO{},
@@ -262,12 +263,25 @@ func SeedData(db *gorm.DB) error {
 		// Users
 		pwHash := "$2a$12$jDyI8HZp/TVxUrplIqdgNOV/iahF.i3l0YoPHuNLD5kus./WsPTzO" // #nosec G101 — seed data hash (Abcd1234)
 		users := []UserPO{
-			{ID: 1, Username: "admin", Nickname: "admin", Password: pwHash, Email: "admin@example.com", Status: 1, RoleID: 1},
-			{ID: 2, Username: "editor", Nickname: "editor", Password: pwHash, Email: "editor@example.com", Status: 1, RoleID: 3},
-			{ID: 3, Username: "viewer", Nickname: "viewer", Password: pwHash, Email: "viewer@example.com", Status: 1, RoleID: 4},
+			{ID: 1, Username: "admin", Nickname: "admin", Password: pwHash, Email: "admin@example.com", Status: 1},
+			{ID: 2, Username: "editor", Nickname: "editor", Password: pwHash, Email: "editor@example.com", Status: 1},
+			{ID: 3, Username: "viewer", Nickname: "viewer", Password: pwHash, Email: "viewer@example.com", Status: 1},
+			{ID: 4, Username: "multi", Nickname: "multi", Password: pwHash, Email: "multi@example.com", Status: 1},
 		}
 		if err := tx.Create(&users).Error; err != nil {
 			return fmt.Errorf("seed users: %w", err)
+		}
+		// User-Role 关联（多角色支持）：multi 同时拥有 管理员+编辑+访客
+		userRoles := []UserRolePO{
+			{UserID: 1, RoleID: 1}, // admin → 超级管理员
+			{UserID: 2, RoleID: 3}, // editor → 编辑
+			{UserID: 3, RoleID: 4}, // viewer → 访客
+			{UserID: 4, RoleID: 1}, // multi 多角色示例：管理员
+			{UserID: 4, RoleID: 3}, // multi 多角色示例：编辑
+			{UserID: 4, RoleID: 4}, // multi 多角色示例：访客
+		}
+		if err := tx.Create(&userRoles).Error; err != nil {
+			return fmt.Errorf("seed user_roles: %w", err)
 		}
 
 		// Messages（示例：系统发给 admin 一条欢迎消息）

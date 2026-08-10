@@ -3,11 +3,13 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Form, Input, Button, App, AutoComplete, Checkbox, Avatar } from 'antd';
 import { UserOutlined, LockOutlined, CloseOutlined } from '@ant-design/icons';
 import { useAuthStore } from '../../stores/auth';
+import { useThemeToken } from '../../hooks/useThemeToken';
 import { loadAccounts, saveAccount, getAccountPassword, removeAccount, loadRememberPwd, saveRememberPwd } from '../../utils/remember';
 import type { SavedAccount } from '../../utils/remember';
 
 const LoginPage: React.FC = () => {
   const { message } = App.useApp();
+  const token = useThemeToken();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [siteName, setSiteName] = useState('');
@@ -65,8 +67,8 @@ const LoginPage: React.FC = () => {
     value: a.username,
     label: (
       <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span><Avatar size={22} style={{ marginRight: 8, background: '#1677ff' }}>{a.username?.charAt(0)?.toUpperCase()}</Avatar>{a.username}</span>
-        <CloseOutlined style={{ color: '#bbb', fontSize: 10 }} onMouseDown={e => { e.stopPropagation(); e.preventDefault(); delAccount(a.username); }} />
+        <span><Avatar size={22} style={{ marginRight: 8, background: token.colorPrimary }}>{a.username?.charAt(0)?.toUpperCase()}</Avatar>{a.username}</span>
+        <CloseOutlined style={{ color: token.colorTextDisabled, fontSize: 10 }} onMouseDown={e => { e.stopPropagation(); e.preventDefault(); delAccount(a.username); }} />
       </span>
     ),
   }));
@@ -79,7 +81,7 @@ const LoginPage: React.FC = () => {
         flexDirection: 'column',
         justifyContent: 'center',
         padding: 80,
-        background: siteLoginCover ? `url(${siteLoginCover}) center/cover no-repeat` : '#fafafa',
+        background: siteLoginCover ? `url(${siteLoginCover}) center/cover no-repeat` : token.colorBgLayout,
         position: 'relative',
       }}>
         {siteLoginCover ? <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.45)' }} /> : null}
@@ -89,20 +91,20 @@ const LoginPage: React.FC = () => {
           ) : (
             <div style={{
               width: 56, height: 56, borderRadius: 14, marginBottom: 20,
-              background: siteLoginCover ? 'rgba(255,255,255,0.16)' : 'linear-gradient(135deg, #1677ff 0%, #69b1ff 100%)',
+              background: siteLoginCover ? 'rgba(255,255,255,0.16)' : `linear-gradient(135deg, ${token.colorPrimary} 0%, ${token.colorPrimaryHover} 100%)`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 26, fontWeight: 700, color: '#fff',
-              boxShadow: siteLoginCover ? 'none' : '0 6px 16px rgba(22,119,255,0.28)',
+              boxShadow: siteLoginCover ? 'none' : `0 6px 16px ${token.colorPrimary}47`,
             }}>
               {(siteName || 'K').charAt(0)}
             </div>
           )}
           <h1 style={{ fontSize: 30, fontWeight: 700, margin: 0, lineHeight: 1.25, letterSpacing: '-0.5px' }}>{siteName || 'Kingfisher'}</h1>
-          {siteDescription && <p style={{ marginTop: 14, color: siteLoginCover ? 'rgba(255,255,255,0.85)' : '#8c8c8c', fontSize: 15, lineHeight: 1.7 }}>{siteDescription}</p>}
+          {siteDescription && <p style={{ marginTop: 14, color: siteLoginCover ? 'rgba(255,255,255,0.85)' : token.colorTextTertiary, fontSize: 15, lineHeight: 1.7 }}>{siteDescription}</p>}
         </div>
       </div>
 
-      <div className="login-form" style={{ width: 440, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: 60, background: '#fff' }}>
+      <div className="login-form" style={{ width: 440, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: 60, background: token.colorBgContainer }}>
         <div style={{ maxWidth: 340 }}>
           {view === 'accounts' && accounts.length > 0 ? (
             <>
@@ -115,24 +117,24 @@ const LoginPage: React.FC = () => {
                     style={{
                       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                       padding: '10px 12px', marginBottom: 8, borderRadius: 6,
-                      border: '1px solid #eee', cursor: 'pointer', background: '#fafafa',
+                      border: `1px solid ${token.colorBorderSecondary}`, cursor: 'pointer', background: token.colorBgContainer,
                     }}
-                    onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = '#f5f5f5')}
-                    onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = '#fafafa')}
+                    onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = token.colorFillTertiary)}
+                    onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = token.colorBgContainer)}
                   >
                     <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <Avatar size={36} style={{ background: '#1677ff' }}>{a.username?.charAt(0)?.toUpperCase()}</Avatar>
+                      <Avatar size={36} style={{ background: token.colorPrimary }}>{a.username?.charAt(0)?.toUpperCase()}</Avatar>
                       <div>
                         <div style={{ fontWeight: 500, fontSize: 14 }}>{a.username}</div>
-                        <div style={{ fontSize: 11, color: '#999' }}>{a.password ? '已保存密码' : '点击后输入密码'}</div>
+                        <div style={{ fontSize: 11, color: token.colorTextTertiary }}>{a.password ? '已保存密码' : '点击后输入密码'}</div>
                       </div>
                     </span>
-                    <CloseOutlined style={{ color: '#ccc', fontSize: 12 }} onClick={e => { e.stopPropagation(); delAccount(a.username); }} />
+                    <CloseOutlined style={{ color: token.colorTextDisabled, fontSize: 12 }} onClick={e => { e.stopPropagation(); delAccount(a.username); }} />
                   </div>
                 ))}
               </div>
               <Button block onClick={() => setView('form')}>使用其他账号</Button>
-              <div style={{ marginTop: 24, textAlign: 'center', fontSize: 13, color: '#999' }}>
+              <div style={{ marginTop: 24, textAlign: 'center', fontSize: 13, color: token.colorTextTertiary }}>
                 <a href="/register">注册账号</a>
               </div>
             </>
@@ -157,10 +159,10 @@ const LoginPage: React.FC = () => {
                 </Form.Item>
               </Form>
 
-              <div style={{ marginTop: 24, textAlign: 'center', fontSize: 13, color: '#999' }}>
+              <div style={{ marginTop: 24, textAlign: 'center', fontSize: 13, color: token.colorTextTertiary }}>
                 {accounts.length > 0 && (
                   <>
-                    <a style={{ cursor: 'pointer', color: '#1677ff', marginRight: 16 }} onClick={() => setView('accounts')}>切换账户</a>
+                    <a style={{ cursor: 'pointer', color: token.colorPrimary, marginRight: 16 }} onClick={() => setView('accounts')}>切换账户</a>
                   </>
                 )}
                 <a href="/register">注册账号</a>

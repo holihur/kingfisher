@@ -36,7 +36,7 @@ test('新增根菜单', async ({ page }) => {
   const name = `e2e_m_${Date.now()}`;
   await page.locator('#name').fill(name);
   await page.locator('#path').fill(`/${name}`);
-  await page.locator('.ant-modal').getByRole('button', { name: /确定|保存/ }).click();
+  await page.locator('.ant-modal').getByRole('button', { name: /确\s*定|保存/ }).click();
   await expect(page.locator('.ant-modal')).not.toBeVisible({ timeout: 10000 });
 });
 

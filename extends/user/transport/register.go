@@ -19,23 +19,28 @@ import (
 )
 
 type UserModule struct {
-	authHandler *AuthHandler
-	userHandler *UserHandler
-	cache       cache.Cache
-	authSvc     *app.AuthService
+	authHandler    *AuthHandler
+	userHandler    *UserHandler
+	cache          cache.Cache
+	authSvc        *app.AuthService
+	loginPerMinute int
 }
 
-func NewUserModule(db *gorm.DB, c cache.Cache, jwtMgr *jwt.JWTManager, getUserPerms PermProvider) *UserModule {
+func NewUserModule(db *gorm.DB, c cache.Cache, jwtMgr *jwt.JWTManager, getUserPerms PermProvider, loginPerMinute int) *UserModule {
 	repo := adapter.NewUserRepo(db)
 	authSvc := app.NewAuthService(repo, c, jwtMgr)
 	userSvc := app.NewUserService(repo, c)
 	uh := NewUserHandler(userSvc)
 	uh.getUserPerms = getUserPerms
+	if loginPerMinute <= 0 {
+		loginPerMinute = 5 // 默认与旧行为一致
+	}
 	return &UserModule{
-		authHandler: NewAuthHandler(authSvc),
-		userHandler: uh,
-		cache:       c,
-		authSvc:     authSvc,
+		authHandler:     NewAuthHandler(authSvc),
+		userHandler:     uh,
+		cache:           c,
+		authSvc:         authSvc,
+		loginPerMinute:  loginPerMinute,
 	}
 }
 
@@ -64,7 +69,7 @@ func (m *UserModule) Shutdown(ctx context.Context) error { return nil }
 func (m *UserModule) RegisterPublic(r *gin.RouterGroup) {
 	auth := r.Group("/auth")
 	auth.POST("/register", m.authHandler.Register)
-	auth.POST("/login", middleware.RateLimit(m.cache, 5, time.Minute), m.authHandler.Login)
+	auth.POST("/login", middleware.RateLimit(m.cache, m.loginPerMinute, time.Minute), m.authHandler.Login)
 	auth.POST("/refresh", m.authHandler.Refresh)
 	auth.POST("/logout", m.authHandler.Logout)
 }

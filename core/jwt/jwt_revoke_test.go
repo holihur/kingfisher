@@ -31,7 +31,7 @@ func (m *mockCache) Expire(context.Context, string, time.Duration) error { retur
 
 func TestParseTokenRevoked(t *testing.T) {
 	mgr := NewJWTManager(config.JWTConfig{Secret: "test-secret", AccessTTL: time.Hour, RefreshTTL: 2 * time.Hour, Issuer: "test"}, &mockCache{blacklist: map[string]bool{}})
-	access, _, err := mgr.GenerateToken(context.Background(), 1, 1, "admin", "admin", 1)
+	access, _, err := mgr.GenerateToken(context.Background(), 1, []uint{1}, []string{"admin"}, "admin", 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,7 +49,7 @@ func TestParseTokenRevoked(t *testing.T) {
 
 func TestParseTokenCacheError(t *testing.T) {
 	mgr := NewJWTManager(config.JWTConfig{Secret: "test-secret", AccessTTL: time.Hour, RefreshTTL: 2 * time.Hour, Issuer: "test"}, &mockCache{failExists: true})
-	access, _, _ := mgr.GenerateToken(context.Background(), 1, 1, "admin", "admin", 1)
+	access, _, _ := mgr.GenerateToken(context.Background(), 1, []uint{1}, []string{"admin"}, "admin", 1)
 	// 缓存错误时 fails-closed
 	if _, err := mgr.ParseToken(context.Background(), access); err == nil {
 		t.Error("cache error should fail closed")
@@ -58,7 +58,7 @@ func TestParseTokenCacheError(t *testing.T) {
 
 func TestParseRefreshTokenRevoked(t *testing.T) {
 	mgr := NewJWTManager(config.JWTConfig{Secret: "test-secret", AccessTTL: time.Hour, RefreshTTL: 2 * time.Hour, Issuer: "test"}, &mockCache{blacklist: map[string]bool{}})
-	_, refresh, _ := mgr.GenerateToken(context.Background(), 1, 1, "admin", "admin", 1)
+	_, refresh, _ := mgr.GenerateToken(context.Background(), 1, []uint{1}, []string{"admin"}, "admin", 1)
 	claims, err := mgr.ParseRefreshToken(context.Background(), refresh)
 	if err != nil || claims == nil {
 		t.Fatalf("should parse refresh: %v", err)

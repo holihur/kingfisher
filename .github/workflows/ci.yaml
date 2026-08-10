@@ -41,8 +41,10 @@ jobs:
       - uses: actions/setup-go@v5
         with: { go-version: '1.25' }
       - uses: actions/setup-node@v4
-        with: { node-version: '24', cache: 'npm', cache-dependency-path: 'kingfisher-web/package-lock.json' }
-      - run: cd kingfisher-web && npm ci
+        with: { node-version: '24', cache: 'pnpm', cache-dependency-path: 'kingfisher-web/pnpm-lock.yaml' }
+      # corepack enable 后，首次调用 pnpm 会按 packageManager 字段自动安装锁定版本
+      - run: corepack enable
+      - run: cd kingfisher-web && pnpm install --frozen-lockfile
       - run: npx playwright install --with-deps chromium
       - run: go install github.com/go-task/task/v3/cmd/task@latest
       - run: task test-e2e

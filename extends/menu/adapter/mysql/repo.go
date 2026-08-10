@@ -65,7 +65,12 @@ func (r *MenuRepo) HasChildren(ctx context.Context, parentID uint) (bool, error)
 }
 func (r *MenuRepo) FindByRoleIDs(ctx context.Context, roleIDs []uint) ([]domain.Menu, error) {
 	var pos []menuPO
-	err := r.db.WithContext(ctx).Joins("JOIN role_menus ON role_menus.menu_id = menus.id").Where("role_menus.role_id IN ?", roleIDs).Order("sort ASC").Find(&pos).Error
+	err := r.db.WithContext(ctx).
+		Joins("JOIN role_menus ON role_menus.menu_id = menus.id").
+		Where("role_menus.role_id IN ?", roleIDs).
+		Distinct().
+		Order("sort ASC").
+		Find(&pos).Error
 	if err != nil {
 		return nil, err
 	}

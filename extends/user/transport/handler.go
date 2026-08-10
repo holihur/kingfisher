@@ -71,9 +71,17 @@ type RefreshReq struct {
 }
 
 type UpdateUserReq struct {
-	Email  *string `json:"email"`
-	Status *int    `json:"status"`
-	RoleID *uint   `json:"role_id"`
+	Email   *string `json:"email"`
+	Status  *int    `json:"status"`
+	RoleIDs []uint  `json:"role_ids"`
+}
+
+// CreateUserReq 管理员创建用户（可指定多个角色）
+type CreateUserReq struct {
+	Username string `json:"username" binding:"required,min=3,max=32" example:"newuser"`
+	Password string `json:"password" binding:"required,min=8,max=64,password" example:"Abcd1234"`
+	Email    string `json:"email" example:"user@example.com"`
+	RoleIDs  []uint `json:"role_ids" example:"[4]"`
 }
 
 type ChangePwdReq struct {
@@ -209,23 +217,23 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 
 // Create 创建用户（管理员）
 // @Summary 创建用户
-// @Description 管理员创建新用户
+// @Description 管理员创建新用户，可指定多个角色（role_ids）
 // @Tags User
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param body body RegisterReq true "创建请求"
+// @Param body body CreateUserReq true "创建请求"
 // @Success 200 {object} response.Response{data=domain.User} "创建成功"
 // @Failure 400 {object} response.Response "参数错误"
 // @Failure 10101 {object} response.Response "用户已存在"
 // @Router /api/v1/users [post]
 func (h *UserHandler) Create(c *gin.Context) {
-	var req RegisterReq
+	var req CreateUserReq
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, err.Error())
 		return
 	}
-	user, err := h.svc.CreateUser(c.Request.Context(), req.Username, req.Password, req.Email)
+	user, err := h.svc.CreateUser(c.Request.Context(), req.Username, req.Password, req.Email, req.RoleIDs)
 	if err != nil {
 		response.ErrorJSON(c, errcode.ErrUserExists)
 		return
@@ -487,7 +495,7 @@ func (h *UserHandler) List(c *gin.Context) {
 
 // Update 管理员更新用户
 // @Summary 更新用户
-// @Description 管理员更新指定用户的邮箱、状态、角色
+// @Description 管理员更新指定用户的邮箱、状态、角色（role_ids 全量替换）
 // @Tags User
 // @Accept json
 // @Produce json
@@ -515,8 +523,12 @@ func (h *UserHandler) Update(c *gin.Context) {
 	if req.Status != nil {
 		updates["status"] = *req.Status
 	}
-	if req.RoleID != nil {
-		updates["role_id"] = *req.RoleID
+	if req.RoleIDs != nil {
+		if len(req.RoleIDs) == 0 {
+			response.BadRequest(c, "至少需要分配一个角色")
+			return
+		}
+		updates["role_ids"] = req.RoleIDs
 	}
 	if err := h.svc.Update(c.Request.Context(), uint(id), updates); err != nil {
 		response.InternalError(c)

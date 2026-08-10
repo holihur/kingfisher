@@ -45,3 +45,4 @@ server
 uploads
 .omo
 playwright-report
+.vite

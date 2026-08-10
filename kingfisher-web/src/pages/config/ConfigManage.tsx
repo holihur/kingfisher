@@ -5,6 +5,7 @@ import DataTable, { SearchField } from '../../components/DataTable';
 import { useAuthStore } from '../../stores/auth';
 import { configApi, configGroupApi } from '../../api/config';
 import { useTableUrlQuery } from '../../hooks/useTableUrlQuery';
+import { useThemeToken } from '../../hooks/useThemeToken';
 import { formatTime } from '../../utils/format';
 
 /** 渲染组件类型：text|number|switch|select|textarea|image */
@@ -79,6 +80,7 @@ interface ConfigRow {
 
 const ConfigManage: React.FC = () => {
   const { message, modal } = App.useApp();
+  const themeToken = useThemeToken();
   const { urlParams, updateUrl } = useTableUrlQuery();
   const [editModal, setEditModal] = useState<{ open: boolean; config: Record<string, unknown> | null }>({
     open: false,
@@ -168,7 +170,7 @@ const ConfigManage: React.FC = () => {
         const render = (r.render as RenderType) || inferRenderType(r.key);
         // Value 用渲染组件展示：image → 缩略图；switch → 开/关 Tag；select → 选中项 label；其余 → 文本
         if (render === 'image') {
-          return v ? <img src={v as string} alt="config" style={{ height: 32, borderRadius: 4 }} /> : <span style={{ color: '#ccc' }}>-</span>;
+          return v ? <img src={v as string} alt="config" style={{ height: 32, borderRadius: 4 }} /> : <span style={{ color: themeToken.colorTextDisabled }}>-</span>;
         }
         if (render === 'switch') {
           return v === 'true' ? <Tag color="green">开</Tag> : <Tag color="red">关</Tag>;
@@ -307,7 +309,7 @@ const ConfigManage: React.FC = () => {
   return (
     <div style={{ display: 'flex', gap: 16 }}>
       {/* 左侧：分组列表 */}
-      <div style={{ width: 220, flexShrink: 0, background: '#fff', borderRadius: 8, padding: 12 }}>
+      <div style={{ width: 220, flexShrink: 0, background: themeToken.colorBgContainer, borderRadius: themeToken.borderRadiusLG, padding: 12 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
           <span style={{ fontWeight: 600 }}>配置分组</span>
           {perms.includes('config:update') && (
@@ -335,8 +337,8 @@ const ConfigManage: React.FC = () => {
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  background: selectedGroupId === g.id ? '#e6f4ff' : 'transparent',
-                  border: selectedGroupId === g.id ? '1px solid #91caff' : '1px solid transparent',
+                  background: selectedGroupId === g.id ? themeToken.colorPrimaryBg : 'transparent',
+                  border: selectedGroupId === g.id ? `1px solid ${themeToken.colorPrimaryBorder}` : '1px solid transparent',
                 }}
               >
                 <span>{g.name}</span>

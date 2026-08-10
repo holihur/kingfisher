@@ -193,7 +193,7 @@ func TestMenuGetTreeForRole(t *testing.T) {
 		},
 	}
 	svc := NewMenuService(repo, nil)
-	tree, err := svc.GetTreeForRole(context.Background(), 5)
+	tree, err := svc.GetTreeForRole(context.Background(), []uint{5})
 	if err != nil {
 		t.Fatal("get tree for role:", err)
 	}

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Form, Input, Select, Button, App } from 'antd';
+import { Form, Input, Select, Button, App } from 'antd';
 import { SendOutlined } from '@ant-design/icons';
+import PageCard from '../../components/PageCard';
 import { userApi } from '../../api/user';
 import { messageApi } from '../../api/message';
 
@@ -57,7 +58,7 @@ const MessageManage: React.FC = () => {
   };
 
   return (
-    <Card title="发送站内信" style={{ borderRadius: 8, border: 'none', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
+    <PageCard title="发送站内信">
       <Form form={form} layout="vertical" style={{ maxWidth: 480 }}>
         <Form.Item name="recipient_ids" label="收件人" rules={[{ required: true, message: '请选择收件人' }]}>
           <Select
@@ -84,7 +85,7 @@ const MessageManage: React.FC = () => {
           </Button>
         </Form.Item>
       </Form>
-    </Card>
+    </PageCard>
   );
 };
 

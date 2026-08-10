@@ -16,8 +16,7 @@ type userPO struct {
 	Email          string
 	Avatar         string
 	Status         int
-	RoleID         uint
-	Role           rolePO `gorm:"foreignKey:RoleID;references:ID"`
+	Roles          []rolePO `gorm:"many2many:user_roles;joinForeignKey:UserID;joinReferences:RoleID"`
 	SessionVersion int
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
@@ -38,11 +37,20 @@ func (p userPO) toDomain() *domain.User {
 	u := &domain.User{
 		ID: p.ID, Username: p.Username, Nickname: p.Nickname, Password: p.Password,
 		Email: p.Email, Avatar: p.Avatar, Status: p.Status,
-		RoleID: p.RoleID, SessionVersion: p.SessionVersion,
+		SessionVersion: p.SessionVersion,
 		CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt,
 	}
-	if p.Role.ID != 0 {
-		u.Role = &domain.Role{ID: p.Role.ID, Name: p.Role.Name, Code: p.Role.Code}
+	for _, r := range p.Roles {
+		u.RoleIDs = append(u.RoleIDs, r.ID)
+		u.Roles = append(u.Roles, &domain.Role{ID: r.ID, Name: r.Name, Code: r.Code})
 	}
 	return u
 }
+
+// userRolePO 用户-角色关联（与 core/database 的 UserRolePO 同构，供本模块读写 user_roles 表）
+type userRolePO struct {
+	UserID uint `gorm:"primaryKey"`
+	RoleID uint `gorm:"primaryKey"`
+}
+
+func (userRolePO) TableName() string { return "user_roles" }

@@ -4,9 +4,11 @@ import { Form, Input, Button, App, Alert } from 'antd';
 import { UserOutlined, LockOutlined, MailOutlined } from '@ant-design/icons';
 import { authApi } from '../../api/auth';
 import { configApi } from '../../api/config';
+import { useThemeToken } from '../../hooks/useThemeToken';
 
 const RegisterPage: React.FC = () => {
   const { message } = App.useApp();
+  const token = useThemeToken();
   const [loading, setLoading] = useState(false);
   const [registrationEnabled, setRegistrationEnabled] = useState<boolean | null>(null);
   const navigate = useNavigate();
@@ -32,14 +34,14 @@ const RegisterPage: React.FC = () => {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex' }}>
-      <div style={{ flex: 1, background: '#fafafa', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: 80 }}>
+      <div style={{ flex: 1, background: token.colorBgLayout, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: 80 }}>
         <div style={{ maxWidth: 360, marginLeft: 'auto', marginRight: 80 }}>
           <h1 style={{ fontSize: 28, fontWeight: 600, marginBottom: 12 }}>注册账号</h1>
-          <p style={{ color: '#666', fontSize: 14, marginBottom: 0 }}>创建新账号以使用系统服务</p>
+          <p style={{ color: token.colorTextSecondary, fontSize: 14, marginBottom: 0 }}>创建新账号以使用系统服务</p>
         </div>
       </div>
 
-      <div style={{ width: 440, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: 60, background: '#fff' }}>
+      <div style={{ width: 440, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: 60, background: token.colorBgContainer }}>
         <div style={{ maxWidth: 340 }}>
           <h2 style={{ fontSize: 18, fontWeight: 500, marginBottom: 28 }}>注册</h2>
 
@@ -74,7 +76,7 @@ const RegisterPage: React.FC = () => {
             </Form.Item>
           </Form>
 
-          <div style={{ marginTop: 24, textAlign: 'center', fontSize: 13, color: '#999' }}>
+          <div style={{ marginTop: 24, textAlign: 'center', fontSize: 13, color: token.colorTextTertiary }}>
             <a href="/login">返回登录</a>
           </div>
         </div>

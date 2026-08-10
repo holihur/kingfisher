@@ -4,6 +4,7 @@ import { PlusOutlined, EditOutlined, DeleteOutlined, DownOutlined } from '@ant-d
 import DataTable, { SearchField } from '../../components/DataTable';
 import { useAuthStore } from '../../stores/auth';
 import { dictTypeApi, dictEntryApi } from '../../api/dict';
+import { useThemeToken } from '../../hooks/useThemeToken';
 import { formatTime } from '../../utils/format';
 
 interface DictType {
@@ -31,6 +32,7 @@ interface DictEntry {
 
 const DictManage: React.FC = () => {
   const { message, modal } = App.useApp();
+  const token = useThemeToken();
   const perms = useAuthStore((s) => s.permissions);
 
   // 字典类型状态
@@ -239,7 +241,7 @@ const DictManage: React.FC = () => {
   return (
     <div style={{ display: 'flex', gap: 16 }}>
       {/* 左侧：字典类型列表 */}
-      <div style={{ width: 240, flexShrink: 0, background: '#fff', borderRadius: 8, padding: 12 }}>
+      <div style={{ width: 240, flexShrink: 0, background: token.colorBgContainer, borderRadius: token.borderRadiusLG, padding: 12 }}>
         <div
           style={{
             display: 'flex',
@@ -257,7 +259,7 @@ const DictManage: React.FC = () => {
         </div>
         {checkedTypeIds.length > 0 && (perms.includes('dict:update') || perms.includes('dict:delete')) ? (
           <div style={{ display: 'flex', gap: 4, marginBottom: 8, alignItems: 'center' }}>
-            <span style={{ fontSize: 12, color: '#8c8c8c' }}>已选 {checkedTypeIds.length} 项</span>
+            <span style={{ fontSize: 12, color: token.colorTextTertiary }}>已选 {checkedTypeIds.length} 项</span>
             <Dropdown
               menu={{
                 items: [
@@ -318,8 +320,8 @@ const DictManage: React.FC = () => {
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  background: selectedType?.id === t.id ? '#e6f4ff' : 'transparent',
-                  border: selectedType?.id === t.id ? '1px solid #91caff' : '1px solid transparent',
+                  background: selectedType?.id === t.id ? token.colorPrimaryBg : 'transparent',
+                  border: selectedType?.id === t.id ? `1px solid ${token.colorPrimaryBorder}` : '1px solid transparent',
                 }}
               >
                 <Checkbox
@@ -333,7 +335,7 @@ const DictManage: React.FC = () => {
                 />
                 <div>
                   <div style={{ fontWeight: 500 }}>{t.name}</div>
-                  <div style={{ fontSize: 12, color: '#888' }}>
+                  <div style={{ fontSize: 12, color: token.colorTextTertiary }}>
                     <Tag style={{ fontSize: 11 }}>{t.code}</Tag>
                     {t.is_public ? <Tag color="green" style={{ fontSize: 11 }}>公开</Tag> : null}
                     {t.status === 0 ? <Tag color="red" style={{ fontSize: 11 }}>禁用</Tag> : null}

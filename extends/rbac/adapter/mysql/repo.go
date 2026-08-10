@@ -88,7 +88,7 @@ func (r *RoleRepo) AssignMenus(ctx context.Context, roleID uint, menuIDs []uint)
 func (r *RoleRepo) GetUserPermissions(ctx context.Context, userID uint) ([]string, error) {
 	var codes []string
 	err := r.db.WithContext(ctx).Raw(
-		"SELECT DISTINCT p.code FROM permissions p JOIN role_permissions rp ON p.id = rp.permission_id JOIN users u ON u.role_id = rp.role_id WHERE u.id = ?", userID).Scan(&codes).Error
+		"SELECT DISTINCT p.code FROM permissions p JOIN role_permissions rp ON p.id = rp.permission_id JOIN user_roles ur ON ur.role_id = rp.role_id WHERE ur.user_id = ?", userID).Scan(&codes).Error
 	return codes, err
 }
 

@@ -15,13 +15,13 @@ import (
 )
 
 type Claims struct {
-	UserID         uint   `json:"user_id"`
-	RoleID         uint   `json:"role_id"`
-	Role           string `json:"role"`
-	Username       string `json:"username"`
-	JTI            string `json:"jti"`
-	Type           string `json:"type"` // access | refresh
-	SessionVersion int    `json:"sv"`
+	UserID         uint     `json:"user_id"`
+	RoleIDs        []uint   `json:"role_ids"`
+	Roles          []string `json:"roles"`
+	Username       string   `json:"username"`
+	JTI            string   `json:"jti"`
+	Type           string   `json:"type"` // access | refresh
+	SessionVersion int      `json:"sv"`
 	jwtlib.RegisteredClaims
 }
 
@@ -43,14 +43,14 @@ func NewJWTManager(cfg config.JWTConfig, c cache.Cache) *JWTManager {
 	}
 }
 
-func (m *JWTManager) GenerateToken(ctx context.Context, userID uint, roleID uint, role, username string, sessionVersion int) (string, string, error) {
+func (m *JWTManager) GenerateToken(ctx context.Context, userID uint, roleIDs []uint, roles []string, username string, sessionVersion int) (string, string, error) {
 	jti := uuid.New().String()
 	now := time.Now()
 
 	access := Claims{
 		UserID:         userID,
-		RoleID:         roleID,
-		Role:           role,
+		RoleIDs:        roleIDs,
+		Roles:          roles,
 		Username:       username,
 		JTI:            jti,
 		Type:           "access",
@@ -68,8 +68,8 @@ func (m *JWTManager) GenerateToken(ctx context.Context, userID uint, roleID uint
 
 	refresh := Claims{
 		UserID:         userID,
-		RoleID:         roleID,
-		Role:           role,
+		RoleIDs:        roleIDs,
+		Roles:          roles,
 		Username:       username,
 		JTI:            jti,
 		Type:           "refresh",
@@ -162,8 +162,8 @@ func (m *JWTManager) RefreshToken(ctx context.Context, refreshToken string) (str
 	now := time.Now()
 	access := Claims{
 		UserID:         claims.UserID,
-		RoleID:         claims.RoleID,
-		Role:           claims.Role,
+		RoleIDs:        claims.RoleIDs,
+		Roles:          claims.Roles,
 		JTI:            jti,
 		Type:           "access",
 		SessionVersion: claims.SessionVersion,

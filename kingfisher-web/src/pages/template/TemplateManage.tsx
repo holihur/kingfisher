@@ -3,6 +3,7 @@ import { Modal, Form, Input, Select, App, Tag, Popconfirm, Button, Dropdown } fr
 import { PlusOutlined, EditOutlined, DeleteOutlined, DownOutlined } from '@ant-design/icons';
 import DataTable, { SearchField } from '../../components/DataTable';
 import { useAuthStore } from '../../stores/auth';
+import { useThemeToken } from '../../hooks/useThemeToken';
 import { templateApi } from '../../api/template';
 import { formatTime } from '../../utils/format';
 
@@ -31,6 +32,7 @@ const typeLabel = (t: string) => typeOptions.find((o) => o.value === t)?.label ?
 
 const TemplateManage: React.FC = () => {
   const { message, modal } = App.useApp();
+  const token = useThemeToken();
   const perms = useAuthStore((s) => s.permissions);
 
   const [refreshKey, setRefreshKey] = useState(0);
@@ -125,7 +127,7 @@ const TemplateManage: React.FC = () => {
       title: '内容模板',
       dataIndex: 'content',
       ellipsis: true,
-      render: (v: unknown) => (v ? <span style={{ color: '#595959' }}>{v as string}</span> : '-'),
+      render: (v: unknown) => (v ? <span style={{ color: token.colorTextSecondary }}>{v as string}</span> : '-'),
     },
     {
       title: '状态',

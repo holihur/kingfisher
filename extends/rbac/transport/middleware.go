@@ -50,8 +50,8 @@ func AuthMiddleware(jwtMgr *jwt.JWTManager, svp jwt.SessionVersionProvider) gin.
 			}
 		}
 		c.Set("user_id", claims.UserID)
-		c.Set("role_id", claims.RoleID)
-		c.Set("role", claims.Role)
+		c.Set("role_ids", claims.RoleIDs)
+		c.Set("roles", claims.Roles)
 		c.Set("username", claims.Username)
 		c.Next()
 	}

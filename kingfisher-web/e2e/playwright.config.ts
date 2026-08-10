@@ -42,6 +42,7 @@ export default defineConfig({
       timeout: 30000,
       reuseExistingServer: !process.env.CI,
       cwd: '../',
+      env: { VITE_API_TARGET: 'http://localhost:18080' },
     },
   ],
 });

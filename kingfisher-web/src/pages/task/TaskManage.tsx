@@ -3,6 +3,7 @@ import { Modal, Form, Input, Select, App, Tag, Popconfirm, Button, Dropdown, Ale
 import { PlusOutlined, EditOutlined, DeleteOutlined, DownOutlined, PlayCircleOutlined } from '@ant-design/icons';
 import DataTable, { SearchField } from '../../components/DataTable';
 import { useAuthStore } from '../../stores/auth';
+import { useThemeToken } from '../../hooks/useThemeToken';
 import { scheduledTaskApi } from '../../api/task';
 import { formatTime } from '../../utils/format';
 
@@ -26,6 +27,7 @@ interface TaskTypeInfo {
 
 const TaskManage: React.FC = () => {
   const { message, modal } = App.useApp();
+  const token = useThemeToken();
   const perms = useAuthStore((s) => s.permissions);
 
   const [taskTypes, setTaskTypes] = useState<TaskTypeInfo[]>([]);
@@ -143,7 +145,7 @@ const TaskManage: React.FC = () => {
       title: '载荷',
       dataIndex: 'payload',
       ellipsis: true,
-      render: (v: unknown) => (v ? <span style={{ color: '#595959', fontFamily: 'monospace' }}>{v as string}</span> : '-'),
+      render: (v: unknown) => (v ? <span style={{ color: token.colorTextSecondary, fontFamily: 'monospace' }}>{v as string}</span> : '-'),
     },
     {
       title: '状态',

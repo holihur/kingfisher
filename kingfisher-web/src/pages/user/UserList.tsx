@@ -3,6 +3,7 @@ import { Button, Modal, Form, App, Popconfirm, Badge, Avatar, Tag, Space, Dropdo
 import { PlusOutlined, EditOutlined, DeleteOutlined, DownOutlined } from '@ant-design/icons';
 import DataTable, { SearchField } from '../../components/DataTable';
 import { useAuthStore } from '../../stores/auth';
+import { useThemeToken } from '../../hooks/useThemeToken';
 import { userApi } from '../../api/user';
 import { roleApi } from '../../api/role';
 import { formatTime } from '../../utils/format';
@@ -14,7 +15,8 @@ interface UserRow {
   nickname?: string;
   avatar?: string;
   email: string;
-  role_id: number;
+  role_ids?: number[];
+  roles?: { id: number; name: string }[];
   status: number;
   created_at: string;
   updated_at: string;
@@ -22,6 +24,7 @@ interface UserRow {
 
 const UserList: React.FC = () => {
   const { message, modal } = App.useApp();
+  const token = useThemeToken();
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Record<string, unknown> | null>(null);
   const [form] = Form.useForm<Record<string, unknown>>();
@@ -66,7 +69,7 @@ const UserList: React.FC = () => {
           <Avatar size="small" src={r.avatar || undefined}>{r.username?.charAt(0)?.toUpperCase()}</Avatar>
           <span>
             {r.username}
-            {r.nickname ? <span style={{ color: '#8c8c8c', marginLeft: 6, fontSize: 12 }}>({r.nickname})</span> : null}
+            {r.nickname ? <span style={{ color: token.colorTextTertiary, marginLeft: 6, fontSize: 12 }}>({r.nickname})</span> : null}
           </span>
         </Space>
       ),
@@ -74,11 +77,18 @@ const UserList: React.FC = () => {
     { title: '邮箱', dataIndex: 'email', ellipsis: true },
     {
       title: '角色',
-      dataIndex: 'role_id',
-      width: 110,
+      dataIndex: 'role_ids',
+      width: 200,
       render: (_: unknown, r: UserRow) => {
-        const name = roleNameMap[r.role_id];
-        return name ? <Tag color={r.role_id === 1 ? 'gold' : r.role_id === 3 ? 'blue' : 'default'}>{name}</Tag> : <span>#{r.role_id}</span>;
+        const list = r.roles?.length ? r.roles : (r.role_ids || []).map((id) => ({ id, name: roleNameMap[id] || `#${id}` }));
+        if (!list.length) return <span>-</span>;
+        return (
+          <Space size={[0, 4]} wrap>
+            {list.map((role) => (
+              <Tag key={role.id} color={role.id === 1 ? 'gold' : role.id === 3 ? 'blue' : 'default'}>{role.name}</Tag>
+            ))}
+          </Space>
+        );
       },
     },
     {
@@ -225,7 +235,13 @@ const UserList: React.FC = () => {
         }}
         afterOpenChange={(open) => {
           if (open && editing) {
-            form.setFieldsValue(editing as never);
+            // 角色回填：roles 数组 → role_ids（多角色多选）
+            const editRow = editing as Record<string, unknown>;
+            const rolesArr = editRow.roles as { id: number }[] | undefined;
+            const roleIds = rolesArr?.length
+              ? rolesArr.map((r) => r.id)
+              : ((editRow.role_ids as number[]) || []);
+            form.setFieldsValue({ ...editRow, role_ids: roleIds });
           } else if (open && !editing) {
             form.resetFields();
           }

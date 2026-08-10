@@ -3,13 +3,14 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "packageManager": "pnpm@11.17.0",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test:e2e": "npx playwright test --config e2e/playwright.config.ts",
-    "test:e2e:ui": "npx playwright test --ui --config e2e/playwright.config.ts"
+    "test:e2e": "pnpm exec playwright test --config e2e/playwright.config.ts",
+    "test:e2e:ui": "pnpm exec playwright test --ui --config e2e/playwright.config.ts"
   },
   "dependencies": {
     "@ant-design/icons": "^6.3.2",

@@ -139,9 +139,10 @@ const AdminLayout: React.FC = () => {
   };
 
   const isSidebarDark = theme === 'dark';
-  const sidebarBg = isSidebarDark ? '#001529' : '#fff';
+  // 暗色侧边栏沿用 antd Sider 自身暗色背景；浅色侧边栏从 token 取，随主题联动
+  const sidebarBg = isSidebarDark ? '#001529' : themeToken.colorBgContainer;
   const sidebarTextColor = isSidebarDark ? '#fff' : 'inherit';
-  const sidebarBorderColor = isSidebarDark ? 'rgba(255,255,255,0.1)' : '#f0f0f0';
+  const sidebarBorderColor = isSidebarDark ? 'rgba(255,255,255,0.1)' : themeToken.colorSplit;
   const siderContent = loading ? <Spin style={{ display: 'block', marginTop: 40 }} /> : <Menu {...menuProps} />;
 
   return (
@@ -249,15 +250,15 @@ const AdminLayout: React.FC = () => {
             })()} />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <a href="/swagger/index.html" target="_blank" rel="noopener noreferrer" title="API 文档" style={{ color: '#666', fontSize: 17, display: 'flex', alignItems: 'center' }}>
+            <a href="/swagger/index.html" target="_blank" rel="noopener noreferrer" title="API 文档" style={{ color: themeToken.colorTextTertiary, fontSize: 17, display: 'flex', alignItems: 'center' }}>
               <FileTextOutlined />
             </a>
-            <span onClick={toggleTheme} title={theme === 'dark' ? '切换浅色' : '切换暗色'} style={{ color: '#666', fontSize: 17, cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+            <span onClick={toggleTheme} title={theme === 'dark' ? '切换浅色' : '切换暗色'} style={{ color: themeToken.colorTextTertiary, fontSize: 17, cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
               {theme === 'dark' ? <BulbFilled /> : <BulbOutlined />}
             </span>
             <Badge count={unreadCount} size="small" offset={[-2, 2]}>
               <InboxOutlined
-                style={{ fontSize: 18, cursor: 'pointer', color: '#666' }}
+                style={{ fontSize: 18, cursor: 'pointer', color: themeToken.colorTextTertiary }}
                 onClick={() => navigate('/profile?tab=inbox')}
               />
             </Badge>
@@ -272,7 +273,7 @@ const AdminLayout: React.FC = () => {
               <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Avatar
                   src={((userInfo as Record<string, unknown>)?.avatar as string) || undefined}
-                  style={!((userInfo as Record<string, unknown>)?.avatar as string) ? { background: '#1677ff' } : undefined}
+                  style={!((userInfo as Record<string, unknown>)?.avatar as string) ? { background: themeToken.colorPrimary } : undefined}
                 >
                   {((userInfo as Record<string, unknown>)?.nickname || (userInfo as Record<string, unknown>)?.username || '?')?.toString().charAt(0).toUpperCase()}
                 </Avatar>

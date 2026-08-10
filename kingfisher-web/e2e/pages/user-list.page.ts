@@ -79,7 +79,7 @@ export class UserListPage {
   }
 
   roleSelect(): Locator {
-    return this.modal().locator('#role_id');
+    return this.modal().locator('#role_ids');
   }
 
   // Popconfirm

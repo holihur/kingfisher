@@ -42,8 +42,11 @@ func (s *MenuService) GetTree(ctx context.Context) ([]domain.Menu, error) {
 	return tree, nil
 }
 
-func (s *MenuService) GetTreeForRole(ctx context.Context, roleID uint) ([]domain.Menu, error) {
-	menus, err := s.repo.FindByRoleIDs(ctx, []uint{roleID})
+func (s *MenuService) GetTreeForRole(ctx context.Context, roleIDs []uint) ([]domain.Menu, error) {
+	if len(roleIDs) == 0 {
+		return nil, nil
+	}
+	menus, err := s.repo.FindByRoleIDs(ctx, roleIDs)
 	if err != nil {
 		return nil, err
 	}

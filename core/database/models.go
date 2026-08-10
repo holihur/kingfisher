@@ -19,7 +19,6 @@ type UserPO struct {
 	Email          string `gorm:"size:128"`
 	Avatar         string `gorm:"size:255"`
 	Status         int    `gorm:"default:1"`
-	RoleID         uint   `gorm:"default:0"`
 	SessionVersion int    `gorm:"default:1"`
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
@@ -134,6 +133,14 @@ type RolePermissionPO struct {
 }
 
 func (RolePermissionPO) TableName() string { return "role_permissions" }
+
+// UserRolePO 用户-角色关联（多对多，多角色支持）
+type UserRolePO struct {
+	UserID uint `gorm:"primaryKey"`
+	RoleID uint `gorm:"primaryKey"`
+}
+
+func (UserRolePO) TableName() string { return "user_roles" }
 
 type DictTypePO struct {
 	ID       uint   `gorm:"primaryKey"`

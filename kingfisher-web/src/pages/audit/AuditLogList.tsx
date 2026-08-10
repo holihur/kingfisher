@@ -1,6 +1,7 @@
 import React from 'react';
 import { Tag } from 'antd';
 import DataTable, { SearchField } from '../../components/DataTable';
+import { useThemeToken } from '../../hooks/useThemeToken';
 import { auditApi } from '../../api/audit';
 import { formatTime } from '../../utils/format';
 
@@ -30,6 +31,7 @@ const searchFields: SearchField[] = [
 ];
 
 const AuditLogList: React.FC = () => {
+  const token = useThemeToken();
   const columns = [
     { title: 'ID', dataIndex: 'id', width: 80 },
     { title: '用户', dataIndex: 'username' },
@@ -43,7 +45,7 @@ const AuditLogList: React.FC = () => {
     },
     { title: '资源', dataIndex: 'resource', render: (_: unknown, r: AuditLogRow) => <Tag>{r.resource}</Tag> },
     { title: '资源ID', dataIndex: 'resource_id', width: 90 },
-    { title: 'IP', dataIndex: 'ip', render: (_: unknown, r: AuditLogRow) => <code style={{ background: '#f5f5f5', padding: '2px 6px', borderRadius: 4 }}>{r.ip}</code> },
+    { title: 'IP', dataIndex: 'ip', render: (_: unknown, r: AuditLogRow) => <code style={{ background: token.colorFillAlter, padding: '2px 6px', borderRadius: 4 }}>{r.ip}</code> },
     {
       title: '时间',
       dataIndex: 'created_at',

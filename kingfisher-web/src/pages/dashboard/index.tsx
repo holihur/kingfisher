@@ -1,7 +1,9 @@
-import { Card, Row, Col, Statistic, List, Tag, Badge, Avatar, Empty } from 'antd';
+import { Row, Col, Statistic, List, Tag, Badge, Avatar, Empty } from 'antd';
 import { UserOutlined, MenuOutlined, SafetyOutlined, SettingOutlined, ArrowRightOutlined } from '@ant-design/icons';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import PageCard from '../../components/PageCard';
+import { useThemeToken } from '../../hooks/useThemeToken';
 import request from '../../api/request';
 import { useAuthStore } from '../../stores/auth';
 import { formatRelativeTime } from '../../utils/format';
@@ -27,7 +29,7 @@ interface RecentUser {
   username: string;
   nickname?: string;
   avatar?: string;
-  role?: { name?: string };
+  roles?: { name: string }[];
   role_name?: string;
   created_at: string;
 }
@@ -43,6 +45,7 @@ interface AuditRow {
 }
 
 const Dashboard: React.FC = () => {
+  const token = useThemeToken();
   const [stats, setStats] = useState({ users: 0, menus: 0, roles: 0, configs: 0 });
   const [recentUsers, setRecentUsers] = useState<RecentUser[]>([]);
   const [recentLogs, setRecentLogs] = useState<AuditRow[]>([]);
@@ -76,25 +79,24 @@ const Dashboard: React.FC = () => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* 欢迎横幅 */}
-      <Card style={{ borderRadius: 8, border: 'none', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
+      <PageCard>
         <div>
-          <div style={{ fontSize: 20, fontWeight: 700, color: '#1a1a2e' }}>
+          <div style={{ fontSize: 20, fontWeight: 700, color: token.colorText }}>
             你好，{(userInfo?.nickname as string) || (userInfo?.username as string) || '管理员'} 👋
           </div>
-          <div style={{ marginTop: 6, fontSize: 14, color: '#8c8c8c' }}>
+          <div style={{ marginTop: 6, fontSize: 14, color: token.colorTextTertiary }}>
             欢迎回来，这里是系统总览。
           </div>
         </div>
-      </Card>
+      </PageCard>
 
       {/* 统计卡 */}
       <Row gutter={[16, 16]}>
         {statCards.map((c) => (
           <Col xs={12} sm={12} md={6} key={c.key}>
-            <Card
+            <PageCard
               hoverable
-              style={{ borderRadius: 8, border: 'none', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}
-              styles={{ body: { padding: '20px 24px' } }}
+                            styles={{ body: { padding: '20px 24px' } }}
               onClick={() => navigate(c.link)}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
@@ -119,9 +121,9 @@ const Dashboard: React.FC = () => {
                   value={stats[c.key as keyof typeof stats]}
                   valueStyle={{ fontSize: 24, fontWeight: 600 }}
                 />
-                <ArrowRightOutlined style={{ marginLeft: 'auto', color: '#bfbfbf', fontSize: 12 }} />
+                <ArrowRightOutlined style={{ marginLeft: 'auto', color: token.colorTextTertiary, fontSize: 12 }} />
               </div>
-            </Card>
+            </PageCard>
           </Col>
         ))}
       </Row>
@@ -129,11 +131,10 @@ const Dashboard: React.FC = () => {
       {/* 数据支撑：最近用户 + 最近审计 */}
       <Row gutter={[16, 16]}>
         <Col xs={24} md={12}>
-          <Card
+          <PageCard
             title={<span style={{ fontSize: 15, fontWeight: 600 }}>最近用户</span>}
             extra={<a onClick={() => navigate('/system/users')}>全部 <ArrowRightOutlined style={{ fontSize: 11 }} /></a>}
-            style={{ borderRadius: 8, border: 'none', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}
-          >
+                      >
             <List
               dataSource={recentUsers}
               locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无用户" /> }}
@@ -144,23 +145,22 @@ const Dashboard: React.FC = () => {
                     title={
                       <span>
                         {u.username}
-                        {u.nickname ? <span style={{ color: '#8c8c8c', marginLeft: 6, fontSize: 12 }}>({u.nickname})</span> : null}
+                        {u.nickname ? <span style={{ color: token.colorTextTertiary, marginLeft: 6, fontSize: 12 }}>({u.nickname})</span> : null}
                       </span>
                     }
                     description={formatRelativeTime(u.created_at)}
                   />
-                  <Tag>{u.role_name || u.role?.name || '未知角色'}</Tag>
+                  <Tag>{u.roles?.map((r) => r.name).join(' / ') || u.role_name || '未知角色'}</Tag>
                 </List.Item>
               )}
             />
-          </Card>
+          </PageCard>
         </Col>
         <Col xs={24} md={12}>
-          <Card
+          <PageCard
             title={<span style={{ fontSize: 15, fontWeight: 600 }}>最近操作</span>}
             extra={<a onClick={() => navigate('/system/audit')}>全部 <ArrowRightOutlined style={{ fontSize: 11 }} /></a>}
-            style={{ borderRadius: 8, border: 'none', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}
-          >
+                      >
             <List
               dataSource={recentLogs}
               locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无操作记录" /> }}
@@ -173,17 +173,17 @@ const Dashboard: React.FC = () => {
                         <span>
                           <Badge status="processing" style={{ marginRight: 6 }} />
                           {l.username} <Tag color={a.color} style={{ marginLeft: 4 }}>{a.text}</Tag>
-                          <span style={{ color: '#8c8c8c', marginLeft: 6 }}>{l.resource}</span>
+                          <span style={{ color: token.colorTextTertiary, marginLeft: 6 }}>{l.resource}</span>
                         </span>
                       }
                       description={formatRelativeTime(l.created_at)}
                     />
-                    <span style={{ color: '#bfbfbf', fontSize: 12 }}>{l.ip}</span>
+                    <span style={{ color: token.colorTextTertiary, fontSize: 12 }}>{l.ip}</span>
                   </List.Item>
                 );
               }}
             />
-          </Card>
+          </PageCard>
         </Col>
       </Row>
     </div>

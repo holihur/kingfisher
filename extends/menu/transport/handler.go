@@ -37,10 +37,14 @@ func (h *MenuHandler) GetTree(c *gin.Context) {
 	response.OKJSON(c, tree)
 }
 
-// GetMyTree returns the menu tree filtered by the current user's role.
+// GetMyTree returns the menu tree filtered by the current user's roles (multi-role union).
 func (h *MenuHandler) GetMyTree(c *gin.Context) {
-	roleID := c.GetUint("role_id")
-	tree, err := h.svc.GetTreeForRole(c.Request.Context(), roleID)
+	roleIDsVal, _ := c.Get("role_ids")
+	var roleIDs []uint
+	if v, ok := roleIDsVal.([]uint); ok {
+		roleIDs = v
+	}
+	tree, err := h.svc.GetTreeForRole(c.Request.Context(), roleIDs)
 	if err != nil {
 		response.InternalError(c)
 		return

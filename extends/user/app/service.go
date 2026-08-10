@@ -65,7 +65,7 @@ func (s *AuthService) Register(ctx context.Context, username, password, email st
 			}
 		}
 	}
-	user := &domain.User{Username: username, Password: string(hashed), Email: email, Status: 1, RoleID: roleID}
+	user := &domain.User{Username: username, Password: string(hashed), Email: email, Status: 1, RoleIDs: []uint{roleID}}
 	if err := s.repo.Create(ctx, user); err != nil {
 		return nil, fmt.Errorf("create user: %w", err)
 	}
@@ -106,21 +106,25 @@ func (s *AuthService) Login(ctx context.Context, username, password string) (str
 		_ = s.cache.Delete(ctx, "login_fail:"+username)
 	}
 
-	roleCode := "viewer"
-	if user.RoleID == 1 {
-		roleCode = "admin"
+	// 收集所有角色的 ID 与 code（多角色权限/菜单取并集）
+	var roleIDs []uint
+	var roleCodes []string
+	for _, r := range user.Roles {
+		roleIDs = append(roleIDs, r.ID)
+		roleCodes = append(roleCodes, r.Code)
 	}
-	if user.RoleID == 3 {
-		roleCode = "editor"
+	if len(roleIDs) == 0 {
+		// 兜底：不应发生（用户至少一个角色），避免生成空角色 token
+		return "", "", nil, "", fmt.Errorf("user has no roles")
 	}
-	access, refresh, err := s.jwtMgr.GenerateToken(ctx, user.ID, user.RoleID, roleCode, user.Username, user.SessionVersion)
+	access, refresh, err := s.jwtMgr.GenerateToken(ctx, user.ID, roleIDs, roleCodes, user.Username, user.SessionVersion)
 	if err != nil {
 		return "", "", nil, "", err
 	}
-	// 查询角色落地页（登录后跳转页面）
+	// 查询角色落地页（登录后跳转页面），取第一个角色的
 	landing := ""
 	if s.getLandingPage != nil {
-		if lp, e := s.getLandingPage(ctx, user.RoleID); e == nil {
+		if lp, e := s.getLandingPage(ctx, roleIDs[0]); e == nil {
 			landing = lp
 		}
 	}
@@ -154,9 +158,9 @@ func (s *UserService) Update(ctx context.Context, id uint, updates map[string]an
 	if err := s.repo.Update(ctx, id, updates); err != nil {
 		return err
 	}
-	// When role changes, invalidate cached permissions so RBAC middleware
-	// picks up the new role's permissions on next request.
-	if _, ok := updates["role_id"]; ok && s.cache != nil {
+	// When roles change, invalidate cached permissions so RBAC middleware
+	// picks up the new roles' permissions on next request.
+	if _, ok := updates["role_ids"]; ok && s.cache != nil {
 		_ = s.cache.Delete(ctx, "user:perms:"+strconv.FormatUint(uint64(id), 10))
 	}
 	return nil
@@ -174,7 +178,7 @@ func (s *UserService) BatchUpdateStatus(ctx context.Context, ids []uint, status 
 	return s.repo.UpdateStatusBatch(ctx, ids, status)
 }
 
-func (s *UserService) CreateUser(ctx context.Context, username, password, email string) (*domain.User, error) {
+func (s *UserService) CreateUser(ctx context.Context, username, password, email string, roleIDs []uint) (*domain.User, error) {
 	_, err := s.repo.FindByUsername(ctx, username)
 	if err == nil {
 		return nil, fmt.Errorf("user exists")
@@ -183,7 +187,11 @@ func (s *UserService) CreateUser(ctx context.Context, username, password, email 
 	if err != nil {
 		return nil, fmt.Errorf("hash: %w", err)
 	}
-	user := &domain.User{Username: username, Password: string(hashed), Email: email, Status: 1, RoleID: 4}
+	// 未指定角色时默认访客(4)
+	if len(roleIDs) == 0 {
+		roleIDs = []uint{4}
+	}
+	user := &domain.User{Username: username, Password: string(hashed), Email: email, Status: 1, RoleIDs: roleIDs}
 	if err := s.repo.Create(ctx, user); err != nil {
 		return nil, err
 	}

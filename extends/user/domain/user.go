@@ -10,8 +10,8 @@ type User struct {
 	Email          string    `json:"email"`
 	Avatar         string    `json:"avatar"`
 	Status         int       `json:"status"` // 1=启用 0=禁用
-	RoleID         uint      `json:"role_id"`
-	Role           *Role     `json:"role,omitempty"`
+	RoleIDs        []uint    `json:"role_ids"`
+	Roles          []*Role   `json:"roles,omitempty"`
 	SessionVersion int       `json:"-"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`

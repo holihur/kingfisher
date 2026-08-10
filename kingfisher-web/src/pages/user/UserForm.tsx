@@ -27,8 +27,8 @@ const UserForm: React.FC<UserFormProps> = ({ form, editing, roles }) => (
         { label: '禁用', value: 0 },
       ]} />
     </Form.Item>
-    <Form.Item name="role_id" label="角色">
-      <Select options={roles} />
+    <Form.Item name="role_ids" label="角色" rules={[{ required: true, message: '请至少选择一个角色' }]}>
+      <Select mode="multiple" options={roles} placeholder="可多选" allowClear />
     </Form.Item>
   </Form>
 );

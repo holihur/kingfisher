@@ -28,11 +28,11 @@ test('编辑 site_name', async ({ page }) => {
   await expect(page.locator('.ant-modal')).toBeVisible();
   await page.locator('#value').clear();
   await page.locator('#value').fill('E2E Test');
-  await page.locator('.ant-modal').getByRole('button', { name: /确定|保存/ }).click();
+  await page.locator('.ant-modal').getByRole('button', { name: /确\s*定|保存/ }).click();
   await expect(page.locator('.ant-modal')).not.toBeVisible({ timeout: 10000 });
   // Restore
   await page.locator('tr', { hasText: 'site_name' }).getByText('编辑').click();
   await page.locator('#value').clear();
   await page.locator('#value').fill('Kingfisher Admin');
-  await page.locator('.ant-modal').getByRole('button', { name: /确定|保存/ }).click();
+  await page.locator('.ant-modal').getByRole('button', { name: /确\s*定|保存/ }).click();
 });

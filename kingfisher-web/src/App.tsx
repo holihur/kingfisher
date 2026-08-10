@@ -13,7 +13,7 @@ function ThemedApp() {
       locale={zhCN}
       theme={{
         token: { colorPrimary: '#1677ff' },
-        algorithm: current === 'dark' ? theme.darkAlgorithm : undefined,
+        algorithm: current === 'dark' ? theme.darkAlgorithm : theme.defaultAlgorithm,
       }}
     >
       <AntApp>

@@ -24,15 +24,25 @@ type mockUserData struct {
 	email      string
 	status     int
 	sessionVer int
+	roleIDs    []uint
+}
+
+func mockToUser(d *mockUserData) *domain.User {
+	u := &domain.User{
+		ID: d.id, Username: d.username, Password: d.password,
+		Email: d.email, Status: d.status, SessionVersion: d.sessionVer,
+		RoleIDs: d.roleIDs,
+	}
+	for _, rid := range d.roleIDs {
+		u.Roles = append(u.Roles, &domain.Role{ID: rid, Name: "角色", Code: "r" + fmt.Sprint(rid)})
+	}
+	return u
 }
 
 func (m *mockUserRepo) FindByID(ctx context.Context, id uint) (*domain.User, error) {
 	for _, d := range m.users {
 		if d.id == id {
-			return &domain.User{
-				ID: d.id, Username: d.username, Password: d.password,
-				Email: d.email, Status: d.status, SessionVersion: d.sessionVer,
-			}, nil
+			return mockToUser(d), nil
 		}
 	}
 	return nil, fmt.Errorf("not found")
@@ -43,10 +53,7 @@ func (m *mockUserRepo) FindByUsername(ctx context.Context, username string) (*do
 	if !ok {
 		return nil, fmt.Errorf("not found")
 	}
-	return &domain.User{
-		ID: d.id, Username: d.username, Password: d.password,
-		Email: d.email, Status: d.status, SessionVersion: d.sessionVer,
-	}, nil
+	return mockToUser(d), nil
 }
 
 func (m *mockUserRepo) FindAll(ctx context.Context, q *query.Query) ([]domain.User, int64, error) {
@@ -64,7 +71,7 @@ func (m *mockUserRepo) Create(ctx context.Context, u *domain.User) error {
 	u.ID = m.idCounter
 	m.users[u.Username] = &mockUserData{
 		id: u.ID, username: u.Username, password: u.Password,
-		email: u.Email, status: 1, sessionVer: 1,
+		email: u.Email, status: 1, sessionVer: 1, roleIDs: u.RoleIDs,
 	}
 	return nil
 }
@@ -263,7 +270,7 @@ func TestSessionVersionProvider(t *testing.T) {
 
 	// Generate token with old version
 	mgr := jwt.NewJWTManager(config.JWTConfig{Secret: "test-secret", AccessTTL: 1e12, RefreshTTL: 2e12, Issuer: "test"}, nil)
-	access, _, _ := mgr.GenerateToken(context.Background(), 1, 1, "admin", "admin", 1)
+	access, _, _ := mgr.GenerateToken(context.Background(), 1, []uint{1}, []string{"admin"}, "admin", 1)
 	claims, _ := mgr.ParseToken(context.Background(), access)
 
 	// Token version (1) < DB version (3) = should reject
@@ -275,7 +282,7 @@ func TestSessionVersionProvider(t *testing.T) {
 func TestUserCreate(t *testing.T) {
 	repo := &mockUserRepo{users: map[string]*mockUserData{}}
 	svc := NewUserService(repo, nil)
-	u, err := svc.CreateUser(context.Background(), "newuser", "Abcd1234", "new@test.com")
+	u, err := svc.CreateUser(context.Background(), "newuser", "Abcd1234", "new@test.com", nil)
 	if err != nil {
 		t.Fatal("create:", err)
 	}
@@ -293,10 +300,10 @@ func TestUserCreate(t *testing.T) {
 func TestUserCreateDuplicate(t *testing.T) {
 	repo := &mockUserRepo{users: map[string]*mockUserData{}}
 	svc := NewUserService(repo, nil)
-	if _, err := svc.CreateUser(context.Background(), "dup", "Abcd1234", "a@b.com"); err != nil {
+	if _, err := svc.CreateUser(context.Background(), "dup", "Abcd1234", "a@b.com", nil); err != nil {
 		t.Fatal("create:", err)
 	}
-	if _, err := svc.CreateUser(context.Background(), "dup", "Abcd1234", "a@b.com"); err == nil {
+	if _, err := svc.CreateUser(context.Background(), "dup", "Abcd1234", "a@b.com", nil); err == nil {
 		t.Error("duplicate username should fail")
 	}
 }
@@ -304,7 +311,7 @@ func TestUserCreateDuplicate(t *testing.T) {
 func TestUserGetByIDAndList(t *testing.T) {
 	repo := &mockUserRepo{users: map[string]*mockUserData{}}
 	svc := NewUserService(repo, nil)
-	if _, err := svc.CreateUser(context.Background(), "u1", "Abcd1234", "a@b.com"); err != nil {
+	if _, err := svc.CreateUser(context.Background(), "u1", "Abcd1234", "a@b.com", nil); err != nil {
 		t.Fatal(err)
 	}
 	// GetByID
@@ -335,10 +342,10 @@ func TestUserDeleteBatchStatus(t *testing.T) {
 		t.Fatal("batch status:", err)
 	}
 	// Update（角色变更时清理权限缓存——传 cache nil 走无缓存分支）
-	if err := svc.Update(context.Background(), 1, map[string]any{"role_id": 3}); err != nil {
+	if err := svc.Update(context.Background(), 1, map[string]any{"role_ids": []uint{3}}); err != nil {
 		t.Fatal("update:", err)
 	}
-	// 无 role_id 的普通更新
+	// 无 role_ids 的普通更新
 	if err := svc.Update(context.Background(), 1, map[string]any{"nickname": "n"}); err != nil {
 		t.Fatal("update:", err)
 	}
@@ -405,8 +412,8 @@ func TestRegisterWithDefaultRoleConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal("register:", err)
 	}
-	if u.RoleID != 3 {
-		t.Errorf("default register role should be 3 (editor), got %d", u.RoleID)
+	if len(u.RoleIDs) != 1 || u.RoleIDs[0] != 3 {
+		t.Errorf("default register role should be [3] (editor), got %v", u.RoleIDs)
 	}
 }
 

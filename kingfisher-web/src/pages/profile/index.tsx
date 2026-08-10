@@ -1,8 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Card, Form, Input, Button, App, Descriptions, Tag, Menu, Upload, Table, Popconfirm, Dropdown, Spin, Empty, Space } from 'antd';
+import { Form, Input, Button, App, Descriptions, Tag, Menu, Upload, Table, Popconfirm, Dropdown, Spin, Empty, Space } from 'antd';
 import type { TableProps, UploadProps } from 'antd';
 import { UserOutlined, MailOutlined, LockOutlined, UploadOutlined, SolutionOutlined, KeyOutlined, FileTextOutlined, DownOutlined } from '@ant-design/icons';
+import PageCard from '../../components/PageCard';
+import { useThemeToken } from '../../hooks/useThemeToken';
 import { userApi } from '../../api/user';
 import { messageApi } from '../../api/message';
 import { useAuthStore } from '../../stores/auth';
@@ -28,6 +30,7 @@ interface MessageRow {
 
 const Profile: React.FC = () => {
   const { message } = App.useApp();
+  const themeToken = useThemeToken();
   const { userInfo, fetchUserInfo, token } = useAuthStore();
   const [profileForm] = Form.useForm();
   const [pwdForm] = Form.useForm();
@@ -276,7 +279,7 @@ const Profile: React.FC = () => {
   return (
     <div style={{ display: 'flex', gap: 16, width: '100%' }}>
       {/* 左侧菜单 */}
-      <div style={{ width: 200, flexShrink: 0, background: '#fff', borderRadius: 8, padding: 8, boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
+      <div style={{ width: 200, flexShrink: 0, background: themeToken.colorBgContainer, borderRadius: themeToken.borderRadiusLG, padding: 8, boxShadow: themeToken.boxShadowTertiary }}>
         <Menu
           mode="inline"
           selectedKeys={[activeKey]}
@@ -294,7 +297,7 @@ const Profile: React.FC = () => {
       {/* 右侧内容 */}
       <div style={{ flex: 1, minWidth: 0 }}>
         {activeKey === 'profile' && (
-          <Card title="基本资料" style={{ borderRadius: 8, border: 'none', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
+          <PageCard title="基本资料">
             <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
               {/* 头像区域 */}
               <div style={{ textAlign: 'center' }}>
@@ -303,7 +306,7 @@ const Profile: React.FC = () => {
                     width: 100,
                     height: 100,
                     borderRadius: '50%',
-                    background: '#f0f0f0',
+                    background: themeToken.colorFillTertiary,
                     margin: '0 auto 12px',
                     overflow: 'hidden',
                     display: 'flex',
@@ -314,7 +317,7 @@ const Profile: React.FC = () => {
                   {avatarUrl ? (
                     <img src={avatarUrl} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : (
-                    <UserOutlined style={{ fontSize: 40, color: '#bfbfbf' }} />
+                    <UserOutlined style={{ fontSize: 40, color: themeToken.colorTextTertiary }} />
                   )}
                 </div>
                 <Upload {...uploadProps}>
@@ -331,7 +334,11 @@ const Profile: React.FC = () => {
                     {((userInfo as Record<string, unknown>)?.username as string) || '-'}
                   </Descriptions.Item>
                   <Descriptions.Item label="角色">
-                    {((userInfo as Record<string, unknown>)?.role as Record<string, unknown>)?.name as string || '-'}
+                    {(() => {
+                      const roles = ((userInfo as Record<string, unknown>)?.roles as { name?: string }[]) || [];
+                      if (!roles.length) return '-';
+                      return roles.map((r) => r.name).join(' / ');
+                    })()}
                   </Descriptions.Item>
                 </Descriptions>
                 <Form form={profileForm} layout="vertical">
@@ -347,11 +354,11 @@ const Profile: React.FC = () => {
                 </Form>
               </div>
             </div>
-          </Card>
+          </PageCard>
         )}
 
         {activeKey === 'password' && (
-          <Card title="修改密码" style={{ borderRadius: 8, border: 'none', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
+          <PageCard title="修改密码">
             <Form form={pwdForm} layout="vertical" style={{ maxWidth: 400 }}>
               <Form.Item name="old_password" label="旧密码" rules={[{ required: true, message: '请输入旧密码' }]}>
                 <Input.Password prefix={<LockOutlined />} />
@@ -366,36 +373,34 @@ const Profile: React.FC = () => {
                 <Button type="primary" danger onClick={handlePasswordChange}>修改密码</Button>
               </Form.Item>
             </Form>
-          </Card>
+          </PageCard>
         )}
 
         {activeKey === 'inbox' && (
           msgDetailId ? (
-            <Card
+            <PageCard
               title="消息详情"
-              style={{ borderRadius: 8, border: 'none', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}
-              extra={<Button size="small" onClick={() => navigate('/profile?tab=inbox')}>返回列表</Button>}
+                            extra={<Button size="small" onClick={() => navigate('/profile?tab=inbox')}>返回列表</Button>}
             >
               {msgDetailLoading ? <Spin /> : msgDetail ? (
                 <>
                   <h2 style={{ fontSize: 20, fontWeight: 600, marginBottom: 12 }}>{msgDetail.title}</h2>
-                  <Space size={16} style={{ marginBottom: 20, color: '#999', fontSize: 13 }}>
+                  <Space size={16} style={{ marginBottom: 20, color: themeToken.colorTextTertiary, fontSize: 13 }}>
                     <span>{msgDetail.sender_type === 'system' ? <Tag color="blue">系统</Tag> : <Tag>管理员</Tag>}</span>
                     <span>{formatTime(msgDetail.created_at)}</span>
                   </Space>
-                  <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.8, color: '#333' }}>
+                  <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.8, color: themeToken.colorText }}>
                     {msgDetail.content || '（无内容）'}
                   </div>
                 </>
               ) : (
                 <Empty description="消息不存在或已被删除" />
               )}
-            </Card>
+            </PageCard>
           ) : (
-            <Card
+            <PageCard
               title="收件箱"
-              style={{ borderRadius: 8, border: 'none', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}
-              extra={
+                            extra={
                 selectedMsgKeys.length > 0 ? (
                   <Dropdown
                     menu={{
@@ -429,12 +434,12 @@ const Profile: React.FC = () => {
                 }}
                 size="middle"
               />
-            </Card>
+            </PageCard>
           )
         )}
 
         {activeKey === 'logs' && (
-          <Card title="最近登录记录" style={{ borderRadius: 8, border: 'none', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
+          <PageCard title="最近登录记录">
             <Table<LoginLog>
               columns={loginLogColumns}
               rowKey="id"
@@ -449,7 +454,7 @@ const Profile: React.FC = () => {
               }}
               size="middle"
             />
-          </Card>
+          </PageCard>
         )}
       </div>
     </div>

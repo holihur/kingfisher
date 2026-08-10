@@ -1,9 +1,11 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
-COPY kingfisher-web/package.json kingfisher-web/package-lock.json ./
-RUN npm ci
+# 启用 corepack：首次调用 pnpm 时按 package.json 的 packageManager 字段自动安装锁定版本
+RUN corepack enable
+COPY kingfisher-web/package.json kingfisher-web/pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
 COPY kingfisher-web/ .
-RUN npm run build
+RUN pnpm run build
 
 FROM nginx:alpine
 COPY --from=builder /app/dist /usr/share/nginx/html
