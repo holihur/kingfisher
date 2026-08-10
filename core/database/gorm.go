@@ -111,6 +111,7 @@ func autoMigrate(db *gorm.DB) error {
 		&DictEntryPO{},
 		&MessagePO{},
 		&TemplatePO{},
+		&ScheduledTaskPO{},
 	)
 }
 
@@ -151,6 +152,10 @@ func SeedData(db *gorm.DB) error {
 			{ID: 25, Name: "创建模版", Code: "template:create", Resource: "template", Action: "create"},
 			{ID: 26, Name: "更新模版", Code: "template:update", Resource: "template", Action: "update"},
 			{ID: 27, Name: "删除模版", Code: "template:delete", Resource: "template", Action: "delete"},
+			{ID: 28, Name: "查看任务", Code: "task:list", Resource: "task", Action: "read"},
+			{ID: 29, Name: "创建任务", Code: "task:create", Resource: "task", Action: "create"},
+			{ID: 30, Name: "更新任务", Code: "task:update", Resource: "task", Action: "update"},
+			{ID: 31, Name: "删除任务", Code: "task:delete", Resource: "task", Action: "delete"},
 		}
 		if err := tx.Create(&perms).Error; err != nil {
 			return fmt.Errorf("seed permissions: %w", err)
@@ -174,6 +179,7 @@ func SeedData(db *gorm.DB) error {
 			{1, 16}, {1, 17}, {1, 18}, {1, 19},
 			{1, 20}, {1, 21}, {1, 22}, {1, 23},
 			{1, 24}, {1, 25}, {1, 26}, {1, 27},
+			{1, 28}, {1, 29}, {1, 30}, {1, 31},
 			{3, 1}, {3, 2}, {3, 3}, {3, 5}, {3, 6}, {3, 7}, {3, 9}, {3, 13}, {3, 16},
 			{4, 1}, {4, 5}, {4, 9}, {4, 13}, {4, 16},
 		}
@@ -193,6 +199,7 @@ func SeedData(db *gorm.DB) error {
 			{ID: 17, ParentID: 2, Name: "字典管理", Path: "/system/dicts", Component: "pages/Dict/DictManage", Icon: "BookOutlined", Sort: 6, Permission: "dict:list", Version: "1.0.0"},
 			{ID: 18, ParentID: 2, Name: "站内信管理", Path: "/system/messages", Component: "pages/Message/MessageManage", Icon: "MailOutlined", Sort: 7, Permission: "message:list", Version: "1.0.0"},
 			{ID: 19, ParentID: 2, Name: "模版管理", Path: "/system/templates", Component: "pages/Template/TemplateManage", Icon: "FileTextOutlined", Sort: 8, Permission: "template:list", Version: "1.0.0"},
+			{ID: 20, ParentID: 2, Name: "任务管理", Path: "/system/tasks", Component: "pages/Task/TaskManage", Icon: "ScheduleOutlined", Sort: 9, Permission: "task:list", Version: "1.0.0"},
 		}
 		if err := tx.Create(&menus).Error; err != nil {
 			return fmt.Errorf("seed menus: %w", err)
@@ -201,7 +208,7 @@ func SeedData(db *gorm.DB) error {
 		// Role-Menu links (admin sees all, editor sees Dashboard+Users+Menus, viewer sees Dashboard only)
 		type RM struct{ RoleID, MenuID uint }
 		rm := []RM{
-			{1, 1}, {1, 2}, {1, 3}, {1, 7}, {1, 11}, {1, 15}, {1, 16}, {1, 17}, {1, 18}, {1, 19},
+			{1, 1}, {1, 2}, {1, 3}, {1, 7}, {1, 11}, {1, 15}, {1, 16}, {1, 17}, {1, 18}, {1, 19}, {1, 20},
 			{3, 1}, {3, 3}, {3, 7},
 			{4, 1},
 		}
@@ -274,7 +281,15 @@ func SeedData(db *gorm.DB) error {
 			{ID: 1, Name: "欢迎消息", Code: "welcome_message", TemplateType: "message", Title: "欢迎 {{nickname}}", Content: "你好 {{nickname}}，欢迎使用 Kingfisher！", Status: 1, Version: "1.0.0"},
 			{ID: 2, Name: "密码重置通知", Code: "password_reset", TemplateType: "message", Title: "密码重置", Content: "您的密码已重置，请登录后修改。", Status: 1, Version: "1.0.0"},
 		}
-		return tx.Create(&templates).Error
+		if err := tx.Create(&templates).Error; err != nil {
+			return fmt.Errorf("seed templates: %w", err)
+		}
+
+		// Scheduled Tasks（示例：nop 空转任务，用于测试周期调度链路）
+		scheduledTasks := []ScheduledTaskPO{
+			{ID: 1, Name: "nop 测试任务", TaskType: "nop:run", CronSpec: "* * * * *", Payload: `{"note":"周期任务测试"}`, Enabled: 1, Remark: "每 分钟空转一次，验证调度器→入队→worker 消费链路"},
+		}
+		return tx.Create(&scheduledTasks).Error
 	})
 }
 

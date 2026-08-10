@@ -200,3 +200,18 @@ type TemplatePO struct {
 }
 
 func (TemplatePO) TableName() string { return "templates" }
+
+// ScheduledTaskPO 周期任务配置（后台管理 → asynq PeriodicTaskManager 周期性同步调度）
+type ScheduledTaskPO struct {
+	ID        uint   `gorm:"primaryKey"`
+	Name      string `gorm:"size:64;not null"`
+	TaskType  string `gorm:"size:64;not null"`
+	CronSpec  string `gorm:"size:64;not null"`
+	Payload   string `gorm:"type:text"`
+	Enabled   int    `gorm:"default:1;index"`
+	Remark    string `gorm:"size:255"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+func (ScheduledTaskPO) TableName() string { return "scheduled_tasks" }

@@ -53,6 +53,7 @@ log:
 taskqueue:
   enabled: true
   concurrency: 10
+  periodic_sync_interval: 60
 
 rate_limit:
   enabled: true

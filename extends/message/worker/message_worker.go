@@ -8,6 +8,7 @@ import (
 
 	"github.com/hibiken/asynq"
 
+	"kingfisher/core/taskqueue"
 	"kingfisher/extends/message/app"
 	messageTask "kingfisher/extends/message/task"
 )
@@ -28,6 +29,17 @@ func (w *MessageWorker) Name() string { return "message" }
 // RegisterWorkers 注册本模块的任务 handler。
 func (w *MessageWorker) RegisterWorkers(mux *asynq.ServeMux) {
 	mux.HandleFunc(messageTask.TypeSendMessage, w.HandleSendMessage)
+}
+
+// TaskTypes 声明本模块可被周期任务调用的任务类型。
+func (w *MessageWorker) TaskTypes() []taskqueue.TaskTypeInfo {
+	return []taskqueue.TaskTypeInfo{
+		{
+			Type:           messageTask.TypeSendMessage,
+			Label:          "站内信发送",
+			PayloadExample: `{"recipient_ids":[1,2],"title":"通知","content":"内容"}`,
+		},
+	}
 }
 
 // Shutdown worker 无独立资源，无需清理。

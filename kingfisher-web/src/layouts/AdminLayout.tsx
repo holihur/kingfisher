@@ -17,6 +17,7 @@ import {
   InboxOutlined,
   MailOutlined,
   FileTextOutlined,
+  ScheduleOutlined,
   BulbOutlined,
   BulbFilled,
 } from '@ant-design/icons';
@@ -37,6 +38,8 @@ const icons: Record<string, React.ReactNode> = {
   AuditOutlined: <AuditOutlined />,
   BookOutlined: <BookOutlined />,
   MailOutlined: <MailOutlined />,
+  FileTextOutlined: <FileTextOutlined />,
+  ScheduleOutlined: <ScheduleOutlined />,
 };
 
 const MOBILE_BREAKPOINT = 768;

@@ -30,6 +30,7 @@ log:
 taskqueue:
   enabled: true
   concurrency: 4
+  periodic_sync_interval: 60
 
 rate_limit:
   enabled: true

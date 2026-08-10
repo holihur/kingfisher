@@ -107,6 +107,8 @@ type RateLimitConfig struct {
 type TaskQueueConfig struct {
 	Enabled     bool `mapstructure:"enabled"`
 	Concurrency int  `mapstructure:"concurrency"`
+	// PeriodicSyncInterval 周期任务同步间隔（秒），PeriodicTaskManager 从 DB 拉取配置并同步到调度器的周期。
+	PeriodicSyncInterval int `mapstructure:"periodic_sync_interval"`
 }
 
 type CORSConfig struct {

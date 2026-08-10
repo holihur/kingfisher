@@ -52,6 +52,9 @@ const (
 	// Template 10600-10699
 	ErrTemplateNotFound   = 10601
 	ErrTemplateCodeExists = 10602
+
+	// Task 10700-10799
+	ErrTaskNotFound = 10701
 )
 
 //nolint:gosec // false positive — Chinese error messages
@@ -91,6 +94,7 @@ var errMsg = map[int]string{
 	ErrDictTypeNotPublic:    "字典类型未公开",
 	ErrTemplateNotFound:     "模版不存在",
 	ErrTemplateCodeExists:   "模版编码已存在",
+	ErrTaskNotFound:         "周期任务不存在",
 }
 
 func Msg(code int) string {

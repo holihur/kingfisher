@@ -45,6 +45,7 @@ import (
 	menuTransport "kingfisher/extends/menu/transport"
 	messageTransport "kingfisher/extends/message/transport"
 	rbacTransport "kingfisher/extends/rbac/transport"
+	taskTransport "kingfisher/extends/task/transport"
 	templateTransport "kingfisher/extends/template/transport"
 	userAdapter "kingfisher/extends/user/adapter/mysql"
 	userTransport "kingfisher/extends/user/transport"
@@ -164,6 +165,7 @@ func main() {
 		dictTransport.NewDictModule(db, redisCache),
 		messageTransport.NewMessageModule(db, producer),
 		templateTransport.NewTemplateModule(db, redisCache),
+		taskTransport.NewTaskModule(db, producer),
 		auditMod,
 	}
 	r.Use(auditMod.Middleware()) // audit all write operations
@@ -175,13 +177,46 @@ func main() {
 			workers = append(workers, wp.Worker())
 		}
 	}
+	// 内置 nop worker（周期任务测试/占位）：不依赖任何业务模块
+	workers = append(workers, taskqueue.NewNopWorker(zapLog))
+	// 注入任务管理页可用的任务类型列表（各模块 worker 声明的类型）
+	for _, m := range mods {
+		if tm, ok := m.(interface {
+			InjectTaskTypes(func() []taskqueue.TaskTypeInfo)
+		}); ok {
+			allTypes := make([]taskqueue.TaskTypeInfo, 0)
+			for _, w := range workers {
+				allTypes = append(allTypes, w.TaskTypes()...)
+			}
+			tm.InjectTaskTypes(func() []taskqueue.TaskTypeInfo { return allTypes })
+		}
+	}
+
+	// 9.6 收集各模块周期任务 provider（注册模式：模块实现 PeriodicProviderProvider 即注册自己的周期任务）
+	var periodicProviders []taskqueue.PeriodicProvider
+	for _, m := range mods {
+		if pp, ok := m.(taskqueue.PeriodicProviderProvider); ok {
+			periodicProviders = append(periodicProviders, pp.PeriodicProvider())
+		}
+	}
 	var taskSrv *taskqueue.Server
+	var periodicMgr *taskqueue.PeriodicManager
 	if cfg.TaskQueue.Enabled {
 		taskSrv = taskqueue.NewServer(asynqOpt, cfg.TaskQueue, workers, zapLog)
 		if err := taskSrv.Start(); err != nil {
 			zapLog.Fatal("taskqueue server start failed", zap.Error(err))
 		}
 		zapLog.Info("taskqueue server started", zap.Int("workers", len(workers)))
+		if len(periodicProviders) > 0 {
+			periodicMgr, err = taskqueue.NewPeriodicManager(asynqOpt, cfg.TaskQueue, periodicProviders, zapLog)
+			if err != nil {
+				zapLog.Fatal("periodic manager create failed", zap.Error(err))
+			}
+			if err := periodicMgr.Start(); err != nil {
+				zapLog.Fatal("periodic manager start failed", zap.Error(err))
+			}
+			zapLog.Info("periodic task manager started", zap.Int("providers", len(periodicProviders)))
+		}
 	}
 
 	ctx := context.Background()
@@ -224,6 +259,13 @@ func main() {
 	if taskSrv != nil {
 		if err := taskSrv.Shutdown(shutdownCtx); err != nil {
 			zapLog.Error("taskqueue server shutdown error", zap.Error(err))
+		}
+	}
+
+	// Shutdown periodic task manager（停止周期性调度）
+	if periodicMgr != nil {
+		if err := periodicMgr.Shutdown(shutdownCtx); err != nil {
+			zapLog.Error("periodic manager shutdown error", zap.Error(err))
 		}
 	}
 
