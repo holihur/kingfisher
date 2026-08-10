@@ -29,6 +29,8 @@ type ServerConfig struct {
 	WriteTimeout   string   `mapstructure:"write_timeout"`
 	MaxRequestBody string   `mapstructure:"max_request_body"`
 	TrustedProxies []string `mapstructure:"trusted_proxies"`
+	// StaticDir 前端构建产物目录（含 index.html）。非空则单进程同时提供前端 SPA 与 API。
+	StaticDir string `mapstructure:"static_dir"`
 }
 
 type DatabaseConfig struct {

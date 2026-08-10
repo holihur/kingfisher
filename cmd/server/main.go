@@ -17,7 +17,9 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"runtime"
+	"strings"
 	"syscall"
 	"time"
 
@@ -140,6 +142,28 @@ func main() {
 	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	r.Static("/uploads", "./uploads")
+
+	// 单进程同时服务前端 SPA：StaticDir 指向 dist（含 index.html）。
+	// 非 API 路径命中静态资源，否则回退 index.html（支持前端路由刷新）。
+	if cfg.Server.StaticDir != "" {
+		dist := cfg.Server.StaticDir
+		r.Static("/assets", filepath.Join(dist, "assets"))
+		r.Static("/vite.svg", filepath.Join(dist, "vite.svg"))
+		r.NoRoute(func(c *gin.Context) {
+			p := c.Request.URL.Path
+			if strings.HasPrefix(p, "/api/") || strings.HasPrefix(p, "/swagger") || strings.HasPrefix(p, "/uploads") || strings.HasPrefix(p, "/metrics") {
+				c.JSON(404, gin.H{"code": 404, "message": "not found"})
+				return
+			}
+			// 静态文件（如 /favicon.ico、/assets/...）存在则直接返回，否则回退 index.html
+			fp := filepath.Join(dist, filepath.Clean(p))
+			if fi, err := os.Stat(fp); err == nil && !fi.IsDir() {
+				c.File(fp)
+				return
+			}
+			c.File(filepath.Join(dist, "index.html"))
+		})
+	}
 
 	// Global rate limit — wired with the real Redis cache
 	if cfg.RateLimit.Enabled {

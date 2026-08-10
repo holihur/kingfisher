@@ -133,3 +133,8 @@ tasks:
     desc: 生成 API 文档
     cmds:
       - swag init -g cmd/server/main.go -o docs --parseDependency --parseInternal
+
+  deploy:
+    desc: 部署到 47.95.200.101（git pull + 构建 + systemd）
+    cmds:
+      - bash scripts/deploy.sh

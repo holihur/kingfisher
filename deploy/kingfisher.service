@@ -1,0 +1,22 @@
+[Unit]
+Description=Kingfisher Admin API + Frontend
+After=network.target redis-server.service
+Wants=redis-server.service
+
+[Service]
+Type=simple
+# WorkingDirectory 为部署目录（git 仓库根），二进制从 ./bin/server 运行
+WorkingDirectory=/root/kingfisher
+# 指定生产配置（端口 8090、SQLite、Redis、JWT secret 由环境注入）
+Environment=CONFIG_PATH=/root/kingfisher/config/config.yaml
+ExecStart=/root/kingfisher/bin/server
+Restart=always
+RestartSec=5
+# 生产环境变量：JWT secret 建议用 systemd override 或 env 文件注入
+Environment=JWT_SECRET=change-me-in-production
+# 资源限制（1.6G 小机器）
+LimitNOFILE=65535
+MemoryMax=1G
+
+[Install]
+WantedBy=multi-user.target
