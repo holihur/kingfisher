@@ -51,6 +51,12 @@ func (s *AuthService) SetTemplateRenderer(fn func(ctx context.Context, code stri
 // ForgotPassword 找回密码：按邮箱查找用户，生成一次性 token 存 Redis，异步发重置邮件。
 // 出于防枚举考虑：无论邮箱是否存在都返回成功（避免暴露用户是否注册）。
 func (s *AuthService) ForgotPassword(ctx context.Context, email string) error {
+	// 找回密码开关：password_reset_enabled=false 时禁用（防枚举：返回相同错误）
+	if s.getConfig != nil {
+		if v, e := s.getConfig(ctx, "password_reset_enabled"); e == nil && v != "" && v != "true" {
+			return fmt.Errorf("password reset disabled")
+		}
+	}
 	user, err := s.repo.FindByEmail(ctx, email)
 	if err != nil || user == nil {
 		// 用户不存在也返回 nil，防枚举；但仍尝试记录（无收件人可发则不发送）

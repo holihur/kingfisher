@@ -16,6 +16,7 @@ const LoginPage: React.FC = () => {
   const [siteLogo, setSiteLogo] = useState('');
   const [siteDescription, setSiteDescription] = useState('');
   const [siteLoginCover, setSiteLoginCover] = useState('');
+  const [passwordResetEnabled, setPasswordResetEnabled] = useState(true);
   const [rememberAccount, setRememberAccount] = useState(true);
   const [rememberPwd, setRememberPwd] = useState(loadRememberPwd);
   const [accounts, setAccounts] = useState<SavedAccount[]>(() => loadAccounts());
@@ -30,6 +31,7 @@ const LoginPage: React.FC = () => {
       m.configApi.getPublic('site_logo').then(r => setSiteLogo((r.data as any)?.value || '')).catch(() => {});
       m.configApi.getPublic('site_description').then(r => setSiteDescription((r.data as any)?.value || '')).catch(() => {});
       m.configApi.getPublic('site_login_cover').then(r => setSiteLoginCover((r.data as any)?.value || '')).catch(() => {});
+      m.configApi.getPublic('password_reset_enabled').then(r => setPasswordResetEnabled((r.data as any)?.value !== 'false')).catch(() => {});
     });
   }, []);
 
@@ -135,8 +137,12 @@ const LoginPage: React.FC = () => {
               </div>
               <Button block onClick={() => setView('form')}>使用其他账号</Button>
               <div style={{ marginTop: 24, textAlign: 'center', fontSize: 13, color: token.colorTextTertiary }}>
-                <a href="/forgot-password">忘记密码</a>
-                <span style={{ margin: '0 8px', color: token.colorBorder }}>|</span>
+                {passwordResetEnabled && (
+                  <>
+                    <a href="/forgot-password">忘记密码</a>
+                    <span style={{ margin: '0 8px', color: token.colorBorder }}>|</span>
+                  </>
+                )}
                 <a href="/register">注册账号</a>
               </div>
             </>
@@ -167,8 +173,12 @@ const LoginPage: React.FC = () => {
                     <a style={{ cursor: 'pointer', color: token.colorPrimary, marginRight: 16 }} onClick={() => setView('accounts')}>切换账户</a>
                   </>
                 )}
-                <a href="/forgot-password">忘记密码</a>
-                <span style={{ margin: '0 8px', color: token.colorBorder }}>|</span>
+                {passwordResetEnabled && (
+                  <>
+                    <a href="/forgot-password">忘记密码</a>
+                    <span style={{ margin: '0 8px', color: token.colorBorder }}>|</span>
+                  </>
+                )}
                 <a href="/register">注册账号</a>
               </div>
             </>

@@ -43,6 +43,8 @@ import (
 	_ "kingfisher/docs"
 
 	auditTransport "kingfisher/extends/audit/transport"
+	configAdapter "kingfisher/extends/config/adapter/mysql"
+	configApp "kingfisher/extends/config/app"
 	configTransport "kingfisher/extends/config/transport"
 	dictTransport "kingfisher/extends/dict/transport"
 	emailTransport "kingfisher/extends/email/transport"
@@ -192,6 +194,15 @@ func main() {
 	mailerInst := mailer.New(cfg.SMTP)
 	emailMod := emailTransport.NewEmailModule(mailerInst, zapLog)
 	emailProducer := emailTransport.NewEmailProducer(producer)
+	// 注入系统配置读取（找回密码/注册开关等，登录/注册页公开配置）
+	configSvc := configApp.NewConfigService(configAdapter.NewConfigRepo(db), redisCache)
+	userMod.InjectConfigProvider(func(ctx context.Context, key string) (string, error) {
+		sc, err := configSvc.GetPublic(ctx, key)
+		if err != nil {
+			return "", err
+		}
+		return sc.Value, nil
+	})
 	// 注入找回密码邮件发送 + 模板渲染（用 password_reset 模板）
 	userMod.InjectEmailSender(emailProducer.EnqueueEmail)
 	tmplRepo := templateAdapter.NewTemplateRepo(db)

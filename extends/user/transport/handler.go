@@ -239,6 +239,10 @@ func (h *AuthHandler) ForgotPassword(c *gin.Context) {
 		return
 	}
 	if err := h.svc.ForgotPassword(c.Request.Context(), req.Email); err != nil {
+		if err.Error() == "password reset disabled" {
+			response.BadRequest(c, "找回密码功能未开启")
+			return
+		}
 		response.InternalError(c)
 		return
 	}
