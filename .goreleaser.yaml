@@ -1,0 +1,46 @@
+# goreleaser 发布配置：构建后端二进制 + 打包前端 dist，上传 GitHub Release。
+# 产物布局与 deploy.sh 的 Release 拉取一致：
+#   kingfisher-server        （后端二进制）
+#   kingfisher-web/          （前端 dist）
+#   config.yaml              （生产配置模板）
+project_name: kingfisher
+
+# 发布前构建前端 dist（dist 在 gitignore，须先构建）
+before:
+  hooks:
+    - sh -c "cd kingfisher-web && corepack enable && pnpm install --frozen-lockfile && pnpm build"
+
+builds:
+  - id: server
+    main: ./cmd/server
+    binary: kingfisher-server
+    env:
+      - CGO_ENABLED=0
+    goos: [linux]
+    goarch: [amd64]
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.commit={{.ShortCommit}} -X main.buildTime={{.Date}}
+
+# 归档：包含二进制 + 前端 dist + 生产配置
+archives:
+  - id: release
+    formats: [tar.gz]
+    name_template: "kingfisher-release"
+    files:
+      - kingfisher-server
+      - src: deploy/config.prod.yaml
+        dst: config.yaml
+      - src: kingfisher-web/dist/*
+        dst: kingfisher-web
+        strip_parent: false
+    # 默认 goreleaser 会带 LICENSE/README，这里显式只打包所需文件
+    meta: false
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^ci:'
+      - '^chore:'

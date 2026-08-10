@@ -26,6 +26,40 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: go build -ldflags="-s -w -X main.version=$(git describe --tags --always 2>/dev/null || echo dev) -X main.commit=$(git rev-parse --short HEAD 2>/dev/null || echo unknown) -X main.buildTime=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -o bin/server ./cmd/server
+  # Docker 镜像构建测试：验证统一 Dockerfile（前端+后端一体）可构建并可运行
+  docker:
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: 构建 Docker 镜像
+        run: docker build -t kingfisher:test .
+      - name: 验证镜像健康检查可达（启动容器 + curl）
+        run: |
+          # 容器内连接 CI 的 redis 服务（127.0.0.1:6379 由 services 暴露）
+          docker run -d --name kf-test --network host -e CONFIG_PATH=/app/config/config.yaml kingfisher:test
+          for i in $(seq 1 40); do
+            if curl -sf http://localhost:8080/health >/dev/null 2>&1; then
+              echo "镜像健康检查 OK（${i} 秒）"
+              # 验证前端 SPA 也被服务
+              curl -sf http://localhost:8080/ | grep -q '<div id="root"' && echo "前端 SPA OK"
+              docker rm -f kf-test >/dev/null
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "镜像健康检查失败" >&2
+          docker logs kf-test 2>&1 | tail -20
+          exit 1
   e2e:
     needs: [build]
     runs-on: ubuntu-latest

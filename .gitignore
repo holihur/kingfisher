@@ -46,3 +46,5 @@ uploads
 .omo
 playwright-report
 .vite
+*.tar.gz
+kingfisher-*

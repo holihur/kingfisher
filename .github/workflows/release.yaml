@@ -1,23 +1,19 @@
 name: Release
-# 独立发布 workflow：tag v* 时构建前端 + 后端产物并上传 GitHub Release。
+# 独立发布 workflow：tag v* 时用 goreleaser 构建产物并上传 GitHub Release。
 # 与 CI（lint/test/build/e2e）分离，可单独触发、单独调试。
 on:
   push:
     tags: ['v*']
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: '构建并上传的 tag（留空用当前分支）'
-        required: false
-        default: ''
 
 jobs:
-  build-and-release:
+  release:
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # goreleaser 需要完整 git 历史生成 changelog
       - uses: actions/setup-go@v5
         with:
           go-version: '1.25'
@@ -25,36 +21,15 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: '24'
-      # 显式激活 corepack 并安装 package.json 锁定的 pnpm 版本（不配 cache，避免 setup-node 在 pnpm 未装时定位失败）
+      # 显式激活 corepack 安装 pnpm（goreleaser before hook 里构建前端会用到）
       - name: 激活 pnpm
         run: corepack enable && corepack prepare pnpm@11.17.0 --activate
-
-      # 后端二进制（linux/amd64，静态编译，版本注入）
-      - name: 构建后端
-        run: |
-          VERSION=${GITHUB_REF_NAME#v}
-          [ -z "$VERSION" ] && VERSION="dev"
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
-            -ldflags="-s -w -X main.version=$VERSION -X main.commit=$(git rev-parse --short HEAD) -X main.buildTime=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-            -o kingfisher-server ./cmd/server
-
-      # 前端 dist
-      - name: 构建前端
-        run: |
-          cd kingfisher-web && pnpm install --frozen-lockfile && pnpm build
-
-      # 打包：server 二进制 + 前端 dist + 生产配置模板
-      - name: 打包产物
-        run: |
-          mkdir -p release/kingfisher-web
-          cp kingfisher-server release/
-          cp -r kingfisher-web/dist/* release/kingfisher-web/
-          cp deploy/config.prod.yaml release/config.yaml
-          tar -C release -czf kingfisher-release.tar.gz .
-
-      # 上传 GitHub Release（公开仓库，101 可匿名下载）
-      - name: 上传 GitHub Release
-        uses: softprops/action-gh-release@v2
+      # 用 goreleaser 构建 + 打包 + 上传 Release
+      - name: 运行 goreleaser
+        uses: goreleaser/goreleaser-action@v6
         with:
-          files: kingfisher-release.tar.gz
-          generate_release_notes: true
+          distribution: goreleaser
+          version: '~> v2'
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
