@@ -1,10 +1,14 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { getToken, getRefreshToken, setTokens, clearTokens } from '../utils/token';
 import { getMessage } from '../utils/feedback';
+import { createErrorDedup } from '../utils/errorDedup';
+
+// 错误提示去重：并发请求同时失败时只提示一次，避免"网络异常"等弹一堆
+const errorDedup = createErrorDedup(3000);
 
 const request = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api/v1',
-  timeout: 15000,
+  timeout: 10000,
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -53,8 +57,11 @@ request.interceptors.response.use(
         window.location.href = '/login';
         return Promise.reject(new Error('登录已过期'));
       default:
-        getMessage().error(msg || `请求失败 [${code}]`);
-        return Promise.reject(new Error(msg || `请求失败 [${code}]`));
+        const bizMsg = msg || `请求失败 [${code}]`;
+        if (errorDedup.shouldShowBiz(bizMsg)) {
+          getMessage().error(bizMsg);
+        }
+        return Promise.reject(new Error(bizMsg));
     }
   },
   (error: AxiosError<{ message?: string }>) => {
@@ -76,7 +83,10 @@ request.interceptors.response.use(
     }
 
     if (!error.response) {
-      getMessage().error('网络异常，请稍后重试');
+      // 网络不可达：并发请求会同时失败，去重后只提示一次
+      if (errorDedup.shouldShowNetwork()) {
+        getMessage().error('网络异常，请稍后重试');
+      }
       return Promise.reject(error);
     }
     // 优先使用后端返回的错误信息
@@ -92,7 +102,11 @@ request.interceptors.response.use(
       503: '网络异常，请稍后重试',
       504: '网络异常，请稍后重试',
     };
-    getMessage().error(backendMsg || statusMsgs[error.response.status] || `网络异常，请稍后重试`);
+    const errMsg = backendMsg || statusMsgs[error.response.status] || '网络异常，请稍后重试';
+    // 相同文案 3 秒内只提示一次（避免 5xx/网络异常批量弹窗）
+    if (errorDedup.shouldShowBiz(errMsg)) {
+      getMessage().error(errMsg);
+    }
     return Promise.reject(error);
   }
 );
