@@ -16,16 +16,16 @@ const (
 	ErrServiceUnavailable = 10009
 
 	// User 10100-10199
-	ErrUserExists       = 10101
-	ErrUserNotFound     = 10102
-	ErrPasswordWrong    = 10103
-	ErrTokenExpired     = 10104
-	ErrTokenInvalid     = 10105
-	ErrUserDisabled     = 10106
-	ErrLoginFailed      = 10107
-	ErrPasswordTooShort = 10108
-	ErrPasswordTooLong  = 10109
-	ErrPasswordWeak     = 10110
+	ErrUserExists           = 10101
+	ErrUserNotFound         = 10102
+	ErrPasswordWrong        = 10103
+	ErrTokenExpired         = 10104
+	ErrTokenInvalid         = 10105
+	ErrUserDisabled         = 10106
+	ErrLoginFailed          = 10107
+	ErrPasswordTooShort     = 10108
+	ErrPasswordTooLong      = 10109
+	ErrPasswordWeak         = 10110
 	ErrRegistrationDisabled = 10111
 
 	// Menu 10200-10299
@@ -56,41 +56,41 @@ const (
 
 //nolint:gosec // false positive — Chinese error messages
 var errMsg = map[int]string{
-	CodeSuccess:           "success",
-	ErrInvalidParam:       "参数错误",
-	ErrUnauthorized:       "未认证",
-	ErrForbidden:          "无权限",
-	ErrNotFound:           "资源不存在",
-	ErrInternal:           "服务器内部错误",
-	ErrTooManyRequest:     "请求过于频繁",
-	ErrMethodNotAllowed:   "方法不允许",
-	ErrServiceUnavailable: "服务暂时不可用",
-	ErrUserExists:         "用户已存在",
-	ErrUserNotFound:       "用户不存在",
-	ErrPasswordWrong:      "密码错误",
-	ErrTokenExpired:       "Token 过期",
-	ErrTokenInvalid:       "Token 无效",
-	ErrUserDisabled:       "用户已禁用",
-	ErrLoginFailed:        "登录失败次数过多",
-	ErrPasswordTooShort:   "密码过短",
-	ErrPasswordTooLong:    "密码过长",
-	ErrPasswordWeak:       "密码强度不足",
+	CodeSuccess:             "success",
+	ErrInvalidParam:         "参数错误",
+	ErrUnauthorized:         "未认证",
+	ErrForbidden:            "无权限",
+	ErrNotFound:             "资源不存在",
+	ErrInternal:             "服务器内部错误",
+	ErrTooManyRequest:       "请求过于频繁",
+	ErrMethodNotAllowed:     "方法不允许",
+	ErrServiceUnavailable:   "服务暂时不可用",
+	ErrUserExists:           "用户已存在",
+	ErrUserNotFound:         "用户不存在",
+	ErrPasswordWrong:        "密码错误",
+	ErrTokenExpired:         "Token 过期",
+	ErrTokenInvalid:         "Token 无效",
+	ErrUserDisabled:         "用户已禁用",
+	ErrLoginFailed:          "登录失败次数过多",
+	ErrPasswordTooShort:     "密码过短",
+	ErrPasswordTooLong:      "密码过长",
+	ErrPasswordWeak:         "密码强度不足",
 	ErrRegistrationDisabled: "注册未开放",
-	ErrMenuExists:         "菜单已存在",
-	ErrMenuNotFound:       "菜单不存在",
-	ErrMenuHasChildren:    "菜单有子节点，不可删除",
-	ErrRoleExists:         "角色已存在",
-	ErrRoleNotFound:       "角色不存在",
-	ErrRoleInUse:          "角色被用户使用中",
-	ErrConfigNotFound:      "配置不存在",
-	ErrConfigKeyExists:     "配置键已存在",
-	ErrDictTypeNotFound:    "字典类型不存在",
-	ErrDictTypeCodeExists:  "字典类型编码已存在",
-	ErrDictEntryNotFound:   "字典条目不存在",
-	ErrDictTypeHasEntries:  "字典类型下存在条目，不可删除",
-	ErrDictTypeNotPublic:   "字典类型未公开",
-	ErrTemplateNotFound:    "模版不存在",
-	ErrTemplateCodeExists:  "模版编码已存在",
+	ErrMenuExists:           "菜单已存在",
+	ErrMenuNotFound:         "菜单不存在",
+	ErrMenuHasChildren:      "菜单有子节点，不可删除",
+	ErrRoleExists:           "角色已存在",
+	ErrRoleNotFound:         "角色不存在",
+	ErrRoleInUse:            "角色被用户使用中",
+	ErrConfigNotFound:       "配置不存在",
+	ErrConfigKeyExists:      "配置键已存在",
+	ErrDictTypeNotFound:     "字典类型不存在",
+	ErrDictTypeCodeExists:   "字典类型编码已存在",
+	ErrDictEntryNotFound:    "字典条目不存在",
+	ErrDictTypeHasEntries:   "字典类型下存在条目，不可删除",
+	ErrDictTypeNotPublic:    "字典类型未公开",
+	ErrTemplateNotFound:     "模版不存在",
+	ErrTemplateCodeExists:   "模版编码已存在",
 }
 
 func Msg(code int) string {

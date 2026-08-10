@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -103,7 +104,8 @@ func TestTemplateCRUD(t *testing.T) {
 	if err == nil {
 		t.Error("should fail on duplicate code")
 	}
-	if e, ok := err.(*Error); !ok || e.Code != errcode.ErrTemplateCodeExists {
+	var e *Error
+	if !errors.As(err, &e) || e.Code != errcode.ErrTemplateCodeExists {
 		t.Errorf("want ErrTemplateCodeExists, got %v", err)
 	}
 

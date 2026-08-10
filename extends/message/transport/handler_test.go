@@ -62,7 +62,7 @@ func doSend(t *testing.T, h *MessageHandler, userID uint, body string) *httptest
 	gin.SetMode(gin.TestMode)
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/messages", nil)
+	c.Request = httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/messages", nil)
 	c.Request.Header.Set("Content-Type", "application/json")
 	c.Set("user_id", userID)
 	if body != "" {

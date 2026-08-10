@@ -374,7 +374,7 @@ func (h *UserHandler) UploadAvatar(c *gin.Context) {
 		response.BadRequest(c, "请选择文件")
 		return
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	ext := strings.ToLower(filepath.Ext(header.Filename))
 	switch ext {
@@ -401,19 +401,20 @@ func (h *UserHandler) UploadAvatar(c *gin.Context) {
 	}
 
 	uploadDir := "uploads/avatars"
-	if err := os.MkdirAll(uploadDir, 0755); err != nil {
+	if err := os.MkdirAll(uploadDir, 0750); err != nil {
 		response.InternalError(c)
 		return
 	}
 
 	filename := fmt.Sprintf("%d_%d%s", userID, time.Now().UnixNano(), ext)
 	savePath := filepath.Join(uploadDir, filename)
+	//nolint:gosec // G304: filename 由时间戳生成，非用户输入，无路径注入风险
 	dst, err := os.Create(savePath)
 	if err != nil {
 		response.InternalError(c)
 		return
 	}
-	defer dst.Close()
+	defer func() { _ = dst.Close() }()
 
 	if _, err := dst.Write(buf[:n]); err != nil {
 		response.InternalError(c)

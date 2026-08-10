@@ -113,6 +113,3 @@ func TestConfigSetInvalidatesCache(t *testing.T) {
 }
 
 var _ cache.Cache = (*cfgMockCache)(nil)
-
-// 辅助
-type cacheInst = cfgMockCache

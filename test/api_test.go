@@ -137,7 +137,7 @@ func doRequest(method, path, token string, body any) *http.Request {
 	if body != nil {
 		_ = json.NewEncoder(&buf).Encode(body)
 	}
-	req := httptest.NewRequest(method, path, &buf)
+	req := httptest.NewRequestWithContext(context.Background(), method, path, &buf)
 	req.Header.Set("Content-Type", "application/json")
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
@@ -309,7 +309,7 @@ func TestLoginNonExistent(t *testing.T) {
 
 func TestLoginBadJSON(t *testing.T) {
 	s, _ := setupTestServer(t)
-	req := httptest.NewRequest("POST", "/api/v1/auth/login", bytes.NewBufferString("not json"))
+	req := httptest.NewRequestWithContext(context.Background(), "POST", "/api/v1/auth/login", bytes.NewBufferString("not json"))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, req)
@@ -1102,7 +1102,7 @@ func TestConfigUploadImage(t *testing.T) {
 	tok := login(t, s)
 	// 构造一张 1x1 PNG
 	png, _ := base64.StdEncoding.DecodeString("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==")
-	req := httptest.NewRequest("POST", "/api/v1/configs/upload-image", bytes.NewReader(png))
+	req := httptest.NewRequestWithContext(context.Background(), "POST", "/api/v1/configs/upload-image", bytes.NewReader(png))
 	req.Header.Set("Authorization", "Bearer "+tok)
 	req.Header.Set("Content-Type", "image/png")
 	// 用 multipart 上传
@@ -1111,7 +1111,7 @@ func TestConfigUploadImage(t *testing.T) {
 	fw, _ := mw.CreateFormFile("file", "cover.png")
 	_, _ = fw.Write(png)
 	_ = mw.Close()
-	req = httptest.NewRequest("POST", "/api/v1/configs/upload-image", body)
+	req = httptest.NewRequestWithContext(context.Background(), "POST", "/api/v1/configs/upload-image", body)
 	req.Header.Set("Authorization", "Bearer "+tok)
 	req.Header.Set("Content-Type", mw.FormDataContentType())
 	w := httptest.NewRecorder()

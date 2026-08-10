@@ -87,7 +87,7 @@ func (h *ConfigHandler) GetPublic(c *gin.Context) {
 	response.OKJSON(c, v)
 }
 
-func (h *// @Produce json
+func (h * // @Produce json
 // @Security BearerAuth
 // @Param key path string true "配置键"
 // @Success 200 {object} response.Response{object} "配置详情"
@@ -110,7 +110,7 @@ type SetConfigReq struct {
 	GroupID       uint   `json:"group_id"`
 }
 
-func (h *// @Accept json
+func (h * // @Accept json
 // @Produce json
 // @Security BearerAuth
 // @Param key path string true "配置键"
@@ -134,7 +134,7 @@ ConfigHandler) Set(c *gin.Context) {
 	response.OKJSON(c, nil)
 }
 
-func (h *// @Produce json
+func (h * // @Produce json
 // @Security BearerAuth
 // @Param key path string true "配置键"
 // @Success 200 {object} response.Response "删除成功"
@@ -177,7 +177,7 @@ func (h *ConfigHandler) UploadImage(c *gin.Context) {
 		response.BadRequest(c, "请选择文件")
 		return
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	// 校验文件类型（扩展名 + 真实内容 magic bytes），与头像上传一致
 	ext := strings.ToLower(filepath.Ext(header.Filename))
@@ -202,18 +202,19 @@ func (h *ConfigHandler) UploadImage(c *gin.Context) {
 	}
 
 	uploadDir := "uploads/configs"
-	if err := os.MkdirAll(uploadDir, 0755); err != nil {
+	if err := os.MkdirAll(uploadDir, 0750); err != nil {
 		response.InternalError(c)
 		return
 	}
 	filename := fmt.Sprintf("%d%s", time.Now().UnixNano(), ext)
 	savePath := filepath.Join(uploadDir, filename)
+	//nolint:gosec // G304: filename 由时间戳生成，非用户输入，无路径注入风险
 	dst, err := os.Create(savePath)
 	if err != nil {
 		response.InternalError(c)
 		return
 	}
-	defer dst.Close()
+	defer func() { _ = dst.Close() }()
 
 	if _, err := dst.Write(buf[:n]); err != nil {
 		response.InternalError(c)
@@ -230,12 +231,14 @@ func (h *ConfigHandler) UploadImage(c *gin.Context) {
 // ConfigGroupHandler 配置分组 CRUD
 type ConfigGroupHandler struct{ svc *app.ConfigGroupService }
 
-func NewConfigGroupHandler(svc *app.ConfigGroupService) *ConfigGroupHandler { return &ConfigGroupHandler{svc: svc} }
+func NewConfigGroupHandler(svc *app.ConfigGroupService) *ConfigGroupHandler {
+	return &ConfigGroupHandler{svc: svc}
+}
 
 // @Summary 配置分组列表
 // @Tags Config
 // @Router /api/v1/config-groups [get]
-func (h *// @Produce json
+func (h * // @Produce json
 // @Security BearerAuth
 // @Success 200 {object} response.Response{data=[]domain.ConfigGroup} "分组列表"
 ConfigGroupHandler) List(c *gin.Context) {
@@ -252,7 +255,7 @@ type ConfigGroupReq struct {
 	Sort int    `json:"sort"`
 }
 
-func (h *// @Accept json
+func (h * // @Accept json
 // @Produce json
 // @Security BearerAuth
 // @Param body body ConfigGroupReq true "创建请求"
@@ -272,7 +275,7 @@ ConfigGroupHandler) Create(c *gin.Context) {
 	response.OKJSON(c, g)
 }
 
-func (h *// @Accept json
+func (h * // @Accept json
 // @Produce json
 // @Security BearerAuth
 // @Param id path int true "分组ID"
@@ -297,7 +300,7 @@ ConfigGroupHandler) Update(c *gin.Context) {
 	response.OKJSON(c, nil)
 }
 
-func (h *// @Produce json
+func (h * // @Produce json
 // @Security BearerAuth
 // @Param id path int true "分组ID"
 // @Success 200 {object} response.Response "删除成功"

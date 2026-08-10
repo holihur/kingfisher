@@ -7,9 +7,9 @@ import (
 	"gorm.io/gorm"
 
 	"kingfisher/core/cache"
+	rbacTransport "kingfisher/extends/rbac/transport"
 	adapter "kingfisher/extends/template/adapter/mysql"
 	"kingfisher/extends/template/app"
-	rbacTransport "kingfisher/extends/rbac/transport"
 )
 
 // TemplateModule 模版模块，实现 router.Module 接口

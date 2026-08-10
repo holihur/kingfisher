@@ -17,7 +17,7 @@ type userPO struct {
 	Avatar         string
 	Status         int
 	RoleID         uint
-	Role           rolePO        `gorm:"foreignKey:RoleID;references:ID"`
+	Role           rolePO `gorm:"foreignKey:RoleID;references:ID"`
 	SessionVersion int
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
@@ -27,7 +27,7 @@ type userPO struct {
 func (userPO) TableName() string { return "users" }
 
 type rolePO struct {
-	ID   uint   `gorm:"primaryKey"`
+	ID   uint `gorm:"primaryKey"`
 	Name string
 	Code string
 }

@@ -31,7 +31,11 @@ func TestRefreshTokenRevocation(t *testing.T) {
 	s, _ := setupTestServer(t)
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, doRequest("POST", "/api/v1/auth/login", "", map[string]string{"username": "admin", "password": "Abcd1234"}))
-	var resp struct{ Data struct{ RefreshToken string `json:"refresh_token"` } }
+	var resp struct {
+		Data struct {
+			RefreshToken string `json:"refresh_token"`
+		}
+	}
 	_ = json.Unmarshal(w.Body.Bytes(), &resp)
 	// Refresh with refresh_token
 	w2 := httptest.NewRecorder()
@@ -55,7 +59,9 @@ func TestMenuTreeNotEmpty(t *testing.T) {
 	s.ServeHTTP(w, doRequest("GET", "/api/v1/menus/tree", tok, nil))
 	m := assertCode(t, w, 0)
 	items := m["data"].([]any)
-	if len(items) < 2 { t.Error("menu tree should have >= 2 root items, got", len(items)) }
+	if len(items) < 2 {
+		t.Error("menu tree should have >= 2 root items, got", len(items))
+	}
 }
 
 func TestConfigUpdateInvalidatesCache(t *testing.T) {

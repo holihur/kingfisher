@@ -13,15 +13,15 @@ import (
 
 // mockCache implements cache.Cache for RateLimit tests.
 type mockCache struct {
-	counts map[string]int64
+	counts  map[string]int64
 	expired map[string]bool
 }
 
-func (m *mockCache) Get(context.Context, string) (string, error)  { return "", nil }
+func (m *mockCache) Get(context.Context, string) (string, error)           { return "", nil }
 func (m *mockCache) Set(context.Context, string, any, time.Duration) error { return nil }
-func (m *mockCache) Delete(context.Context, ...string) error       { return nil }
-func (m *mockCache) DeleteByPattern(context.Context, string) error { return nil }
-func (m *mockCache) Exists(context.Context, string) (bool, error)  { return false, nil }
+func (m *mockCache) Delete(context.Context, ...string) error               { return nil }
+func (m *mockCache) DeleteByPattern(context.Context, string) error         { return nil }
+func (m *mockCache) Exists(context.Context, string) (bool, error)          { return false, nil }
 func (m *mockCache) Incr(_ context.Context, key string) (int64, error) {
 	if m.counts == nil {
 		m.counts = map[string]int64{}

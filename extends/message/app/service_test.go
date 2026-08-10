@@ -82,10 +82,6 @@ func (m *mockMessageRepo) CountUnread(ctx context.Context, recipientID uint) (in
 	return n, nil
 }
 
-func newMessageService() *MessageService {
-	return NewMessageService(&mockMessageRepo{})
-}
-
 func TestMessageServiceCreateDefaultsAndScope(t *testing.T) {
 	svc := NewMessageService(&mockMessageRepo{})
 	ctx := context.Background()

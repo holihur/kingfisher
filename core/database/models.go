@@ -75,12 +75,12 @@ type MenuPO struct {
 func (MenuPO) TableName() string { return "menus" }
 
 type SystemConfigPO struct {
-	ID        uint   `gorm:"primaryKey"`
-	Key       string `gorm:"size:64;uniqueIndex;not null"`
-	Value     string `gorm:"type:text;not null"`
-	Remark    string `gorm:"size:255"`
+	ID     uint   `gorm:"primaryKey"`
+	Key    string `gorm:"size:64;uniqueIndex;not null"`
+	Value  string `gorm:"type:text;not null"`
+	Remark string `gorm:"size:255"`
 	// IsPublic 是否公开：公开项可在未登录状态下通过 /api/v1/public/configs 读取
-	IsPublic bool   `gorm:"default:false;not null"`
+	IsPublic bool `gorm:"default:false;not null"`
 	// Version 表示该配置由哪个版本新增
 	Version string `gorm:"size:32"`
 	// Render 前端渲染组件：text|number|switch|select|textarea
@@ -136,12 +136,12 @@ type RolePermissionPO struct {
 func (RolePermissionPO) TableName() string { return "role_permissions" }
 
 type DictTypePO struct {
-	ID        uint   `gorm:"primaryKey"`
-	Code      string `gorm:"size:64;uniqueIndex;not null"`
-	Name      string `gorm:"size:128;not null"`
-	IsPublic  bool   `gorm:"default:false;not null"`
-	Status    int    `gorm:"default:1"`
-	Remark    string `gorm:"size:255"`
+	ID       uint   `gorm:"primaryKey"`
+	Code     string `gorm:"size:64;uniqueIndex;not null"`
+	Name     string `gorm:"size:128;not null"`
+	IsPublic bool   `gorm:"default:false;not null"`
+	Status   int    `gorm:"default:1"`
+	Remark   string `gorm:"size:255"`
 	// Version 表示该字典类型由哪个版本新增
 	Version   string `gorm:"size:32"`
 	CreatedAt time.Time
@@ -151,13 +151,13 @@ type DictTypePO struct {
 func (DictTypePO) TableName() string { return "dict_types" }
 
 type DictEntryPO struct {
-	ID        uint   `gorm:"primaryKey"`
-	TypeID    uint   `gorm:"index;not null"`
-	Label     string `gorm:"size:128;not null"`
-	Value     string `gorm:"size:128;not null"`
-	Sort      int    `gorm:"default:0"`
-	Status    int    `gorm:"default:1"`
-	Remark    string `gorm:"size:255"`
+	ID     uint   `gorm:"primaryKey"`
+	TypeID uint   `gorm:"index;not null"`
+	Label  string `gorm:"size:128;not null"`
+	Value  string `gorm:"size:128;not null"`
+	Sort   int    `gorm:"default:0"`
+	Status int    `gorm:"default:1"`
+	Remark string `gorm:"size:255"`
 	// Version 表示该字典条目由哪个版本新增
 	Version   string `gorm:"size:32"`
 	CreatedAt time.Time
@@ -168,14 +168,14 @@ func (DictEntryPO) TableName() string { return "dict_entries" }
 
 // MessagePO 站内信消息
 type MessagePO struct {
-	ID          uint      `gorm:"primaryKey"`
-	SenderID    uint      `gorm:"index"`
-	SenderType  string    `gorm:"size:16;default:admin"` // admin | system
-	RecipientID uint      `gorm:"index;not null"`
-	Title       string    `gorm:"size:128;not null"`
-	Content     string    `gorm:"type:text"`
-	Status      string    `gorm:"size:16;default:sent"` // draft | sent
-	IsRead      bool      `gorm:"default:false;index"`
+	ID          uint   `gorm:"primaryKey"`
+	SenderID    uint   `gorm:"index"`
+	SenderType  string `gorm:"size:16;default:admin"` // admin | system
+	RecipientID uint   `gorm:"index;not null"`
+	Title       string `gorm:"size:128;not null"`
+	Content     string `gorm:"type:text"`
+	Status      string `gorm:"size:16;default:sent"` // draft | sent
+	IsRead      bool   `gorm:"default:false;index"`
 	ReadAt      *time.Time
 	CreatedAt   time.Time `gorm:"index"`
 	UpdatedAt   time.Time

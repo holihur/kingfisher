@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"errors"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -16,7 +17,8 @@ func NewTemplateHandler(svc *app.TemplateService) *TemplateHandler { return &Tem
 
 // appErrCode 从 error 中提取 errcode，若非 AppError 则返回 -1
 func appErrCode(err error) int {
-	if e, ok := err.(*app.Error); ok {
+	var e *app.Error
+	if errors.As(err, &e) {
 		return e.Code
 	}
 	return -1

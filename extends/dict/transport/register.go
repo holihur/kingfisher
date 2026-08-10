@@ -31,8 +31,8 @@ func NewDictModule(db *gorm.DB, c cache.Cache) *DictModule {
 }
 
 func (m *DictModule) Name() string                       { return "dict" }
-func (m *DictModule) Init(ctx context.Context) error      { return nil }
-func (m *DictModule) Shutdown(ctx context.Context) error  { return nil }
+func (m *DictModule) Init(ctx context.Context) error     { return nil }
+func (m *DictModule) Shutdown(ctx context.Context) error { return nil }
 
 func (m *DictModule) RegisterPublic(r *gin.RouterGroup) {
 	pub := r.Group("/public/dicts")

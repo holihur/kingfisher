@@ -46,7 +46,7 @@ var dictEntryQueryDefs = query.Defs{
 func parseDefsQuery(t *testing.T, defs query.Defs, raw string) *query.Query {
 	t.Helper()
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
-	c.Request = httptest.NewRequest("GET", "/?"+raw, nil)
+	c.Request = httptest.NewRequestWithContext(context.Background(), "GET", "/?"+raw, nil)
 	q, err := query.Parse(c, defs)
 	if err != nil {
 		t.Fatalf("parse query %q: %v", raw, err)

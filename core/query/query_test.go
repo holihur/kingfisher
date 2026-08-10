@@ -1,6 +1,7 @@
 package query
 
 import (
+	"context"
 	"net/http/httptest"
 	"testing"
 	"time"
@@ -11,23 +12,23 @@ import (
 )
 
 type item struct {
-	ID        uint      `gorm:"primaryKey"`
-	Name      string    `gorm:"size:64"`
-	Category  string    `gorm:"size:32"`
-	Enabled   bool      `gorm:"default:false"`
-	Sort      int       `gorm:"default:0"`
+	ID        uint   `gorm:"primaryKey"`
+	Name      string `gorm:"size:64"`
+	Category  string `gorm:"size:32"`
+	Enabled   bool   `gorm:"default:false"`
+	Sort      int    `gorm:"default:0"`
 	CreatedAt time.Time
 }
 
 func (item) TableName() string { return "items" }
 
 var testDefs = Defs{
-	"name":      {Name: "name", Type: TypeString, Searchable: true, Filterable: true},
-	"category":  {Name: "category", Type: TypeString, Searchable: true, Filterable: true},
-	"enabled":   {Name: "enabled", Type: TypeBool, Filterable: true},
-	"sort":      {Name: "sort", Type: TypeInt, Filterable: true},
+	"name":       {Name: "name", Type: TypeString, Searchable: true, Filterable: true},
+	"category":   {Name: "category", Type: TypeString, Searchable: true, Filterable: true},
+	"enabled":    {Name: "enabled", Type: TypeBool, Filterable: true},
+	"sort":       {Name: "sort", Type: TypeInt, Filterable: true},
 	"created_at": {Name: "created_at", Type: TypeTime, Filterable: true},
-	"id":        {Name: "id", Type: TypeUint, Filterable: true},
+	"id":         {Name: "id", Type: TypeUint, Filterable: true},
 }
 
 func setupDB(t *testing.T) *gorm.DB {
@@ -54,7 +55,7 @@ func setupDB(t *testing.T) *gorm.DB {
 
 func newCtx(query string) *gin.Context {
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
-	c.Request = httptest.NewRequest("GET", "/?"+query, nil)
+	c.Request = httptest.NewRequestWithContext(context.Background(), "GET", "/?"+query, nil)
 	return c
 }
 

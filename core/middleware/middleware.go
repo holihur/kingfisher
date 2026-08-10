@@ -70,7 +70,6 @@ func RecoveryWithLimit(maxBytes int64) gin.HandlerFunc {
 					zap.Any("error", err),
 					zap.String("request_id", c.GetString("request_id")),
 					zap.String("stack", string(debug.Stack())),
-					
 				)
 				response.AbortJSON(c, response.Error(errcode.ErrInternal))
 			}
@@ -107,7 +106,7 @@ func Logger(logger *zap.Logger) gin.HandlerFunc {
 			zap.Duration("latency", latency),
 			zap.String("ip", c.ClientIP()),
 			zap.String("request_id", c.GetString("request_id")),
-			
+
 			zap.String("trace_id", c.GetString("trace_id")),
 			zap.Int("body_size", c.Writer.Size()),
 		)

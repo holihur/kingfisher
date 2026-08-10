@@ -37,7 +37,7 @@ var templateQueryDefs = query.Defs{
 func parseTemplateQuery(t *testing.T, raw string) *query.Query {
 	t.Helper()
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
-	c.Request = httptest.NewRequest("GET", "/?"+raw, nil)
+	c.Request = httptest.NewRequestWithContext(context.Background(), "GET", "/?"+raw, nil)
 	q, err := query.Parse(c, templateQueryDefs)
 	if err != nil {
 		t.Fatalf("parse query %q: %v", raw, err)

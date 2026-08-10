@@ -40,12 +40,12 @@ func NewPermHandler(svc *app.PermService) *PermHandler { return &PermHandler{svc
 // @Router /api/v1/roles [get]
 // roleQueryDefs 角色列表可查询字段白名单
 var roleQueryDefs = query.Defs{
-	"name":       {Name: "name", Type: query.TypeString, Searchable: true, Filterable: true},
-	"code":       {Name: "code", Type: query.TypeString, Searchable: true, Filterable: true},
+	"name":        {Name: "name", Type: query.TypeString, Searchable: true, Filterable: true},
+	"code":        {Name: "code", Type: query.TypeString, Searchable: true, Filterable: true},
 	"description": {Name: "description", Type: query.TypeString, Searchable: true},
-	"status":     {Name: "status", Type: query.TypeInt, Filterable: true},
-	"level":      {Name: "level", Type: query.TypeInt, Filterable: true},
-	"created_at": {Name: "created_at", Type: query.TypeTime, Filterable: true},
+	"status":      {Name: "status", Type: query.TypeInt, Filterable: true},
+	"level":       {Name: "level", Type: query.TypeInt, Filterable: true},
+	"created_at":  {Name: "created_at", Type: query.TypeTime, Filterable: true},
 }
 
 func (h *RoleHandler) List(c *gin.Context) {
