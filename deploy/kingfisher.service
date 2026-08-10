@@ -5,15 +5,14 @@ Wants=redis-server.service
 
 [Service]
 Type=simple
-# WorkingDirectory 为部署目录（git 仓库根），二进制从 ./bin/server 运行
+# 部署目录 = Release 解压目录
 WorkingDirectory=/root/kingfisher
-# 指定生产配置（端口 8090、SQLite、Redis、JWT secret 由环境注入）
-Environment=CONFIG_PATH=/root/kingfisher/config/config.yaml
-ExecStart=/root/kingfisher/bin/server
+Environment=CONFIG_PATH=/root/kingfisher/config.yaml
+ExecStart=/root/kingfisher/kingfisher-server
 Restart=always
 RestartSec=5
-# 生产环境变量：JWT secret 建议用 systemd override 或 env 文件注入
-Environment=JWT_SECRET=change-me-in-production
+# 生产 JWT secret 从 env 注入（release 模式强制要求，不能是占位值）
+Environment=JWT_SECRET=please-change-me-in-production
 # 资源限制（1.6G 小机器）
 LimitNOFILE=65535
 MemoryMax=1G

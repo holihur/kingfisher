@@ -8,8 +8,8 @@ server:
   max_request_body: 10MB
   trusted_proxies:
     - "127.0.0.1"
-  # 前端构建产物（部署脚本在机器上 pnpm build 生成）
-  static_dir: "kingfisher-web/dist"
+  # 前端构建产物（Release 包内，与 server 同目录层级）
+  static_dir: "/root/kingfisher/kingfisher-web"
 
 database:
   driver: sqlite
