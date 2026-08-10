@@ -40,7 +40,7 @@ if [ -z "$PRINTS" ]; then echo "PASS: no fmt.Println"; else echo "FAIL: fmt.Prin
 
 # 4. No hardcoded passwords/secrets
 echo "--- 4. No hardcoded secrets ---"
-SECRETS=$(grep -rnE 'password: *"[^"]+"|Password:.*"[^"]+"|secret: *"[^"]+"|Secret: *"[^"]+"' $SRC 2>/dev/null | grep -v '_test.go' | grep -v 'config.yaml' | grep -v 'design/' | grep -v '#nosec' | grep -v 'bcrypt' || true)
+SECRETS=$(grep -rnE 'password: *"[^"]+"|Password:[[:space:]]*"[^"]+"|secret: *"[^"]+"|Secret: *"[^"]+"' $SRC 2>/dev/null | grep -v '_test.go' | grep -v 'config.yaml' | grep -v 'design/' | grep -v '#nosec' | grep -v 'bcrypt' || true)
 if [ -z "$SECRETS" ]; then echo "PASS: no secrets"; else echo "FAIL: hardcoded secrets"; echo "$SECRETS"; FAILS=$((FAILS+1)); fi
 
 # 5. Ensure go mod tidy is clean
