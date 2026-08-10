@@ -4,19 +4,19 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
         with:
           { go-version: '1.25', cache: true }
-      - uses: golangci/golangci-lint-action@v7
+      - uses: golangci/golangci-lint-action@v8
         with:
           version: v2.8.0
       - run: bash scripts/check-guardrails.sh
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
         with:
           { go-version: '1.25', cache: true }
       - run: go test -v -race -count=1 ./...
@@ -24,7 +24,7 @@ jobs:
     needs: [lint, test]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - run: go build -ldflags="-s -w -X main.version=$(git describe --tags --always 2>/dev/null || echo dev) -X main.commit=$(git rev-parse --short HEAD 2>/dev/null || echo unknown) -X main.buildTime=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -o bin/server ./cmd/server
   # Docker 镜像构建测试：验证统一 Dockerfile（前端+后端一体）可构建并可运行
   docker:
@@ -40,7 +40,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: 构建 Docker 镜像
         run: docker build -t kingfisher:test .
       - name: 验证镜像健康检查可达（启动容器 + curl）
@@ -73,11 +73,11 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
         with:
           { go-version: '1.25', cache: true }
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v6
         with:
           node-version: '24'
       # 显式激活 corepack 并安装 package.json 锁定的 pnpm 版本（不配 cache，避免 setup-node 在 pnpm 未装时定位失败）
@@ -86,7 +86,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: go install github.com/go-task/task/v3/cmd/task@latest
       - run: task test-e2e
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         if: failure()
         with:
           name: playwright-report

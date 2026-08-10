@@ -3,6 +3,8 @@
 #   kingfisher-server        （后端二进制）
 #   kingfisher-web/          （前端 dist）
 #   config.yaml              （生产配置模板）
+version: 2
+
 project_name: kingfisher
 
 # 发布前构建前端 dist（dist 在 gitignore，须先构建）
