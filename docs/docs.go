@@ -252,6 +252,65 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/configs/upload-image": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Config"
+                ],
+                "summary": "上传配置图片",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "图片文件（png/jpg/jpeg/gif/webp，≤2MB）",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "上传成功",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/kingfisher_core_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "url": {
+                                                    "type": "string"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/dict-types": {
             "post": {
                 "security": [
@@ -634,6 +693,51 @@ const docTemplate = `{
                 "responses": {}
             }
         },
+        "/api/v1/me/messages": {
+            "get": {
+                "tags": [
+                    "Message"
+                ],
+                "summary": "我的收件箱",
+                "responses": {}
+            }
+        },
+        "/api/v1/me/messages/:id": {
+            "get": {
+                "tags": [
+                    "Message"
+                ],
+                "summary": "消息详情",
+                "responses": {}
+            }
+        },
+        "/api/v1/me/messages/:id/read": {
+            "put": {
+                "tags": [
+                    "Message"
+                ],
+                "summary": "标记已读",
+                "responses": {}
+            }
+        },
+        "/api/v1/me/messages/batch-delete": {
+            "post": {
+                "tags": [
+                    "Message"
+                ],
+                "summary": "批量删除消息",
+                "responses": {}
+            }
+        },
+        "/api/v1/me/messages/unread-count": {
+            "get": {
+                "tags": [
+                    "Message"
+                ],
+                "summary": "未读消息数",
+                "responses": {}
+            }
+        },
         "/api/v1/menus": {
             "post": {
                 "security": [
@@ -700,6 +804,15 @@ const docTemplate = `{
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/messages": {
+            "post": {
+                "tags": [
+                    "Message"
+                ],
+                "summary": "发送站内信",
+                "responses": {}
             }
         },
         "/api/v1/permissions": {
@@ -819,6 +932,140 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/scheduled-tasks": {
+            "get": {
+                "tags": [
+                    "ScheduledTask"
+                ],
+                "summary": "周期任务列表",
+                "responses": {}
+            },
+            "post": {
+                "tags": [
+                    "ScheduledTask"
+                ],
+                "summary": "创建周期任务",
+                "responses": {}
+            }
+        },
+        "/api/v1/scheduled-tasks/:id": {
+            "get": {
+                "tags": [
+                    "ScheduledTask"
+                ],
+                "summary": "周期任务详情",
+                "responses": {}
+            },
+            "put": {
+                "tags": [
+                    "ScheduledTask"
+                ],
+                "summary": "更新周期任务",
+                "responses": {}
+            },
+            "delete": {
+                "tags": [
+                    "ScheduledTask"
+                ],
+                "summary": "删除周期任务",
+                "responses": {}
+            }
+        },
+        "/api/v1/scheduled-tasks/:id/run": {
+            "post": {
+                "tags": [
+                    "ScheduledTask"
+                ],
+                "summary": "手动执行周期任务",
+                "responses": {}
+            }
+        },
+        "/api/v1/scheduled-tasks/batch-delete": {
+            "post": {
+                "tags": [
+                    "ScheduledTask"
+                ],
+                "summary": "批量删除周期任务",
+                "responses": {}
+            }
+        },
+        "/api/v1/scheduled-tasks/batch-status": {
+            "post": {
+                "tags": [
+                    "ScheduledTask"
+                ],
+                "summary": "批量启用/禁用周期任务",
+                "responses": {}
+            }
+        },
+        "/api/v1/scheduled-tasks/types": {
+            "get": {
+                "tags": [
+                    "ScheduledTask"
+                ],
+                "summary": "可用任务类型",
+                "responses": {}
+            }
+        },
+        "/api/v1/system/info": {
+            "get": {
+                "tags": [
+                    "System"
+                ],
+                "summary": "系统信息",
+                "responses": {}
+            }
+        },
+        "/api/v1/templates": {
+            "post": {
+                "tags": [
+                    "Template"
+                ],
+                "summary": "创建模版",
+                "responses": {}
+            }
+        },
+        "/api/v1/templates/:id": {
+            "get": {
+                "tags": [
+                    "Template"
+                ],
+                "summary": "模版详情",
+                "responses": {}
+            },
+            "put": {
+                "tags": [
+                    "Template"
+                ],
+                "summary": "更新模版",
+                "responses": {}
+            },
+            "delete": {
+                "tags": [
+                    "Template"
+                ],
+                "summary": "删除模版",
+                "responses": {}
+            }
+        },
+        "/api/v1/templates/batch-delete": {
+            "post": {
+                "tags": [
+                    "Template"
+                ],
+                "summary": "批量删除模版",
+                "responses": {}
+            }
+        },
+        "/api/v1/templates/batch-status": {
+            "post": {
+                "tags": [
+                    "Template"
+                ],
+                "summary": "批量启用/禁用模版",
+                "responses": {}
+            }
+        },
         "/api/v1/users": {
             "get": {
                 "security": [
@@ -890,7 +1137,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "管理员创建新用户",
+                "description": "管理员创建新用户，可指定多个角色（role_ids）",
                 "consumes": [
                     "application/json"
                 ],
@@ -908,7 +1155,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/extends_user_transport.RegisterReq"
+                            "$ref": "#/definitions/extends_user_transport.CreateUserReq"
                         }
                     }
                 ],
@@ -1400,7 +1647,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "管理员更新指定用户的邮箱、状态、角色",
+                "description": "管理员更新指定用户的邮箱、状态、角色（role_ids 全量替换）",
                 "consumes": [
                     "application/json"
                 ],
@@ -1631,6 +1878,37 @@ const docTemplate = `{
                 }
             }
         },
+        "extends_user_transport.CreateUserReq": {
+            "type": "object",
+            "required": [
+                "password",
+                "username"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "example": "user@example.com"
+                },
+                "password": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "minLength": 8,
+                    "example": "Abcd1234"
+                },
+                "role_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "username": {
+                    "type": "string",
+                    "maxLength": 32,
+                    "minLength": 3,
+                    "example": "newuser"
+                }
+            }
+        },
         "extends_user_transport.LoginReq": {
             "type": "object",
             "required": [
@@ -1723,8 +2001,11 @@ const docTemplate = `{
                 "email": {
                     "type": "string"
                 },
-                "role_id": {
-                    "type": "integer"
+                "role_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
                 },
                 "status": {
                     "type": "integer"
@@ -1790,11 +2071,17 @@ const docTemplate = `{
                 "nickname": {
                     "type": "string"
                 },
-                "role": {
-                    "$ref": "#/definitions/kingfisher_extends_user_domain.Role"
+                "role_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
                 },
-                "role_id": {
-                    "type": "integer"
+                "roles": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/kingfisher_extends_user_domain.Role"
+                    }
                 },
                 "status": {
                     "description": "1=启用 0=禁用",

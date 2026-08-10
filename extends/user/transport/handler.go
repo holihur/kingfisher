@@ -81,7 +81,7 @@ type CreateUserReq struct {
 	Username string `json:"username" binding:"required,min=3,max=32" example:"newuser"`
 	Password string `json:"password" binding:"required,min=8,max=64,password" example:"Abcd1234"`
 	Email    string `json:"email" example:"user@example.com"`
-	RoleIDs  []uint `json:"role_ids" example:"[4]"`
+	RoleIDs  []uint `json:"role_ids"`
 }
 
 type ChangePwdReq struct {
