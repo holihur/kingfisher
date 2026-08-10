@@ -46,9 +46,7 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: '24'
-          cache: 'pnpm'
-          cache-dependency-path: 'kingfisher-web/pnpm-lock.yaml'
-      # 显式激活 corepack 并安装 package.json 锁定的 pnpm 版本
+      # 显式激活 corepack 并安装 package.json 锁定的 pnpm 版本（不配 cache，避免 setup-node 在 pnpm 未装时定位失败）
       - run: corepack enable && corepack prepare pnpm@11.17.0 --activate
       - run: cd kingfisher-web && pnpm install --frozen-lockfile
       - run: npx playwright install --with-deps chromium
