@@ -167,6 +167,8 @@ const LoginPage: React.FC = () => {
                     <a style={{ cursor: 'pointer', color: token.colorPrimary, marginRight: 16 }} onClick={() => setView('accounts')}>切换账户</a>
                   </>
                 )}
+                <a href="/forgot-password">忘记密码</a>
+                <span style={{ margin: '0 8px', color: token.colorBorder }}>|</span>
                 <a href="/register">注册账号</a>
               </div>
             </>
