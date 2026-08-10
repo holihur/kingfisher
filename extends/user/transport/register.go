@@ -36,11 +36,11 @@ func NewUserModule(db *gorm.DB, c cache.Cache, jwtMgr *jwt.JWTManager, getUserPe
 		loginPerMinute = 5 // 默认与旧行为一致
 	}
 	return &UserModule{
-		authHandler:     NewAuthHandler(authSvc),
-		userHandler:     uh,
-		cache:           c,
-		authSvc:         authSvc,
-		loginPerMinute:  loginPerMinute,
+		authHandler:    NewAuthHandler(authSvc),
+		userHandler:    uh,
+		cache:          c,
+		authSvc:        authSvc,
+		loginPerMinute: loginPerMinute,
 	}
 }
 

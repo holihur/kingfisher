@@ -38,7 +38,7 @@ func (p userPO) toDomain() *domain.User {
 		ID: p.ID, Username: p.Username, Nickname: p.Nickname, Password: p.Password,
 		Email: p.Email, Avatar: p.Avatar, Status: p.Status,
 		SessionVersion: p.SessionVersion,
-		CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt,
+		CreatedAt:      p.CreatedAt, UpdatedAt: p.UpdatedAt,
 	}
 	for _, r := range p.Roles {
 		u.RoleIDs = append(u.RoleIDs, r.ID)
