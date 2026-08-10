@@ -36,6 +36,7 @@ import (
 	"kingfisher/core/database"
 	"kingfisher/core/jwt"
 	"kingfisher/core/logger"
+	"kingfisher/core/mailer"
 	"kingfisher/core/middleware"
 	"kingfisher/core/router"
 	"kingfisher/core/taskqueue"
@@ -44,7 +45,9 @@ import (
 	auditTransport "kingfisher/extends/audit/transport"
 	configTransport "kingfisher/extends/config/transport"
 	dictTransport "kingfisher/extends/dict/transport"
+	emailTransport "kingfisher/extends/email/transport"
 	menuTransport "kingfisher/extends/menu/transport"
+	templateAdapter "kingfisher/extends/template/adapter/mysql"
 	messageTransport "kingfisher/extends/message/transport"
 	rbacTransport "kingfisher/extends/rbac/transport"
 	systemApp "kingfisher/extends/system/app"
@@ -185,6 +188,25 @@ func main() {
 	userMod.InjectAuditService(auditMod.Service())
 	// 注入角色落地页查询（登录后跳转页面），依赖 RBAC 模块已初始化
 	userMod.InjectLandingPageProvider(rbacSvc.GetRoleLandingPage)
+	// 邮件模块（异步 SMTP 发送，找回密码等通知）
+	mailerInst := mailer.New(cfg.SMTP)
+	emailMod := emailTransport.NewEmailModule(mailerInst, zapLog)
+	emailProducer := emailTransport.NewEmailProducer(producer)
+	// 注入找回密码邮件发送 + 模板渲染（用 password_reset 模板）
+	userMod.InjectEmailSender(emailProducer.EnqueueEmail)
+	tmplRepo := templateAdapter.NewTemplateRepo(db)
+	userMod.InjectTemplateRenderer(func(ctx context.Context, code string, vars map[string]string) (string, string, error) {
+		t, err := tmplRepo.GetByCode(ctx, code)
+		if err != nil {
+			return "", "", fmt.Errorf("template %s not found", code)
+		}
+		subject, body := t.Title, t.Content
+		for k, v := range vars {
+			subject = strings.ReplaceAll(subject, "{{"+k+"}}", v)
+			body = strings.ReplaceAll(body, "{{"+k+"}}", v)
+		}
+		return subject, body, nil
+	})
 	mods := []router.Module{
 		userMod,
 		rbacTransport.NewRBACModule(db, redisCache),
@@ -197,6 +219,7 @@ func main() {
 		systemTransport.NewSystemModule(db, rdb, systemApp.VersionInfo{
 			Version: version, Commit: commit, BuildTime: buildTime,
 		}),
+		emailMod,
 		auditMod,
 	}
 	r.Use(auditMod.Middleware()) // audit all write operations

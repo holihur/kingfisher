@@ -69,3 +69,13 @@ cors:
   allowed_headers: ["Authorization","Content-Type","X-Request-ID"]
   allow_credentials: true
   max_age: 12h
+
+smtp:
+  # 测试用 QQ 邮箱 SMTP（开发配置；生产请改用正式邮箱/服务）
+  host: smtp.qq.com
+  port: 587
+  username: cafebabe_2019@qq.com
+  password: cwnaxolxyipobhia
+  from: cafebabe_2019@qq.com
+  from_name: Kingfisher
+  enabled: true

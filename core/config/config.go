@@ -20,6 +20,19 @@ type Config struct {
 	TaskQueue TaskQueueConfig `mapstructure:"taskqueue"`
 	Telemetry TelemetryConfig `mapstructure:"telemetry"`
 	CORS      CORSConfig      `mapstructure:"cors"`
+	SMTP      SMTPConfig      `mapstructure:"smtp"`
+}
+
+// SMTPConfig 邮件发送配置（找回密码等邮件通知）
+type SMTPConfig struct {
+	Host     string `mapstructure:"host"`
+	Port     int    `mapstructure:"port"`
+	Username string `mapstructure:"username"`
+	Password string `mapstructure:"password"`
+	From     string `mapstructure:"from"`
+	FromName string `mapstructure:"from_name"`
+	// 是否启用邮件发送；未配置时邮件仅记录日志
+	Enabled bool `mapstructure:"enabled"`
 }
 
 type ServerConfig struct {

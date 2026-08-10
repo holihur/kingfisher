@@ -135,6 +135,8 @@ const LoginPage: React.FC = () => {
               </div>
               <Button block onClick={() => setView('form')}>使用其他账号</Button>
               <div style={{ marginTop: 24, textAlign: 'center', fontSize: 13, color: token.colorTextTertiary }}>
+                <a href="/forgot-password">忘记密码</a>
+                <span style={{ margin: '0 8px', color: token.colorBorder }}>|</span>
                 <a href="/register">注册账号</a>
               </div>
             </>

@@ -38,6 +38,15 @@ func (r *UserRepo) FindByUsername(ctx context.Context, username string) (*domain
 	return po.toDomain(), nil
 }
 
+func (r *UserRepo) FindByEmail(ctx context.Context, email string) (*domain.User, error) {
+	var po userPO
+	err := r.db.WithContext(ctx).Preload("Roles").Where("email = ?", email).First(&po).Error
+	if err != nil {
+		return nil, err
+	}
+	return po.toDomain(), nil
+}
+
 func (r *UserRepo) FindAll(ctx context.Context, q *query.Query) ([]domain.User, int64, error) {
 	var pos []userPO
 	base := r.db.WithContext(ctx).Model(&userPO{}).Preload("Roles")

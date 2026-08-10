@@ -54,6 +54,16 @@ func (m *UserModule) InjectConfigProvider(fn func(ctx context.Context, key strin
 	m.authSvc.SetConfigProvider(fn)
 }
 
+// InjectEmailSender 注入邮件发送函数（找回密码等异步入队）。
+func (m *UserModule) InjectEmailSender(fn func(ctx context.Context, to, subject, body string) error) {
+	m.authSvc.SetEmailSender(fn)
+}
+
+// InjectTemplateRenderer 注入模板渲染函数（找回密码邮件按模板渲染）。
+func (m *UserModule) InjectTemplateRenderer(fn func(ctx context.Context, code string, vars map[string]string) (subject, body string, err error)) {
+	m.authSvc.SetTemplateRenderer(fn)
+}
+
 // InjectAuditLogger wires the audit logger callback into the auth handler.
 func (m *UserModule) InjectAuditLogger(fn AuditLogger) { m.authHandler.auditLog = fn }
 
@@ -72,6 +82,8 @@ func (m *UserModule) RegisterPublic(r *gin.RouterGroup) {
 	auth.POST("/login", middleware.RateLimit(m.cache, m.loginPerMinute, time.Minute), m.authHandler.Login)
 	auth.POST("/refresh", m.authHandler.Refresh)
 	auth.POST("/logout", m.authHandler.Logout)
+	auth.POST("/forgot-password", middleware.RateLimit(m.cache, 5, time.Minute), m.authHandler.ForgotPassword)
+	auth.POST("/reset-password", m.authHandler.ResetPassword)
 }
 
 func (m *UserModule) RegisterProtected(r *gin.RouterGroup) {

@@ -70,6 +70,15 @@ type RefreshReq struct {
 	RefreshToken string `json:"refresh_token" binding:"required"`
 }
 
+type ForgotPasswordReq struct {
+	Email string `json:"email" binding:"required,email" example:"user@example.com"`
+}
+
+type ResetPasswordReq struct {
+	Token       string `json:"token" binding:"required" example:"abc123"`
+	NewPassword string `json:"new_password" binding:"required,min=8,max=64,password" example:"NewPass123"`
+}
+
 type UpdateUserReq struct {
 	Email   *string `json:"email"`
 	Status  *int    `json:"status"`
@@ -211,6 +220,52 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 		return
 	}
 	response.OKJSON(c, gin.H{"access_token": access})
+}
+
+// ForgotPassword 找回密码
+// @Summary 找回密码
+// @Description 按邮箱发送密码重置邮件（含一次性 token 链接）。防枚举：邮箱不存在也返回成功
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param body body ForgotPasswordReq true "找回密码请求"
+// @Success 200 {object} response.Response "邮件已发送"
+// @Failure 400 {object} response.Response "参数错误"
+// @Router /auth/forgot-password [post]
+func (h *AuthHandler) ForgotPassword(c *gin.Context) {
+	var req ForgotPasswordReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	if err := h.svc.ForgotPassword(c.Request.Context(), req.Email); err != nil {
+		response.InternalError(c)
+		return
+	}
+	response.OKJSON(c, nil)
+}
+
+// ResetPassword 重置密码
+// @Summary 重置密码
+// @Description 用邮件中的一次性 token 设置新密码，并使旧 session 失效
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param body body ResetPasswordReq true "重置密码请求"
+// @Success 200 {object} response.Response "密码已重置"
+// @Failure 400 {object} response.Response "参数错误或 token 无效"
+// @Router /auth/reset-password [post]
+func (h *AuthHandler) ResetPassword(c *gin.Context) {
+	var req ResetPasswordReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	if err := h.svc.ResetPassword(c.Request.Context(), req.Token, req.NewPassword); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	response.OKJSON(c, nil)
 }
 
 // ---------- User CRUD handlers ----------

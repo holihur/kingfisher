@@ -297,7 +297,7 @@ func SeedData(db *gorm.DB) error {
 		// Templates（示例模版）
 		templates := []TemplatePO{
 			{ID: 1, Name: "欢迎消息", Code: "welcome_message", TemplateType: "message", Title: "欢迎 {{nickname}}", Content: "你好 {{nickname}}，欢迎使用 Kingfisher！", Status: 1, Version: "1.0.0"},
-			{ID: 2, Name: "密码重置通知", Code: "password_reset", TemplateType: "message", Title: "密码重置", Content: "您的密码已重置，请登录后修改。", Status: 1, Version: "1.0.0"},
+			{ID: 2, Name: "找回密码通知", Code: "password_reset", TemplateType: "email", Title: "找回密码 - Kingfisher", Content: `<p>你好 {{nickname}}：</p><p>我们收到了你的密码重置请求，请点击以下链接在 30 分钟内重置密码：</p><p><a href="{{reset_url}}">{{reset_url}}</a></p><p>如果这不是你的操作，请忽略此邮件。</p>`, Status: 1, Version: "1.0.0"},
 		}
 		if err := tx.Create(&templates).Error; err != nil {
 			return fmt.Errorf("seed templates: %w", err)

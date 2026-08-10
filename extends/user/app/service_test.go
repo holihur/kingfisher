@@ -56,6 +56,15 @@ func (m *mockUserRepo) FindByUsername(ctx context.Context, username string) (*do
 	return mockToUser(d), nil
 }
 
+func (m *mockUserRepo) FindByEmail(ctx context.Context, email string) (*domain.User, error) {
+	for _, d := range m.users {
+		if d.email == email {
+			return mockToUser(d), nil
+		}
+	}
+	return nil, fmt.Errorf("not found")
+}
+
 func (m *mockUserRepo) FindAll(ctx context.Context, q *query.Query) ([]domain.User, int64, error) {
 	return nil, 0, nil
 }

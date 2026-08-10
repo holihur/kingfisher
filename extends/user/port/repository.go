@@ -10,6 +10,7 @@ import (
 type UserRepository interface {
 	FindByID(ctx context.Context, id uint) (*domain.User, error)
 	FindByUsername(ctx context.Context, username string) (*domain.User, error)
+	FindByEmail(ctx context.Context, email string) (*domain.User, error)
 	FindAll(ctx context.Context, q *query.Query) ([]domain.User, int64, error)
 	Create(ctx context.Context, user *domain.User) error
 	Update(ctx context.Context, id uint, updates map[string]any) error

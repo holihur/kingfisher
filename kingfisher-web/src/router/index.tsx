@@ -13,6 +13,8 @@ const NotFound = lazy(() => import('../pages/error/NotFound'));
 const Forbidden = lazy(() => import('../pages/error/Forbidden'));
 const Profile = lazy(() => import('../pages/profile'));
 const RegisterPage = lazy(() => import('../pages/register'));
+const ForgotPassword = lazy(() => import('../pages/forgot'));
+const ResetPassword = lazy(() => import('../pages/reset'));
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const userLoaded = useAuthStore((s) => s.userLoaded);
@@ -120,6 +122,8 @@ function AppRoutes() {
   const routeElement = useRoutes([
     { path: '/login', element: <Lazy><LoginPage /></Lazy> },
     { path: '/register', element: <Lazy><RegisterPage /></Lazy> },
+    { path: '/forgot-password', element: <Lazy><ForgotPassword /></Lazy> },
+    { path: '/reset', element: <Lazy><ResetPassword /></Lazy> },
     { path: '/403', element: <Lazy><Forbidden /></Lazy> },
     {
       path: '/',

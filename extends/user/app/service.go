@@ -2,8 +2,11 @@ package app
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -23,10 +26,108 @@ type AuthService struct {
 	getLandingPage func(ctx context.Context, roleID uint) (string, error)
 	// getConfig 读取系统配置值，由 cmd 注入（注册开关、默认注册角色）
 	getConfig func(ctx context.Context, key string) (string, error)
+	// sendEmail 发送邮件（异步入队），由 cmd 注入 email producer
+	sendEmail func(ctx context.Context, to, subject, body string) error
+	// renderTemplate 按模板 code 渲染主题与正文（含 {{var}} 替换），由 cmd 注入
+	renderTemplate func(ctx context.Context, code string, vars map[string]string) (subject, body string, err error)
+	// resetTokenTTL 密码重置 token 有效期（30 分钟）
+	resetTokenTTL time.Duration
 }
 
 func NewAuthService(repo port.UserRepository, c cache.Cache, j *jwt.JWTManager) *AuthService {
-	return &AuthService{repo: repo, cache: c, jwtMgr: j}
+	return &AuthService{repo: repo, cache: c, jwtMgr: j, resetTokenTTL: 30 * time.Minute}
+}
+
+// SetEmailSender 注入邮件发送函数（异步入队）。
+func (s *AuthService) SetEmailSender(fn func(ctx context.Context, to, subject, body string) error) {
+	s.sendEmail = fn
+}
+
+// SetTemplateRenderer 注入模板渲染函数。
+func (s *AuthService) SetTemplateRenderer(fn func(ctx context.Context, code string, vars map[string]string) (subject, body string, err error)) {
+	s.renderTemplate = fn
+}
+
+// ForgotPassword 找回密码：按邮箱查找用户，生成一次性 token 存 Redis，异步发重置邮件。
+// 出于防枚举考虑：无论邮箱是否存在都返回成功（避免暴露用户是否注册）。
+func (s *AuthService) ForgotPassword(ctx context.Context, email string) error {
+	user, err := s.repo.FindByEmail(ctx, email)
+	if err != nil || user == nil {
+		// 用户不存在也返回 nil，防枚举；但仍尝试记录（无收件人可发则不发送）
+		return nil
+	}
+	// 生成一次性 token
+	token, err := randomToken(32)
+	if err != nil {
+		return fmt.Errorf("gen token: %w", err)
+	}
+	// 存 Redis：reset:token:<token> = userID，30 分钟过期
+	if s.cache != nil {
+		key := "reset:token:" + token
+		if err := s.cache.Set(ctx, key, fmt.Sprint(user.ID), s.resetTokenTTL); err != nil {
+			return fmt.Errorf("store reset token: %w", err)
+		}
+	}
+	// 渲染模板并异步发邮件（未注入 email sender 则跳过）
+	if s.sendEmail != nil && s.renderTemplate != nil {
+		resetURL := resetLinkBase(ctx, s.getConfig) + "/reset?token=" + token
+		vars := map[string]string{"nickname": user.Nickname, "reset_url": resetURL, "token": token}
+		subject, body, err := s.renderTemplate(ctx, "password_reset", vars)
+		if err == nil {
+			_ = s.sendEmail(ctx, user.Email, subject, body)
+		}
+	}
+	return nil
+}
+
+// ResetPassword 重置密码：验证一次性 token，更新密码并使旧 session 失效。
+func (s *AuthService) ResetPassword(ctx context.Context, token, newPassword string) error {
+	if len(newPassword) < 8 || len(newPassword) > 64 {
+		return fmt.Errorf("password length invalid")
+	}
+	if s.cache == nil {
+		return fmt.Errorf("reset token unavailable")
+	}
+	key := "reset:token:" + token
+	uidStr, err := s.cache.Get(ctx, key)
+	if err != nil || uidStr == "" {
+		return fmt.Errorf("invalid or expired reset token")
+	}
+	var userID uint64
+	if _, err := fmt.Sscanf(uidStr, "%d", &userID); err != nil || userID == 0 {
+		return fmt.Errorf("invalid reset token")
+	}
+	hashed, err := bcrypt.GenerateFromPassword([]byte(newPassword), 12)
+	if err != nil {
+		return fmt.Errorf("hash password: %w", err)
+	}
+	if err := s.repo.Update(ctx, uint(userID), map[string]any{"password": string(hashed)}); err != nil {
+		return err
+	}
+	// 使旧 session 失效
+	_ = s.repo.IncrementSessionVersion(ctx, uint(userID))
+	// 删除已用 token
+	_ = s.cache.Delete(ctx, key)
+	return nil
+}
+
+// randomToken 生成 n 字节随机 token（十六进制）。
+func randomToken(n int) (string, error) {
+	b := make([]byte, n)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b), nil
+}
+
+// resetLinkBase 返回前端地址（前端跳转重置页用），从系统配置 site_url 读取，否则默认 localhost:8080。
+func resetLinkBase(ctx context.Context, getConfig func(ctx context.Context, key string) (string, error)) string {
+	if getConfig != nil {
+		if v, e := getConfig(ctx, "site_url"); e == nil && v != "" {
+			return strings.TrimRight(v, "/")
+		}
+	}
+	return "http://localhost:8080"
 }
 
 // SetLandingPageProvider 注入角色落地页查询函数。
