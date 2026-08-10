@@ -82,9 +82,10 @@ const ConfigManage: React.FC = () => {
   const { message, modal } = App.useApp();
   const themeToken = useThemeToken();
   const { urlParams, updateUrl } = useTableUrlQuery();
-  const [editModal, setEditModal] = useState<{ open: boolean; config: Record<string, unknown> | null }>({
+  const [editModal, setEditModal] = useState<{ open: boolean; config: Record<string, unknown> | null; isNew: boolean }>({
     open: false,
     config: null,
+    isNew: false,
   });
   const [refreshKey, setRefreshKey] = useState(0);
   const [form] = Form.useForm<Record<string, unknown>>();
@@ -212,7 +213,7 @@ const ConfigManage: React.FC = () => {
                 is_public: !!r.is_public,
                 value: stringToFormValue(r.value, render),
               });
-              setEditModal({ open: true, config: r as unknown as Record<string, unknown> });
+              setEditModal({ open: true, config: r as unknown as Record<string, unknown>, isNew: false });
             }}
           >
           <EditOutlined /> 编辑
@@ -235,11 +236,19 @@ const ConfigManage: React.FC = () => {
     },
   ];
 
+  /** 打开新增配置弹窗：Key 可编辑，其余字段走默认/兜底推断 */
+  const openCreate = () => {
+    form.resetFields();
+    form.setFieldsValue({ is_public: false, group_id: selectedGroupId || undefined });
+    setEditModal({ open: true, config: null, isNew: true });
+  };
+
   const handleEdit = async () => {
     const v = await form.validateFields();
-    const render = (v.render as RenderType) || inferRenderType(editModal.config!.key as string);
+    const key = (editModal.config?.key as string) || (v.key as string);
+    const render = (v.render as RenderType) || inferRenderType(key);
     await configApi.set(
-      editModal.config!.key as string,
+      key,
       valueToString(v.value, render),
       Boolean(v.is_public),
       String(v.version ?? ''),
@@ -247,8 +256,8 @@ const ConfigManage: React.FC = () => {
       String(v.render_options ?? ''),
       Number(v.group_id) || 0,
     );
-    message.success('更新成功');
-    setEditModal({ open: false, config: null });
+    message.success(editModal.isNew ? '配置已新增' : '更新成功');
+    setEditModal({ open: false, config: null, isNew: false });
     setRefreshKey((k) => k + 1);
   };
 
@@ -373,6 +382,13 @@ const ConfigManage: React.FC = () => {
           reloadKey={refreshKey}
           headerTitle={`系统配置${selectedGroupId ? `（${groups.find(g => g.id === selectedGroupId)?.name ?? ''}）` : ''}`}
           selectable={perms.includes('config:update')}
+          toolBarRender={
+            perms.includes('config:update') ? (
+              <Button key="add-config" type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+                新增配置
+              </Button>
+            ) : null
+          }
           batchBarRender={(keys, clear) => {
             const k = keys as string[];
             return (
@@ -402,16 +418,16 @@ const ConfigManage: React.FC = () => {
         />
       </div>
 
-      {/* 配置编辑弹窗 */}
+      {/* 配置编辑/新增弹窗 */}
       <Modal
-        title={`编辑 — ${editModal.config?.key}`}
+        title={editModal.isNew ? '新增配置' : `编辑 — ${editModal.config?.key}`}
         open={editModal.open}
         onOk={handleEdit}
-        onCancel={() => setEditModal({ open: false, config: null })}
+        onCancel={() => setEditModal({ open: false, config: null, isNew: false })}
       >
         <Form form={form} layout="vertical">
-          <Form.Item label="Key">
-            <Input value={(editModal.config?.key as string) || ''} disabled />
+          <Form.Item name="key" label="Key" rules={[{ required: true, message: '请输入 Key' }, { pattern: /^[a-z0-9_]+$/i, message: 'Key 仅支持字母、数字、下划线' }]}>
+            <Input placeholder="如 new_feature_enabled" disabled={!editModal.isNew} />
           </Form.Item>
           <Form.Item
             name="value"
@@ -419,7 +435,7 @@ const ConfigManage: React.FC = () => {
             rules={[{ required: true }]}
             valuePropName={watchedRender === 'switch' ? 'checked' : 'value'}
           >
-            {editModal.config ? renderValueInput(watchedRender, parseRenderOptions(watchedOptions)) : <Input />}
+            {editModal.isNew || editModal.config ? renderValueInput(watchedRender, parseRenderOptions(watchedOptions)) : <Input />}
           </Form.Item>
           <Form.Item name="group_id" label="分组">
             <Select
