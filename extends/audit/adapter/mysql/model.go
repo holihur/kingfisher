@@ -9,6 +9,7 @@ type auditPO struct {
 	Action     string
 	Resource   string
 	ResourceID uint
+	Detail     string
 	IP         string
 	UserAgent  string
 	CreatedAt  time.Time

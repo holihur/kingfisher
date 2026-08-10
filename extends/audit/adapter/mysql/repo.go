@@ -15,7 +15,7 @@ func NewAuditRepo(db *gorm.DB) *AuditRepo { return &AuditRepo{db: db} }
 func (r *AuditRepo) InsertBatch(ctx context.Context, logs []domain.AuditLog) error {
 	pos := make([]auditPO, len(logs))
 	for i, l := range logs {
-		pos[i] = auditPO{UserID: l.UserID, Username: l.Username, Action: l.Action, Resource: l.Resource, ResourceID: l.ResourceID, IP: l.IP, UserAgent: l.UserAgent}
+		pos[i] = auditPO{UserID: l.UserID, Username: l.Username, Action: l.Action, Resource: l.Resource, ResourceID: l.ResourceID, Detail: l.Detail, IP: l.IP, UserAgent: l.UserAgent}
 	}
 	return r.db.WithContext(ctx).Create(&pos).Error
 }
@@ -27,7 +27,7 @@ func (r *AuditRepo) FindAll(ctx context.Context, q *query.Query) ([]domain.Audit
 	}
 	logs := make([]domain.AuditLog, len(pos))
 	for i, p := range pos {
-		logs[i] = domain.AuditLog{ID: p.ID, UserID: p.UserID, Username: p.Username, Action: p.Action, Resource: p.Resource, ResourceID: p.ResourceID, IP: p.IP, UserAgent: p.UserAgent, CreatedAt: p.CreatedAt}
+		logs[i] = domain.AuditLog{ID: p.ID, UserID: p.UserID, Username: p.Username, Action: p.Action, Resource: p.Resource, ResourceID: p.ResourceID, Detail: p.Detail, IP: p.IP, UserAgent: p.UserAgent, CreatedAt: p.CreatedAt}
 	}
 	return logs, total, nil
 }

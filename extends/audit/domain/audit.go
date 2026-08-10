@@ -9,7 +9,9 @@ type AuditLog struct {
 	Action     string    `json:"action"`
 	Resource   string    `json:"resource"`
 	ResourceID uint      `json:"resource_id"`
-	IP         string    `json:"ip"`
-	UserAgent  string    `json:"user_agent"`
-	CreatedAt  time.Time `json:"created_at"`
+	// Detail 操作详情（JSON 字符串，含关键字段/变更信息）
+	Detail    string    `json:"detail"`
+	IP        string    `json:"ip"`
+	UserAgent string    `json:"user_agent"`
+	CreatedAt time.Time `json:"created_at"`
 }
