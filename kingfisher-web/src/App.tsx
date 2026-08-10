@@ -5,6 +5,7 @@ import AppRoutes from './router';
 import { GlobalFeedback } from './utils/feedback';
 import { ThemeProvider } from './hooks/ThemeProvider';
 import { useTheme } from './hooks/useTheme';
+import SiteNotice from './components/SiteNotice';
 
 function ThemedApp() {
   const { theme: current } = useTheme();
@@ -18,6 +19,8 @@ function ThemedApp() {
     >
       <AntApp>
         <GlobalFeedback />
+        {/* 站点通知：全局顶部横幅，未登录也可见，可关闭 */}
+        <SiteNotice />
         <BrowserRouter>
           <AppRoutes />
         </BrowserRouter>

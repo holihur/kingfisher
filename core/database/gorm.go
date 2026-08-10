@@ -234,6 +234,7 @@ func SeedData(db *gorm.DB) error {
 			{Key: "site_description", Value: "Kingfisher 后台管理平台", Remark: "系统描述", IsPublic: true, Version: "1.0.0", Render: "textarea", GroupID: 1},
 			{Key: "site_logo", Value: "", Remark: "Logo（留空则显示站点名首字母）", IsPublic: true, Version: "1.0.0", Render: "text", GroupID: 1},
 			{Key: "site_login_cover", Value: "", Remark: "登录页封面图（留空则显示纯色背景）", IsPublic: true, Version: "1.0.0", Render: "image", GroupID: 1},
+			{Key: "site_notice", Value: "⚠️ 这是一个测试站点，请勿用于生产环境。管理员账号：admin / 密码：Abcd1234", Remark: "站点通知（显示在页面顶部，可关闭；内容变化后重新展示）", IsPublic: true, Version: "1.0.0", Render: "textarea", GroupID: 1},
 			{Key: "max_login_attempts", Value: "5", Remark: "最大登录失败次数", Version: "1.0.0", Render: "number", GroupID: 2},
 			{Key: "lockout_duration", Value: "15m", Remark: "锁定时间", Version: "1.0.0", Render: "text", GroupID: 2},
 			{Key: "session_timeout", Value: "30m", Remark: "会话超时", Version: "1.0.0", Render: "text", GroupID: 2},
