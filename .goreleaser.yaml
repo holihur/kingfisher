@@ -26,14 +26,14 @@ archives:
   - id: release
     formats: [tar.gz]
     name_template: "kingfisher-release"
+    # goreleaser 默认会把 build 产物放进归档（二进制在根）；这里额外加前端 dist 与生产配置
     files:
-      - kingfisher-server
       - src: deploy/config.prod.yaml
         dst: config.yaml
       - src: kingfisher-web/dist/*
         dst: kingfisher-web
         strip_parent: false
-    # 默认 goreleaser 会带 LICENSE/README，这里显式只打包所需文件
+    # 不额外附带 LICENSE/README 等
     meta: false
 
 changelog:
