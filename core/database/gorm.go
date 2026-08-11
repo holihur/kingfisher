@@ -114,6 +114,10 @@ func autoMigrate(db *gorm.DB) error {
 		&MessagePO{},
 		&TemplatePO{},
 		&ScheduledTaskPO{},
+		&DocDirectoryPO{},
+		&DocDirRolePO{},
+		&DocumentPO{},
+		&DocVersionPO{},
 	)
 }
 
@@ -159,6 +163,10 @@ func SeedData(db *gorm.DB) error {
 			{ID: 30, Name: "更新任务", Code: "task:update", Resource: "task", Action: "update"},
 			{ID: 31, Name: "删除任务", Code: "task:delete", Resource: "task", Action: "delete"},
 			{ID: 32, Name: "查看系统信息", Code: "system:list", Resource: "system", Action: "read"},
+			{ID: 33, Name: "查看文档", Code: "doc:list", Resource: "doc", Action: "read"},
+			{ID: 34, Name: "创建文档", Code: "doc:create", Resource: "doc", Action: "create"},
+			{ID: 35, Name: "更新文档", Code: "doc:update", Resource: "doc", Action: "update"},
+			{ID: 36, Name: "删除文档", Code: "doc:delete", Resource: "doc", Action: "delete"},
 		}
 		if err := tx.Create(&perms).Error; err != nil {
 			return fmt.Errorf("seed permissions: %w", err)
@@ -183,8 +191,11 @@ func SeedData(db *gorm.DB) error {
 			{1, 20}, {1, 21}, {1, 22}, {1, 23},
 			{1, 24}, {1, 25}, {1, 26}, {1, 27},
 			{1, 28}, {1, 29}, {1, 30}, {1, 31}, {1, 32},
+			{1, 33}, {1, 34}, {1, 35}, {1, 36},
 			{3, 1}, {3, 2}, {3, 3}, {3, 5}, {3, 6}, {3, 7}, {3, 9}, {3, 13}, {3, 16},
+			{3, 33}, {3, 34}, {3, 35},
 			{4, 1}, {4, 5}, {4, 9}, {4, 13}, {4, 16},
+			{4, 33},
 		}
 		if err := tx.Table("role_permissions").Create(&rp).Error; err != nil {
 			return fmt.Errorf("seed role_permissions: %w", err)
@@ -204,6 +215,7 @@ func SeedData(db *gorm.DB) error {
 			{ID: 19, ParentID: 2, Name: "模版管理", Path: "/system/templates", Component: "pages/Template/TemplateManage", Icon: "FileTextOutlined", Sort: 8, Permission: "template:list", Version: "1.0.0"},
 			{ID: 20, ParentID: 2, Name: "任务管理", Path: "/system/tasks", Component: "pages/Task/TaskManage", Icon: "ScheduleOutlined", Sort: 9, Permission: "task:list", Version: "1.0.0"},
 			{ID: 21, ParentID: 2, Name: "系统信息", Path: "/system/info", Component: "pages/System/SystemInfo", Icon: "MonitorOutlined", Sort: 10, Permission: "system:list", Version: "1.0.0"},
+			{ID: 22, ParentID: 2, Name: "文档管理", Path: "/system/docs", Component: "pages/Doc/DocManage", Icon: "FileTextOutlined", Sort: 11, Permission: "doc:list", Version: "1.0.0"},
 		}
 		if err := tx.Create(&menus).Error; err != nil {
 			return fmt.Errorf("seed menus: %w", err)
@@ -212,9 +224,9 @@ func SeedData(db *gorm.DB) error {
 		// Role-Menu links (admin sees all, editor sees Dashboard+Users+Menus, viewer sees Dashboard only)
 		type RM struct{ RoleID, MenuID uint }
 		rm := []RM{
-			{1, 1}, {1, 2}, {1, 3}, {1, 7}, {1, 11}, {1, 15}, {1, 16}, {1, 17}, {1, 18}, {1, 19}, {1, 20}, {1, 21},
-			{3, 1}, {3, 3}, {3, 7},
-			{4, 1},
+			{1, 1}, {1, 2}, {1, 3}, {1, 7}, {1, 11}, {1, 15}, {1, 16}, {1, 17}, {1, 18}, {1, 19}, {1, 20}, {1, 21}, {1, 22},
+			{3, 1}, {3, 3}, {3, 7}, {3, 22},
+			{4, 1}, {4, 22},
 		}
 		if err := tx.Table("role_menus").Create(&rm).Error; err != nil {
 			return fmt.Errorf("seed role_menus: %w", err)
@@ -308,7 +320,42 @@ func SeedData(db *gorm.DB) error {
 		scheduledTasks := []ScheduledTaskPO{
 			{ID: 1, Name: "nop 测试任务", TaskType: "nop:run", CronSpec: "* * * * *", Payload: `{"note":"周期任务测试"}`, Enabled: 1, Remark: "每 分钟空转一次，验证调度器→入队→worker 消费链路"},
 		}
-		return tx.Create(&scheduledTasks).Error
+		if err := tx.Create(&scheduledTasks).Error; err != nil {
+			return fmt.Errorf("seed scheduled_tasks: %w", err)
+		}
+
+		// Doc 模块示例数据：目录（含可见角色授权，演示默认拒绝）+ 示例文档
+		docDirs := []DocDirectoryPO{
+			{ID: 1, ParentID: 0, Name: "产品文档", Sort: 1, Status: 1, Version: "1.0.0"},
+			{ID: 2, ParentID: 0, Name: "技术文档", Sort: 2, Status: 1, Version: "1.0.0"},
+			{ID: 3, ParentID: 1, Name: "内部资料", Sort: 1, Status: 1, Version: "1.0.0"},
+		}
+		if err := tx.Create(&docDirs).Error; err != nil {
+			return fmt.Errorf("seed doc dirs: %w", err)
+		}
+		// 目录可见角色：dir1 全角色可见；dir2 admin+editor；dir3 仅 admin（演示默认拒绝）
+		type DR struct{ DirID, RoleID uint }
+		dr := []DR{
+			{1, 1}, {1, 3}, {1, 4},
+			{2, 1}, {2, 3},
+			{3, 1},
+		}
+		if err := tx.Table("doc_dir_roles").Create(&dr).Error; err != nil {
+			return fmt.Errorf("seed doc_dir_roles: %w", err)
+		}
+		// 示例文档：doc1 已发布共享（admin 作者）；doc2 草稿（演示 draft 仅作者可见）
+		docs := []DocumentPO{
+			{ID: 1, DirID: 1, Title: "产品使用手册", Content: "<h2>欢迎使用 Kingfisher</h2><p>本文档介绍产品核心功能。</p>", OwnerID: 1, Visibility: "shared", Status: "published", CurrentVersion: 1, Sort: 0},
+			{ID: 2, DirID: 2, Title: "开发规范", Content: "<p>代码风格与提交流程。</p>", OwnerID: 2, Visibility: "shared", Status: "draft", CurrentVersion: 1, Sort: 0},
+		}
+		if err := tx.Create(&docs).Error; err != nil {
+			return fmt.Errorf("seed docs: %w", err)
+		}
+		docVersions := []DocVersionPO{
+			{DocID: 1, VersionNo: 1, Title: "产品使用手册", Content: "<h2>欢迎使用 Kingfisher</h2><p>本文档介绍产品核心功能。</p>", OwnerID: 1, Note: "初始版本"},
+			{DocID: 2, VersionNo: 1, Title: "开发规范", Content: "<p>代码风格与提交流程。</p>", OwnerID: 2, Note: "初始版本"},
+		}
+		return tx.Create(&docVersions).Error
 	})
 }
 

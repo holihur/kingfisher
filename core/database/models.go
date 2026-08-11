@@ -225,3 +225,57 @@ type ScheduledTaskPO struct {
 }
 
 func (ScheduledTaskPO) TableName() string { return "scheduled_tasks" }
+
+// DocDirectoryPO 文档目录（树形）
+type DocDirectoryPO struct {
+	ID        uint   `gorm:"primaryKey"`
+	ParentID  uint   `gorm:"default:0;index"`
+	Name      string `gorm:"size:64;not null"`
+	Sort      int    `gorm:"default:0"`
+	Status    int    `gorm:"default:1"`
+	Version   string `gorm:"size:32"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+func (DocDirectoryPO) TableName() string { return "doc_directories" }
+
+// DocDirRolePO 目录-角色授权（复合主键；无授权记录 = 默认拒绝，仅 admin 可见）
+type DocDirRolePO struct {
+	DirID  uint `gorm:"primaryKey"`
+	RoleID uint `gorm:"primaryKey"`
+}
+
+func (DocDirRolePO) TableName() string { return "doc_dir_roles" }
+
+// DocumentPO 文档
+type DocumentPO struct {
+	ID             uint   `gorm:"primaryKey"`
+	DirID          uint   `gorm:"index;not null"`
+	Title          string `gorm:"size:128;not null"`
+	Content        string `gorm:"type:text"`
+	OwnerID        uint   `gorm:"index;not null"`
+	Visibility     string `gorm:"size:16;default:shared"`
+	Status         string `gorm:"size:16;default:draft;index"`
+	CurrentVersion int    `gorm:"default:1"`
+	Sort           int    `gorm:"default:0"`
+	PublishedAt    *time.Time
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}
+
+func (DocumentPO) TableName() string { return "documents" }
+
+// DocVersionPO 文档版本历史（append-only；UNIQUE(doc_id, version_no)）
+type DocVersionPO struct {
+	ID        uint   `gorm:"primaryKey"`
+	DocID     uint   `gorm:"index;not null"`
+	VersionNo int    `gorm:"not null"`
+	Title     string `gorm:"size:128;not null"`
+	Content   string `gorm:"type:text"`
+	OwnerID   uint   `gorm:"default:0"`
+	Note      string `gorm:"size:255"`
+	CreatedAt time.Time
+}
+
+func (DocVersionPO) TableName() string { return "doc_versions" }

@@ -47,6 +47,7 @@ import (
 	configApp "kingfisher/extends/config/app"
 	configTransport "kingfisher/extends/config/transport"
 	dictTransport "kingfisher/extends/dict/transport"
+	docTransport "kingfisher/extends/doc/transport"
 	emailTransport "kingfisher/extends/email/transport"
 	menuTransport "kingfisher/extends/menu/transport"
 	messageTransport "kingfisher/extends/message/transport"
@@ -229,6 +230,7 @@ func main() {
 		menuTransport.NewMenuModule(db, redisCache),
 		configTransport.NewConfigModule(db, redisCache),
 		dictTransport.NewDictModule(db, redisCache),
+		docTransport.NewDocModule(db, redisCache),
 		messageTransport.NewMessageModule(db, producer),
 		templateTransport.NewTemplateModule(db, redisCache),
 		taskTransport.NewTaskModule(db, producer),

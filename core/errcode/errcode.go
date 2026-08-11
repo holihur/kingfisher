@@ -55,6 +55,16 @@ const (
 
 	// Task 10700-10799
 	ErrTaskNotFound = 10701
+
+	// Doc 10800-10899
+	ErrDocDirNotFound     = 10801
+	ErrDocDirHasChildren  = 10802
+	ErrDocDirHasDocuments = 10803
+	ErrDocDirNotVisible   = 10804
+	ErrDocNotFound        = 10805
+	ErrDocForbidden       = 10806
+	ErrDocVersionNotFound = 10807
+	ErrDocVersionConflict = 10808
 )
 
 //nolint:gosec // false positive — Chinese error messages
@@ -95,6 +105,14 @@ var errMsg = map[int]string{
 	ErrTemplateNotFound:     "模版不存在",
 	ErrTemplateCodeExists:   "模版编码已存在",
 	ErrTaskNotFound:         "周期任务不存在",
+	ErrDocDirNotFound:       "文档目录不存在",
+	ErrDocDirHasChildren:    "目录下有子目录，不可删除",
+	ErrDocDirHasDocuments:   "目录下存在文档，不可删除",
+	ErrDocDirNotVisible:     "目录不可见或无权访问",
+	ErrDocNotFound:          "文档不存在",
+	ErrDocForbidden:         "无权操作该文档",
+	ErrDocVersionNotFound:   "文档版本不存在",
+	ErrDocVersionConflict:   "文档已被他人修改，请刷新后重试",
 }
 
 func Msg(code int) string {
@@ -114,13 +132,13 @@ func HTTPStatus(code int) int {
 		return 503
 	case code == 10003 || code == 10104 || code == 10105:
 		return 401
-	case code == 10004:
+	case code == 10004 || code == ErrDocForbidden:
 		return 403
-	case code == 10005:
+	case code == 10005 || code == ErrDocNotFound || code == ErrDocDirNotFound || code == ErrDocDirNotVisible || code == ErrDocVersionNotFound:
 		return 404
 	case code == 10008:
 		return 405
-	case code == 10001 || (code >= 10100 && code < 10700):
+	case code == 10001 || (code >= 10100 && code < 10900):
 		return 400
 	default:
 		return 500
