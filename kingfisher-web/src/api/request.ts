@@ -70,7 +70,7 @@ request.interceptors.response.use(
     const retryable =
       config &&
       shouldRetry(config.method) &&
-      ((!error.response) || (error.response.status >= 502 && error.response.status <= 504)) &&
+      (!error.response || (error.response.status >= 502 && error.response.status <= 504)) &&
       (config.__retryCount ?? 0) < MAX_RETRY;
 
     if (retryable) {
@@ -111,7 +111,19 @@ request.interceptors.response.use(
   }
 );
 
+/** 统一处理"登录已过期"：清 token + 跳登录页 */
+function redirectToLogin() {
+  clearTokens();
+  pendingRequests.length = 0;
+  window.location.href = '/login';
+}
+
 async function handleTokenRefresh(config: InternalAxiosRequestConfig) {
+  // 没有 refresh token（或 access 过期后 refresh 也已失效）→ 无法刷新，直接跳登录
+  if (!getRefreshToken()) {
+    redirectToLogin();
+    return Promise.reject(new Error('登录已过期'));
+  }
   if (!isRefreshing) {
     isRefreshing = true;
     try {
@@ -124,9 +136,7 @@ async function handleTokenRefresh(config: InternalAxiosRequestConfig) {
       config.headers.Authorization = `Bearer ${token}`;
       return request(config);
     } catch {
-      clearTokens();
-      pendingRequests.length = 0;
-      window.location.href = '/login';
+      redirectToLogin();
       return Promise.reject(new Error('登录已过期'));
     } finally {
       isRefreshing = false;
