@@ -100,15 +100,9 @@ const DocManage: React.FC = () => {
     allRoles: [],
   });
 
-  // 右侧文档区
+  // 右侧文档区：目录树选中节点 key（dir-<id> | doc-<id>），驱动高亮与编辑
   const [selectedDirId, setSelectedDirId] = useState<number | null>(null);
-  // 目录树选中节点 key（dir-<id> | doc-<id>），驱动高亮
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
-  const [docs, setDocs] = useState<DocItem[]>([]);
-  const [docsTotal, setDocsTotal] = useState(0);
-  const [docsPage, setDocsPage] = useState(1);
-  const [docsLoading, setDocsLoading] = useState(false);
-  const [docsRefresh, setDocsRefresh] = useState(0);
 
   // 编辑器状态
   const [editing, setEditing] = useState<DocItem | null>(null); // null = 列表视图
@@ -167,30 +161,10 @@ const DocManage: React.FC = () => {
     } else if (dirId) {
       setSelectedKey(`dir-${dirId}`);
       setSelectedDirId(Number(dirId));
-      setDocsPage(1);
       setEditing(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // —— 文档列表 ——
-  useEffect(() => {
-    if (!selectedDirId) {
-      setDocs([]);
-      setDocsTotal(0);
-      return;
-    }
-    setDocsLoading(true);
-    docApi
-      .list(selectedDirId, { page: docsPage, page_size: 10, sort: '-updated_at' })
-      .then((r) => {
-        const d = r.data as Record<string, unknown>;
-        setDocs((d.items as DocItem[]) || []);
-        setDocsTotal((d.total as number) || 0);
-      })
-      .catch(() => {})
-      .finally(() => setDocsLoading(false));
-  }, [selectedDirId, docsPage, docsRefresh]);
 
   // split.js：左右（目录树 / 内容）可拖拽调宽；左栏拖到过小自动完全合上。
   // 实例只初始化一次、不销毁：合上用 setSizes([0,100])，gutter 常驻可拖拽展开，右栏自动贴合占满。
@@ -347,11 +321,15 @@ const DocManage: React.FC = () => {
     if (selectedDirId) setSelectedKey(`dir-${selectedDirId}`);
   };
 
-  const createDoc = () => {
-    if (!selectedDirId) return;
+  // 新建文档（可在指定目录下创建；缺省用当前选中目录）
+  const createDoc = (dirId?: number) => {
+    const target = dirId ?? selectedDirId;
+    if (!target) return;
+    setSelectedDirId(target);
+    setSelectedKey(`dir-${target}`);
     setEditing({
       id: 0,
-      dir_id: selectedDirId,
+      dir_id: target,
       title: '',
       content: '',
       owner_id: 0,
@@ -386,12 +364,9 @@ const DocManage: React.FC = () => {
         });
         message.success('文档已创建');
       }
-      setDocsRefresh((k) => k + 1);
+      void loadTree(); // 树直接驱动：刷新让新文档叶子出现
       if (editing && editing.id > 0) await openDoc({ ...editing, title: editTitle, content: editContent });
-      else {
-        setEditing(null);
-        setDocsRefresh((k) => k + 1);
-      }
+      else setEditing(null);
     } catch {
       /* 已提示 */
     }
@@ -409,7 +384,7 @@ const DocManage: React.FC = () => {
       }
       const r = await docApi.getById(editing.id);
       setEditing(r.data as DocItem);
-      setDocsRefresh((k) => k + 1);
+      void loadTree(); // 状态标签（已发布/草稿）变化反映到树叶子
     } catch {
       /* 已提示 */
     }
@@ -429,7 +404,7 @@ const DocManage: React.FC = () => {
           const next = new URLSearchParams(searchParams);
           next.delete('doc_id');
           setSearchParams(next, { replace: true });
-          setDocsRefresh((k) => k + 1);
+          void loadTree(); // 刷新树叶子（文档已删除）
         } catch {
           /* 已提示 */
         }
@@ -466,7 +441,7 @@ const DocManage: React.FC = () => {
           await docApi.restore(doc.id, no);
           message.success('已还原');
           setVerModal((s) => ({ ...s, open: false }));
-          setDocsRefresh((k) => k + 1);
+          void loadTree(); // 版本还原不影响树叶子，但保持一致性
         } catch {
           /* 已提示 */
         }
@@ -483,6 +458,7 @@ const DocManage: React.FC = () => {
       trigger={['click']}
       menu={{
         items: [
+          ...(canCreate ? [{ key: 'new-doc', icon: <FileAddOutlined />, label: '新建文档' }] : []),
           ...(canCreate ? [{ key: 'create', icon: <FolderAddOutlined />, label: '新建子目录' }] : []),
           ...(canUpdate ? [{ key: 'rename', icon: <EditOutlined />, label: '重命名' }] : []),
           ...(canUpdate ? [{ key: 'roles', icon: <SafetyOutlined />, label: '可见角色' }] : []),
@@ -490,7 +466,8 @@ const DocManage: React.FC = () => {
         ],
         onClick: ({ key, domEvent }) => {
           domEvent.stopPropagation();
-          if (key === 'create') openDirModal('create', dir.id);
+          if (key === 'new-doc') createDoc(dir.id);
+          else if (key === 'create') openDirModal('create', dir.id);
           else if (key === 'rename') openDirModal('rename', dir.parent_id, dir);
           else if (key === 'roles') void openAuthModal(dir);
           else if (key === 'delete') handleDeleteDir(dir);
@@ -551,48 +528,6 @@ const DocManage: React.FC = () => {
     );
   };
 
-  const docColumns = [
-    { title: '标题', dataIndex: 'title', key: 'title', ellipsis: true },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      width: 90,
-      render: (s: string) => (s === 'published' ? <Tag color="green">已发布</Tag> : <Tag color="orange">草稿</Tag>),
-    },
-    {
-      title: '可见性',
-      dataIndex: 'visibility',
-      key: 'visibility',
-      width: 90,
-      render: (v: string) => (v === 'private' ? <Tag>私有</Tag> : <Tag color="blue">共享</Tag>),
-    },
-    { title: '作者', dataIndex: 'owner_name', key: 'owner_name', width: 100 },
-    { title: '更新于', dataIndex: 'updated_at', key: 'updated_at', width: 150, render: (v: string) => formatTime(v) },
-    {
-      title: '操作',
-      key: 'actions',
-      width: 160,
-      render: (_: unknown, doc: DocItem) => (
-        <Space size={4}>
-          <Button size="small" type="link" onClick={() => void openDoc(doc)}>
-            打开
-          </Button>
-          {canUpdate && (
-            <Button size="small" type="link" icon={<HistoryOutlined />} onClick={() => void openVersions(doc)}>
-              版本
-            </Button>
-          )}
-          {canDelete && (
-            <Button size="small" type="link" danger onClick={() => deleteDoc(doc)}>
-              删除
-            </Button>
-          )}
-        </Space>
-      ),
-    },
-  ];
-
   const isAuthor = editing ? Number((userInfo as Record<string, unknown> | null)?.id) === editing.owner_id : false;
   const showEditor = canUpdate; // 可读文档下：private 仅作者/admin 可读（非作者拿不到），shared 有 update 权限者可编
 
@@ -643,10 +578,9 @@ const DocManage: React.FC = () => {
                 // 点击文档叶子 → 直接在右侧打开
                 void openDocById(Number(key.replace('doc-', '')));
               } else {
-                // 点击目录 → 右侧显示该目录文档列表（URL 定位 dir_id，清除 doc_id）
+                // 点击目录 → 右侧显示「新建文档」入口（URL 定位 dir_id，清除 doc_id）
                 setSelectedKey(key);
                 setSelectedDirId(Number(key.replace('dir-', '')));
-                setDocsPage(1);
                 setEditing(null);
                 const next = new URLSearchParams(searchParams);
                 next.set('dir_id', String(key.replace('dir-', '')));
@@ -734,6 +668,11 @@ const DocManage: React.FC = () => {
                       <Button icon={<HistoryOutlined />} onClick={() => void openVersions(editing)}>
                         版本历史
                       </Button>
+                      {canDelete && (
+                        <Button danger onClick={() => deleteDoc(editing)}>
+                          删除
+                        </Button>
+                      )}
                     </>
                   )}
                 </Space>
@@ -759,30 +698,14 @@ const DocManage: React.FC = () => {
         ) : !selectedDirId ? (
           <Empty description="请在左侧选择一个目录" image={Empty.PRESENTED_IMAGE_SIMPLE} style={{ marginTop: 80 }} />
         ) : (
-          <>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <Typography.Text strong>目录文档</Typography.Text>
-              {canCreate && (
-                <Button type="primary" icon={<FileAddOutlined />} onClick={createDoc}>
-                  新建文档
-                </Button>
-              )}
-            </div>
-            <Table<DocItem>
-              rowKey="id"
-              columns={docColumns}
-              dataSource={docs}
-              loading={docsLoading}
-              pagination={{
-                current: docsPage,
-                pageSize: 10,
-                total: docsTotal,
-                onChange: setDocsPage,
-                showSizeChanger: false,
-              }}
-              size="small"
-            />
-          </>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, marginTop: 80 }}>
+            <Empty description="该目录下暂无文档，可从左侧目录树选择或新建" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+            {canCreate && (
+              <Button type="primary" icon={<FileAddOutlined />} onClick={() => createDoc()}>
+                新建文档
+              </Button>
+            )}
+          </div>
         )}
       </div>
 
