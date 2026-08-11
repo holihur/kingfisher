@@ -132,12 +132,12 @@ code {
   color: var(--lex-text);
   outline: none;
 }
-/* 占位符：顶部 padding 用 24px（视觉居中偏上，更像提示文字），左右 16px 与编辑区一致 */
+/* 占位符：顶部 padding 24px（视觉居中偏上）；左 padding 10px 与 toolbar 内容左对齐 */
 .lex-placeholder {
   position: absolute;
   top: 0;
   left: 0;
-  padding: 24px 16px;
+  padding: 24px 10px;
   color: var(--lex-placeholder);
   pointer-events: none;
   font-size: 14px;
