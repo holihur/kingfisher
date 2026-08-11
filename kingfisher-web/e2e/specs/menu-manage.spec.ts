@@ -33,9 +33,12 @@ test('新增根菜单', async ({ page }) => {
   await page.waitForLoadState('networkidle');
   await page.getByRole('button', { name: '新增根菜单' }).click();
   await expect(page.locator('.ant-modal')).toBeVisible();
+  await page.waitForTimeout(500); // 等 modal 渲染完成
   const name = `e2e_m_${Date.now()}`;
-  await page.getByRole('textbox', { name: /名称/ }).fill(name);
-  await page.getByRole('textbox', { name: /路由路径/ }).fill(`/${name}`);
+  // antd v6 Form 受控：pressSequentially 触发真实 input 事件后，等 React 提交
+  await page.locator('.ant-modal input[id="name"]').pressSequentially(name);
+  await page.locator('.ant-modal input[id="path"]').pressSequentially(`/${name}`);
+  await page.waitForTimeout(300);
   await page.locator('.ant-modal').getByRole('button', { name: /确\s*定|保存/ }).click();
   await expect(page.locator('.ant-modal')).not.toBeVisible({ timeout: 10000 });
 });

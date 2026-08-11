@@ -225,7 +225,8 @@ func SeedData(db *gorm.DB) error {
 		type RM struct{ RoleID, MenuID uint }
 		rm := []RM{
 			{1, 1}, {1, 2}, {1, 3}, {1, 7}, {1, 11}, {1, 15}, {1, 16}, {1, 17}, {1, 18}, {1, 19}, {1, 20}, {1, 21}, {1, 22},
-			{3, 1}, {3, 3}, {3, 7}, {3, 22},
+			// editor：含系统管理目录（id 2），否则其子菜单（用户/菜单/文档）在 buildTree 时无父级被丢弃
+			{3, 1}, {3, 2}, {3, 3}, {3, 7}, {3, 22},
 			{4, 1}, {4, 22},
 		}
 		if err := tx.Table("role_menus").Create(&rm).Error; err != nil {

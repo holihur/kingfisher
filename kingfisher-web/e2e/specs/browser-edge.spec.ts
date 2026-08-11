@@ -29,7 +29,8 @@ test('遮罩点击关闭弹窗', async ({ page }) => {
   await page.waitForLoadState('networkidle');
   await page.getByRole('button', { name: '新增用户' }).click();
   await expect(page.locator('.ant-modal')).toBeVisible();
-  await page.locator('.ant-modal-mask').click({ position: { x: 10, y: 10 } });
+  await page.waitForTimeout(600); // 等 antd modal fade 动画结束，mask 才可点击
+  await page.locator('.ant-modal-mask').click({ position: { x: 10, y: 10 }, force: true });
   await expect(page.locator('.ant-modal')).not.toBeVisible();
 });
 
