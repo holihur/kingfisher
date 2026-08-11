@@ -13,7 +13,8 @@ const request = axios.create({
 });
 
 let isRefreshing = false;
-let pendingRequests: Array<(token: string) => void> = [];
+// 刷新等待队列：resolve(null) 表示刷新失败（登录失效或临时失败）
+let pendingRequests: Array<(token: string | null) => void> = [];
 
 // 自动重试配置：后端临时不可达（网络错误/502/503/504）时按指数退避重试
 const MAX_RETRY = 2; // 初始请求 + 2 次重试
@@ -118,6 +119,14 @@ function redirectToLogin() {
   window.location.href = '/login';
 }
 
+/** 清空等待队列：所有等待者标记刷新失败（resolve(null) → 请求 reject） */
+function flushPending() {
+  if (pendingRequests.length === 0) return;
+  const pending = pendingRequests;
+  pendingRequests = [];
+  pending.forEach((cb) => cb(null));
+}
+
 async function handleTokenRefresh(config: InternalAxiosRequestConfig) {
   // 没有 refresh token（或 access 过期后 refresh 也已失效）→ 无法刷新，直接跳登录
   if (!getRefreshToken()) {
@@ -135,15 +144,35 @@ async function handleTokenRefresh(config: InternalAxiosRequestConfig) {
       pendingRequests = [];
       config.headers.Authorization = `Bearer ${token}`;
       return request(config);
-    } catch {
-      redirectToLogin();
+    } catch (err) {
+      // 区分刷新失败类型：
+      // - refresh token 被明确拒绝（HTTP 401/403 或认证错误码）→ 登录失效，跳登录
+      // - 网络错误 / 后端 5xx（临时不可达）→ 保留登录态，不踢登录，网络恢复后下次请求重试
+      const ae = err as AxiosError<{ code?: number }>;
+      const isAuthRejected =
+        ae.response &&
+        (ae.response.status === 401 ||
+          ae.response.status === 403 ||
+          ae.response.data?.code === 10105 ||
+          ae.response.data?.code === 10003);
+      if (isAuthRejected) {
+        flushPending();
+        redirectToLogin();
+      } else {
+        // 临时网络/服务问题：等待者标记失败，token 保留，网络恢复后下次请求再试刷新
+        flushPending();
+      }
       return Promise.reject(new Error('登录已过期'));
     } finally {
       isRefreshing = false;
     }
   }
   return new Promise((resolve) => {
-    pendingRequests.push((token: string) => {
+    pendingRequests.push((token: string | null) => {
+      if (token === null) {
+        resolve(Promise.reject(new Error('登录已过期')));
+        return;
+      }
       config.headers.Authorization = `Bearer ${token}`;
       resolve(request(config));
     });
