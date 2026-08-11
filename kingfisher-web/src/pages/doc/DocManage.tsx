@@ -187,19 +187,20 @@ const DocManage: React.FC = () => {
       .finally(() => setDocsLoading(false));
   }, [selectedDirId, docsPage, docsRefresh]);
 
-  // split.js：左右（目录树 / 内容）可拖拽调宽；左栏拖到过小自动完全合上
+  // split.js：左右（目录树 / 内容）可拖拽调宽；左栏拖到过小自动完全合上。
+  // 实例只初始化一次、不销毁：合上用 setSizes([0,100])，gutter 常驻可拖拽展开，右栏自动贴合占满。
   const containerRef = useRef<HTMLDivElement>(null);
   const leftPaneRef = useRef<HTMLDivElement>(null);
   const rightPaneRef = useRef<HTMLDivElement>(null);
   const splitRef = useRef<ReturnType<typeof Split> | null>(null);
   useEffect(() => {
-    if (collapsed) return; // 合上时销毁 split，展开后再初始化
     const left = leftPaneRef.current;
     const right = rightPaneRef.current;
     if (!left || !right) return;
     const instance = Split([left, right], {
       sizes: [20, 80],
-      minSize: [160, 400],
+      // 左栏 min 0：允许拖到 0 完全合上（过小时由 onDragEnd 触发）
+      minSize: [0, 400],
       gutterSize: 6,
       cursor: 'col-resize',
       gutter: (_index, _direction) => {
@@ -207,9 +208,14 @@ const DocManage: React.FC = () => {
         g.className = 'doc-split-gutter';
         return g;
       },
-      // 左栏宽度占比 < 15% → 完全合上（隐藏目录树，右侧全宽）
+      // 左栏宽度占比 < 15% → 完全合上（setSizes 置 0，右栏自动贴合占满）
       onDragEnd: (sizes) => {
-        if (sizes[0] < 15) setCollapsed(true);
+        if (sizes[0] < 15) {
+          setCollapsed(true);
+          splitRef.current?.setSizes([0, 100]);
+        } else {
+          setCollapsed(false);
+        }
       },
     });
     splitRef.current = instance;
@@ -217,10 +223,16 @@ const DocManage: React.FC = () => {
       instance.destroy();
       splitRef.current = null;
     };
-  }, [collapsed]);
+  }, []);
 
-  const collapseLeft = () => setCollapsed(true);
-  const expandLeft = () => setCollapsed(false);
+  const collapseLeft = () => {
+    setCollapsed(true);
+    splitRef.current?.setSizes([0, 100]);
+  };
+  const expandLeft = () => {
+    setCollapsed(false);
+    splitRef.current?.setSizes([20, 80]);
+  };
 
   const openDirModal = (mode: 'create' | 'rename', parentId: number, dir?: DocDirNode) => {
     setDirName(dir ? dir.name : '');
@@ -566,15 +578,15 @@ const DocManage: React.FC = () => {
   return (
     // split.js 容器：display:flex + 左右两个 pane（宽度由拖拽控制，见上方 useEffect）
     <div ref={containerRef} style={{ display: 'flex', alignItems: 'flex-start' }}>
-      {/* 左侧：目录树（collapsed 时完全隐藏） */}
+      {/* 左侧：目录树（collapsed 时宽度被 setSizes 置 0，padding 归零贴合，overflow hidden 隐藏内容） */}
       <div
         ref={leftPaneRef}
         style={{
-          display: collapsed ? 'none' : undefined,
           minWidth: 0,
+          overflow: 'hidden',
           background: token.colorBgContainer,
           borderRadius: token.borderRadiusLG,
-          padding: 12,
+          padding: collapsed ? 0 : 12,
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
@@ -622,12 +634,12 @@ const DocManage: React.FC = () => {
         )}
       </div>
 
-      {/* 右侧：列表 / 编辑器（collapsed 时占满全宽） */}
+      {/* 右侧：列表 / 编辑器（宽度由 setSizes 控制，collapsed 时自动贴合占满） */}
       <div
         ref={rightPaneRef}
         style={{
           minWidth: 0,
-          width: collapsed ? '100%' : undefined,
+          overflow: 'hidden',
           background: token.colorBgContainer,
           borderRadius: token.borderRadiusLG,
           padding: 16,
