@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Split from 'split.js';
 import {
   App,
@@ -77,6 +78,8 @@ const DocManage: React.FC = () => {
   const token = useThemeToken();
   const perms = useAuthStore((s) => s.permissions);
   const userInfo = useAuthStore((s) => s.userInfo) as Record<string, unknown> | null;
+  // URL query：?doc_id=X 直达文档编辑/预览；?dir_id=X 定位目录
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [tree, setTree] = useState<DocDirNode[]>([]);
   const [treeLoading, setTreeLoading] = useState(false);
@@ -167,6 +170,21 @@ const DocManage: React.FC = () => {
       nodes.flatMap((n) => [`dir-${n.id}`, ...collect(n.children || [])]);
     setExpandedKeys((prev) => Array.from(new Set([...prev, ...collect(tree)])));
   }, [tree]);
+
+  // 支持 URL query 直达：?doc_id=X 打开文档（编辑/预览）；?dir_id=X 定位目录
+  useEffect(() => {
+    const docId = searchParams.get('doc_id');
+    const dirId = searchParams.get('dir_id');
+    if (docId) {
+      void openDocById(Number(docId));
+    } else if (dirId) {
+      setSelectedKey(`dir-${dirId}`);
+      setSelectedDirId(Number(dirId));
+      setDocsPage(1);
+      setEditing(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // —— 文档列表 ——
   useEffect(() => {
@@ -319,6 +337,10 @@ const DocManage: React.FC = () => {
       setEditContent(d.content);
       setEditVisibility(d.visibility);
       setEditNote('');
+      // 同步 URL：?doc_id=X（刷新/分享可直达本文档）
+      const next = new URLSearchParams(searchParams);
+      next.set('doc_id', String(d.id));
+      setSearchParams(next, { replace: true });
     } catch {
       /* 已提示 */
     }
@@ -327,6 +349,15 @@ const DocManage: React.FC = () => {
   // 从目录树叶子节点打开文档
   const openDocById = async (docId: number) => {
     await openDoc({ id: docId } as DocItem);
+  };
+
+  // 返回列表：清除 URL 的 doc_id，保留 dir_id 定位
+  const backToList = () => {
+    setEditing(null);
+    const next = new URLSearchParams(searchParams);
+    next.delete('doc_id');
+    setSearchParams(next, { replace: true });
+    if (selectedDirId) setSelectedKey(`dir-${selectedDirId}`);
   };
 
   const createDoc = () => {
@@ -408,6 +439,9 @@ const DocManage: React.FC = () => {
           await docApi.delete(doc.id);
           message.success('文档已删除');
           setEditing(null);
+          const next = new URLSearchParams(searchParams);
+          next.delete('doc_id');
+          setSearchParams(next, { replace: true });
           setDocsRefresh((k) => k + 1);
         } catch {
           /* 已提示 */
@@ -622,11 +656,15 @@ const DocManage: React.FC = () => {
                 // 点击文档叶子 → 直接在右侧打开
                 void openDocById(Number(key.replace('doc-', '')));
               } else {
-                // 点击目录 → 右侧显示该目录文档列表
+                // 点击目录 → 右侧显示该目录文档列表（URL 定位 dir_id，清除 doc_id）
                 setSelectedKey(key);
                 setSelectedDirId(Number(key.replace('dir-', '')));
                 setDocsPage(1);
                 setEditing(null);
+                const next = new URLSearchParams(searchParams);
+                next.set('dir_id', String(key.replace('dir-', '')));
+                next.delete('doc_id');
+                setSearchParams(next, { replace: true });
               }
             }}
             titleRender={dirTitleRender}
@@ -656,14 +694,7 @@ const DocManage: React.FC = () => {
         {editing ? (
           <Space direction="vertical" size={12} style={{ width: '100%' }}>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <Button
-                onClick={() => {
-                  setEditing(null);
-                  if (selectedDirId) setSelectedKey(`dir-${selectedDirId}`);
-                }}
-              >
-                返回列表
-              </Button>
+              <Button onClick={backToList}>返回列表</Button>
               <Typography.Text strong style={{ fontSize: 15 }}>
                 {editing.id > 0 ? '编辑文档' : '新建文档'}
               </Typography.Text>
