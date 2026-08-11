@@ -75,6 +75,9 @@ func (s *stubRepo) SetDirRoles(ctx context.Context, dirID uint, roleIDs []uint) 
 func (s *stubRepo) ListDocs(ctx context.Context, dirID uint, q *query.Query, userID uint, roleIDs []uint, isAdmin bool) ([]domain.Document, int64, error) {
 	return nil, 0, nil
 }
+func (s *stubRepo) ListAllVisibleDocs(ctx context.Context, userID uint, roleIDs []uint, isAdmin bool) ([]domain.Document, error) {
+	return nil, nil
+}
 func (s *stubRepo) GetDocByID(ctx context.Context, id uint, userID uint, roleIDs []uint, isAdmin bool) (*domain.Document, error) {
 	if s.getDocByID != nil {
 		return s.getDocByID(ctx, id, userID, roleIDs, isAdmin)
@@ -121,7 +124,7 @@ func TestGetTreeFiltersByRole(t *testing.T) {
 	svc := NewDocService(repo, nil)
 
 	// 非 admin viewer(role 4)：只见 dir1，且 dir1 下的 dir3(无 role4) 被裁剪
-	tree, err := svc.GetTree(context.Background(), []uint{4}, false)
+	tree, err := svc.GetTree(context.Background(), 99, []uint{4}, false)
 	if err != nil {
 		t.Fatalf("gettree: %v", err)
 	}
@@ -133,13 +136,13 @@ func TestGetTreeFiltersByRole(t *testing.T) {
 	}
 
 	// admin：全量（含未授权目录）
-	tree2, _ := svc.GetTree(context.Background(), nil, true)
+	tree2, _ := svc.GetTree(context.Background(), 1, nil, true)
 	if len(tree2) != 3 || len(tree2[0].Children) != 1 {
 		t.Fatalf("admin 应见全部 3 个顶级+1 子目录，got %+v", tree2)
 	}
 
 	// 无授权目录（GrantedRoles 空）= 默认拒绝：即使角色匹配也看不到未授权目录
-	tree3, _ := svc.GetTree(context.Background(), []uint{4}, false)
+	tree3, _ := svc.GetTree(context.Background(), 99, []uint{4}, false)
 	for _, n := range tree3 {
 		if n.Name == "未授权" {
 			t.Fatalf("未授权目录对非 admin 默认拒绝，got %+v", tree3)

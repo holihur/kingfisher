@@ -24,9 +24,18 @@ type DocDirectory struct {
 	Status       int            `json:"status"`
 	Version      string         `json:"version"`
 	GrantedRoles []uint         `json:"granted_roles,omitempty"` // 可见角色 id 白名单（空 = 默认拒绝：仅 admin 可见）
+	Docs         []DocTreeItem  `json:"docs,omitempty"`          // 该目录下当前用户可见的文档（叶子节点）
 	Children     []DocDirectory `json:"children,omitempty"`
 	CreatedAt    time.Time      `json:"created_at"`
 	UpdatedAt    time.Time      `json:"updated_at"`
+}
+
+// DocTreeItem 目录树中的文档叶子节点（轻量，不含正文）
+type DocTreeItem struct {
+	ID         uint   `json:"id"`
+	Title      string `json:"title"`
+	Status     string `json:"status"`
+	Visibility string `json:"visibility"`
 }
 
 // Document 文档

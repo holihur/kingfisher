@@ -60,8 +60,8 @@ func handleSvcErr(c *gin.Context, err error) {
 // @Success 200 {object} response.Response{data=[]domain.DocDirectory} "目录树"
 // @Router /docs/tree [get]
 func (h *DocHandler) GetTree(c *gin.Context) {
-	_, roleIDs, isAdmin := currentUser(c)
-	tree, err := h.svc.GetTree(c.Request.Context(), roleIDs, isAdmin)
+	userID, roleIDs, isAdmin := currentUser(c)
+	tree, err := h.svc.GetTree(c.Request.Context(), userID, roleIDs, isAdmin)
 	if err != nil {
 		handleSvcErr(c, err)
 		return

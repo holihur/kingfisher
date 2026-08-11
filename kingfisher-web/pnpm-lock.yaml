@@ -32,6 +32,9 @@ importers:
       react-router-dom:
         specifier: ^7.18.2
         version: 7.18.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      split.js:
+        specifier: ^1.6.5
+        version: 1.6.5
       zustand:
         specifier: ^4.5.6
         version: 4.5.6(@types/react@19.2.18)(react@19.2.8)
@@ -51,6 +54,9 @@ importers:
       '@types/react-dom':
         specifier: ^19.2.3
         version: 19.2.4(@types/react@19.2.18)
+      '@types/split.js':
+        specifier: ^1.6.0
+        version: 1.6.0
       '@vitejs/plugin-react':
         specifier: ^6.0.4
         version: 6.0.5(vite@8.2.0(@types/node@24.13.3))
@@ -722,6 +728,10 @@ packages:
   '@types/react@19.2.18':
     resolution: {integrity: sha512-AnzbBERsrLKtk2XSfTbYRLjQPdy116Sty4q+T+Bp3IC4l6jNBvreVPAHmpq9qhXQM7CXZPjLVmGMw9sy+hxQ3w==}
 
+  '@types/split.js@1.6.0':
+    resolution: {integrity: sha512-tR/wWtnfZ+ZiEFrusKHn1qKUnZlpROff7a6wvRwS9ImI3pD6ytrRmgt4mbPM2FpRUUTIKsfZXGXBmuvalMUVzw==}
+    deprecated: This is a stub types definition. split.js provides its own type definitions, so you do not need this installed.
+
   '@types/trusted-types@2.0.7':
     resolution: {integrity: sha512-ScaPdn1dQczgbl0QFTeTOmVHFULt394XJgOQNoyVhZ6r2vLnMLJfBPd53SB52T/3G36VI1/g2MZaX0cwDuXsfw==}
 
@@ -1289,6 +1299,9 @@ packages:
   source-map-js@1.2.1:
     resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
     engines: {node: '>=0.10.0'}
+
+  split.js@1.6.5:
+    resolution: {integrity: sha512-mPTnGCiS/RiuTNsVhCm9De9cCAUsrNFFviRbADdKiiV+Kk8HKp/0fWu7Kr8pi3/yBmsqLFHuXGT9UUZ+CNLwFw==}
 
   string-convert@0.2.1:
     resolution: {integrity: sha512-u/1tdPl4yQnPBjnVrmdLo9gtuLvELKsAoRapekWggdiQNvvvum+jYF329d84NAa660KQw7pB2n36KrIKVoXa3A==}
@@ -2001,6 +2014,10 @@ snapshots:
     dependencies:
       csstype: 3.2.3
 
+  '@types/split.js@1.6.0':
+    dependencies:
+      split.js: 1.6.5
+
   '@types/trusted-types@2.0.7':
     optional: true
 
@@ -2580,6 +2597,8 @@ snapshots:
   shebang-regex@3.0.0: {}
 
   source-map-js@1.2.1: {}
+
+  split.js@1.6.5: {}
 
   string-convert@0.2.1: {}
 

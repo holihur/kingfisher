@@ -59,3 +59,29 @@ code {
     padding: 32px 20px !important;
   }
 }
+
+/* split.js 左右分栏拖拽分隔条（文档管理）：加大可视提示，便于发现可拖拽 */
+.doc-split-gutter {
+  flex: 0 0 8px;
+  cursor: col-resize;
+  position: relative;
+  background: transparent;
+  z-index: 1;
+}
+/* 拖拽手柄：居中竖条，hover 变亮 */
+.doc-split-gutter::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.12);
+  transition: background 0.2s;
+}
+.doc-split-gutter:hover::after,
+.doc-split-gutter:active::after {
+  background: #1677ff;
+}

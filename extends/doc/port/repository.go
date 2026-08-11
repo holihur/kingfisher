@@ -30,6 +30,8 @@ type DocRepository interface {
 
 	// —— 文档 ——
 	ListDocs(ctx context.Context, dirID uint, q *query.Query, userID uint, roleIDs []uint, isAdmin bool) ([]domain.Document, int64, error)
+	// ListAllVisibleDocs 返回当前用户可见的全部文档（不分页，用于目录树叶子节点；可见性同 ListDocs）
+	ListAllVisibleDocs(ctx context.Context, userID uint, roleIDs []uint, isAdmin bool) ([]domain.Document, error)
 	GetDocByID(ctx context.Context, id uint, userID uint, roleIDs []uint, isAdmin bool) (*domain.Document, error)
 	CreateWithVersion(ctx context.Context, doc *domain.Document, ver *domain.DocVersion) (*domain.Document, error)
 	UpdateWithVersion(ctx context.Context, id uint, title, content string, ownerID uint, note string) error

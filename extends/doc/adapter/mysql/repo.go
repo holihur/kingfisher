@@ -143,6 +143,22 @@ func (r *DocRepo) ListDocs(ctx context.Context, dirID uint, q *query.Query, user
 	return docs, total, nil
 }
 
+// ListAllVisibleDocs 当前用户可见的全部文档（不分页，按 sort/id 排序；目录树叶子用）
+func (r *DocRepo) ListAllVisibleDocs(ctx context.Context, userID uint, roleIDs []uint, isAdmin bool) ([]domain.Document, error) {
+	var pos []documentPO
+	if err := r.db.WithContext(ctx).Model(&documentPO{}).
+		Scopes(r.visibleScope(userID, roleIDs, isAdmin)).
+		Order("sort ASC").Order("id ASC").
+		Find(&pos).Error; err != nil {
+		return nil, err
+	}
+	docs := toDocumentList(pos)
+	if err := r.attachDocOwnerNames(ctx, docs); err != nil {
+		return nil, err
+	}
+	return docs, nil
+}
+
 func (r *DocRepo) GetDocByID(ctx context.Context, id uint, userID uint, roleIDs []uint, isAdmin bool) (*domain.Document, error) {
 	var po documentPO
 	if err := r.db.WithContext(ctx).Model(&documentPO{}).

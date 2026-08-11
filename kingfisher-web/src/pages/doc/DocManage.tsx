@@ -1,8 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Split from 'split.js';
 import {
   App,
   Button,
   Checkbox,
+  Dropdown,
   Empty,
   Input,
   Modal,
@@ -19,9 +21,11 @@ import {
   DeleteOutlined,
   EditOutlined,
   FileAddOutlined,
+  FileTextOutlined,
   FolderAddOutlined,
   FolderOutlined,
   HistoryOutlined,
+  MoreOutlined,
   PlusOutlined,
   SafetyOutlined,
 } from '@ant-design/icons';
@@ -46,13 +50,26 @@ const quillModules = {
   ],
 };
 
-/** 目录节点 → antd Tree 数据 */
+/** 目录节点 → antd Tree 数据（目录 + 目录下可见的文档叶子，key 带前缀区分） */
 const toTreeData = (nodes: DocDirNode[]): TreeDataNode[] =>
-  nodes.map((n) => ({
-    key: n.id,
-    title: n.name,
-    children: n.children && n.children.length ? toTreeData(n.children) : undefined,
-  }));
+  nodes.map((n) => {
+    const children: TreeDataNode[] = [];
+    if (n.children?.length) children.push(...toTreeData(n.children));
+    if (n.docs?.length) {
+      children.push(
+        ...n.docs.map((d) => ({
+          key: `doc-${d.id}`,
+          title: d.title,
+          isLeaf: true,
+        }))
+      );
+    }
+    return {
+      key: `dir-${n.id}`,
+      title: n.name,
+      children: children.length ? children : undefined,
+    };
+  });
 
 const DocManage: React.FC = () => {
   const { message, modal } = App.useApp();
@@ -62,7 +79,8 @@ const DocManage: React.FC = () => {
 
   const [tree, setTree] = useState<DocDirNode[]>([]);
   const [treeLoading, setTreeLoading] = useState(false);
-  const [hoveredDir, setHoveredDir] = useState<number | null>(null);
+  // 目录树展开的 key（默认全展开；defaultExpandAll 对异步数据无效，需受控）
+  const [expandedKeys, setExpandedKeys] = useState<React.Key[]>([]);
 
   // 目录 modal
   const [dirModal, setDirModal] = useState<{
@@ -91,6 +109,8 @@ const DocManage: React.FC = () => {
 
   // 右侧文档区
   const [selectedDirId, setSelectedDirId] = useState<number | null>(null);
+  // 目录树选中节点 key（dir-<id> | doc-<id>），驱动高亮
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [docs, setDocs] = useState<DocItem[]>([]);
   const [docsTotal, setDocsTotal] = useState(0);
   const [docsPage, setDocsPage] = useState(1);
@@ -138,6 +158,13 @@ const DocManage: React.FC = () => {
     void loadTree();
   }, [loadTree]);
 
+  // 树加载后默认展开全部目录（defaultExpandAll 对异步数据不生效）
+  useEffect(() => {
+    const collect = (nodes: DocDirNode[]): React.Key[] =>
+      nodes.flatMap((n) => [`dir-${n.id}`, ...collect(n.children || [])]);
+    setExpandedKeys((prev) => Array.from(new Set([...prev, ...collect(tree)])));
+  }, [tree]);
+
   // —— 文档列表 ——
   useEffect(() => {
     if (!selectedDirId) {
@@ -156,6 +183,29 @@ const DocManage: React.FC = () => {
       .catch(() => {})
       .finally(() => setDocsLoading(false));
   }, [selectedDirId, docsPage, docsRefresh]);
+
+  // split.js：左右（目录树 / 内容）可拖拽调宽
+  const containerRef = useRef<HTMLDivElement>(null);
+  const leftPaneRef = useRef<HTMLDivElement>(null);
+  const rightPaneRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const container = containerRef.current;
+    const left = leftPaneRef.current;
+    const right = rightPaneRef.current;
+    if (!container || !left || !right) return;
+    const instance = Split([left, right], {
+      sizes: [20, 80],
+      minSize: [160, 400],
+      gutterSize: 6,
+      cursor: 'col-resize',
+      gutter: (_index, _direction) => {
+        const g = document.createElement('div');
+        g.className = 'doc-split-gutter';
+        return g;
+      },
+    });
+    return () => instance.destroy();
+  }, []);
 
   const openDirModal = (mode: 'create' | 'rename', parentId: number, dir?: DocDirNode) => {
     setDirName(dir ? dir.name : '');
@@ -193,7 +243,10 @@ const DocManage: React.FC = () => {
         try {
           await docDirApi.delete(dir.id);
           message.success('目录已删除');
-          if (selectedDirId === dir.id) setSelectedDirId(null);
+          if (selectedDirId === dir.id) {
+            setSelectedDirId(null);
+            setSelectedKey(null);
+          }
           void loadTree();
         } catch {
           /* 已提示 */
@@ -233,6 +286,8 @@ const DocManage: React.FC = () => {
       const r = await docApi.getById(doc.id);
       const d = r.data as DocItem;
       setEditing(d);
+      setSelectedKey(`doc-${d.id}`);
+      setSelectedDirId(d.dir_id);
       setEditTitle(d.title);
       setEditContent(d.content);
       setEditVisibility(d.visibility);
@@ -240,6 +295,11 @@ const DocManage: React.FC = () => {
     } catch {
       /* 已提示 */
     }
+  };
+
+  // 从目录树叶子节点打开文档
+  const openDocById = async (docId: number) => {
+    await openDoc({ id: docId } as DocItem);
   };
 
   const createDoc = () => {
@@ -369,58 +429,28 @@ const DocManage: React.FC = () => {
   // —— 渲染 ——
   const treeData = useMemo(() => toTreeData(tree), [tree]);
 
+  // 目录操作：hover 显示「更多」按钮 → Dropdown 下拉菜单（按权限动态出项）
   const dirActions = (dir: DocDirNode) => (
-    <Space size={2} style={{ fontSize: 12 }} onClick={(e) => e.stopPropagation()}>
-      {canCreate && (
-        <Button
-          size="small"
-          type="text"
-          icon={<FolderAddOutlined />}
-          title="新建子目录"
-          onClick={(e) => {
-            e.stopPropagation();
-            openDirModal('create', dir.id);
-          }}
-        />
-      )}
-      {canUpdate && (
-        <Button
-          size="small"
-          type="text"
-          icon={<EditOutlined />}
-          title="重命名"
-          onClick={(e) => {
-            e.stopPropagation();
-            openDirModal('rename', dir.parent_id, dir);
-          }}
-        />
-      )}
-      {canUpdate && (
-        <Button
-          size="small"
-          type="text"
-          icon={<SafetyOutlined />}
-          title="可见角色"
-          onClick={(e) => {
-            e.stopPropagation();
-            void openAuthModal(dir);
-          }}
-        />
-      )}
-      {canDelete && (
-        <Button
-          size="small"
-          type="text"
-          danger
-          icon={<DeleteOutlined />}
-          title="删除"
-          onClick={(e) => {
-            e.stopPropagation();
-            handleDeleteDir(dir);
-          }}
-        />
-      )}
-    </Space>
+    <Dropdown
+      trigger={['click']}
+      menu={{
+        items: [
+          ...(canCreate ? [{ key: 'create', icon: <FolderAddOutlined />, label: '新建子目录' }] : []),
+          ...(canUpdate ? [{ key: 'rename', icon: <EditOutlined />, label: '重命名' }] : []),
+          ...(canUpdate ? [{ key: 'roles', icon: <SafetyOutlined />, label: '可见角色' }] : []),
+          ...(canDelete ? [{ key: 'delete', icon: <DeleteOutlined />, label: '删除', danger: true }] : []),
+        ],
+        onClick: ({ key, domEvent }) => {
+          domEvent.stopPropagation();
+          if (key === 'create') openDirModal('create', dir.id);
+          else if (key === 'rename') openDirModal('rename', dir.parent_id, dir);
+          else if (key === 'roles') void openAuthModal(dir);
+          else if (key === 'delete') handleDeleteDir(dir);
+        },
+      }}
+    >
+      <Button size="small" type="text" icon={<MoreOutlined />} title="操作" onClick={(e) => e.stopPropagation()} />
+    </Dropdown>
   );
 
   // id → 目录 扁平映射（antd v6 Tree titleRender 只传 node，用 key 反查）
@@ -436,20 +466,39 @@ const DocManage: React.FC = () => {
     return m;
   }, [tree]);
 
+  // 目录树节点渲染：目录（文件夹 + 更多菜单）/ 文档叶子（文件图标，点击打开）
   const dirTitleRender = (data: any) => {
-    const dir = dirById.get(Number((data as { key: unknown }).key));
+    const key = String((data as { key: unknown }).key);
+    if (key.startsWith('doc-')) {
+      return (
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            width: '100%',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          <FileTextOutlined style={{ marginRight: 6, color: token.colorTextTertiary }} />
+          {data?.title}
+        </span>
+      );
+    }
+    const dir = dirById.get(Number(key.replace('dir-', '')));
     if (!dir) return data?.title;
     return (
       <span
-        onMouseEnter={() => setHoveredDir(dir.id)}
-        onMouseLeave={() => setHoveredDir(null)}
-        style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}
+        style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 4 }}
       >
-        <span>
+        {/* 目录名不换行，超长省略号截断（flex:1 占满剩余空间，minWidth:0 允许收缩） */}
+        <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           <FolderOutlined style={{ marginRight: 6, color: token.colorPrimary }} />
           {data?.title}
         </span>
-        {hoveredDir === dir.id ? dirActions(dir) : null}
+        {/* 「更多」按钮常驻，保证鼠标能移到弹出菜单（避免 hover 门控导致菜单关闭） */}
+        {dirActions(dir)}
       </span>
     );
   };
@@ -500,12 +549,13 @@ const DocManage: React.FC = () => {
   const showEditor = canUpdate; // 可读文档下：private 仅作者/admin 可读（非作者拿不到），shared 有 update 权限者可编
 
   return (
-    <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+    // split.js 容器：display:flex + 左右两个 pane（宽度由拖拽控制，见上方 useEffect）
+    <div ref={containerRef} style={{ display: 'flex', alignItems: 'flex-start' }}>
       {/* 左侧：目录树 */}
       <div
+        ref={leftPaneRef}
         style={{
-          width: 240,
-          flexShrink: 0,
+          minWidth: 0,
           background: token.colorBgContainer,
           borderRadius: token.borderRadiusLG,
           padding: 12,
@@ -525,11 +575,19 @@ const DocManage: React.FC = () => {
           <Tree
             treeData={treeData}
             showLine
-            defaultExpandAll
-            selectedKeys={selectedDirId ? [selectedDirId] : []}
+            expandedKeys={expandedKeys}
+            onExpand={setExpandedKeys}
+            selectedKeys={selectedKey ? [selectedKey] : []}
             onSelect={(keys) => {
-              if (keys.length > 0) {
-                setSelectedDirId(Number(keys[0]));
+              if (keys.length === 0) return;
+              const key = String(keys[0]);
+              if (key.startsWith('doc-')) {
+                // 点击文档叶子 → 直接在右侧打开
+                void openDocById(Number(key.replace('doc-', '')));
+              } else {
+                // 点击目录 → 右侧显示该目录文档列表
+                setSelectedKey(key);
+                setSelectedDirId(Number(key.replace('dir-', '')));
                 setDocsPage(1);
                 setEditing(null);
               }
@@ -541,8 +599,8 @@ const DocManage: React.FC = () => {
 
       {/* 右侧：列表 / 编辑器 */}
       <div
+        ref={rightPaneRef}
         style={{
-          flex: 1,
           minWidth: 0,
           background: token.colorBgContainer,
           borderRadius: token.borderRadiusLG,
@@ -552,7 +610,14 @@ const DocManage: React.FC = () => {
         {editing ? (
           <Space direction="vertical" size={12} style={{ width: '100%' }}>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <Button onClick={() => setEditing(null)}>返回列表</Button>
+              <Button
+                onClick={() => {
+                  setEditing(null);
+                  if (selectedDirId) setSelectedKey(`dir-${selectedDirId}`);
+                }}
+              >
+                返回列表
+              </Button>
               <Typography.Text strong style={{ fontSize: 15 }}>
                 {editing.id > 0 ? '编辑文档' : '新建文档'}
               </Typography.Text>

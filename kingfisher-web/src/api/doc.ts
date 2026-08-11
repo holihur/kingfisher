@@ -7,6 +7,8 @@ export interface DocDirNode {
   sort: number;
   status: number;
   granted_roles?: number[];
+  /** 该目录下当前用户可见的文档（目录树叶子节点） */
+  docs?: Pick<DocItem, 'id' | 'title' | 'status' | 'visibility'>[];
   children?: DocDirNode[];
 }
 

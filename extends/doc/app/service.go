@@ -37,13 +37,37 @@ func NewDocService(repo port.DocRepository, cache coreCache.Cache) *DocService {
 
 // ———— 目录 ————
 
-// GetTree 返回当前用户可见的目录树。缓存全量树，读时在内存按角色过滤（admin 直通）。
-func (s *DocService) GetTree(ctx context.Context, roleIDs []uint, isAdmin bool) ([]domain.DocDirectory, error) {
+// GetTree 返回当前用户可见的目录树（含每目录下可见的文档叶子）。
+// 目录树本体缓存全量，读时按角色过滤；文档叶子不缓存，实时按可见性查询。
+func (s *DocService) GetTree(ctx context.Context, userID uint, roleIDs []uint, isAdmin bool) ([]domain.DocDirectory, error) {
 	tree, err := s.getFullTree(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return filterTree(tree, roleIDs, isAdmin), nil
+	tree = filterTree(tree, roleIDs, isAdmin)
+	if len(tree) == 0 {
+		return tree, nil
+	}
+	docs, err := s.repo.ListAllVisibleDocs(ctx, userID, roleIDs, isAdmin)
+	if err != nil {
+		return nil, err
+	}
+	byDir := make(map[uint][]domain.DocTreeItem, len(docs))
+	for _, d := range docs {
+		byDir[d.DirID] = append(byDir[d.DirID], domain.DocTreeItem{
+			ID: d.ID, Title: d.Title, Status: d.Status, Visibility: d.Visibility,
+		})
+	}
+	attachDocs(tree, byDir)
+	return tree, nil
+}
+
+// attachDocs 递归把可见文档挂到对应目录节点下。
+func attachDocs(dirs []domain.DocDirectory, byDir map[uint][]domain.DocTreeItem) {
+	for i := range dirs {
+		dirs[i].Docs = byDir[dirs[i].ID]
+		attachDocs(dirs[i].Children, byDir)
+	}
 }
 
 func (s *DocService) getFullTree(ctx context.Context) ([]domain.DocDirectory, error) {
