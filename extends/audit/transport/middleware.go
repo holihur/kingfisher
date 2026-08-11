@@ -25,19 +25,19 @@ var methodAction = map[string]string{
 
 // resourceLabels 资源路径段 → 可读中文实体名。
 var resourceLabels = map[string]string{
-	"users":            "用户",
-	"roles":            "角色",
-	"permissions":      "权限",
-	"menus":            "菜单",
-	"configs":          "系统配置",
-	"config-groups":    "配置分组",
-	"dict-types":       "字典类型",
-	"dict-entries":     "字典条目",
-	"messages":         "站内信",
-	"templates":        "消息模板",
-	"scheduled-tasks":  "周期任务",
-	"audit-logs":       "审计日志",
-	"public":           "公开配置",
+	"users":           "用户",
+	"roles":           "角色",
+	"permissions":     "权限",
+	"menus":           "菜单",
+	"configs":         "系统配置",
+	"config-groups":   "配置分组",
+	"dict-types":      "字典类型",
+	"dict-entries":    "字典条目",
+	"messages":        "站内信",
+	"templates":       "消息模板",
+	"scheduled-tasks": "周期任务",
+	"audit-logs":      "审计日志",
+	"public":          "公开配置",
 }
 
 func AuditMiddleware(svc *app.AuditService) gin.HandlerFunc {

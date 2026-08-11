@@ -49,12 +49,12 @@ import (
 	dictTransport "kingfisher/extends/dict/transport"
 	emailTransport "kingfisher/extends/email/transport"
 	menuTransport "kingfisher/extends/menu/transport"
-	templateAdapter "kingfisher/extends/template/adapter/mysql"
 	messageTransport "kingfisher/extends/message/transport"
 	rbacTransport "kingfisher/extends/rbac/transport"
 	systemApp "kingfisher/extends/system/app"
 	systemTransport "kingfisher/extends/system/transport"
 	taskTransport "kingfisher/extends/task/transport"
+	templateAdapter "kingfisher/extends/template/adapter/mysql"
 	templateTransport "kingfisher/extends/template/transport"
 	userAdapter "kingfisher/extends/user/adapter/mysql"
 	userTransport "kingfisher/extends/user/transport"
@@ -160,9 +160,14 @@ func main() {
 				c.JSON(404, gin.H{"code": 404, "message": "not found"})
 				return
 			}
-			// 静态文件（如 /favicon.ico、/assets/...）存在则直接返回，否则回退 index.html
+			// 静态文件（如 /favicon.ico、/assets/...）存在则直接返回，否则回退 index.html。
+			// 防路径穿越：显式校验解析后的路径必须落在 dist 目录内，越界一律 404。
 			fp := filepath.Join(dist, filepath.Clean(p))
-			if fi, err := os.Stat(fp); err == nil && !fi.IsDir() {
+			if rel, relErr := filepath.Rel(dist, fp); relErr != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+				c.JSON(404, gin.H{"code": 404, "message": "not found"})
+				return
+			}
+			if fi, err := os.Stat(fp); err == nil && !fi.IsDir() { // #nosec G703 -- 上方 Rel 校验已确保 fp 落在 dist 内
 				c.File(fp)
 				return
 			}

@@ -58,7 +58,11 @@ func (s *AuthService) ForgotPassword(ctx context.Context, email string) error {
 		}
 	}
 	user, err := s.repo.FindByEmail(ctx, email)
-	if err != nil || user == nil {
+	if err != nil {
+		// 数据库查询失败不能吞掉：它不等于"用户不存在"，应返回真实错误
+		return fmt.Errorf("find user: %w", err)
+	}
+	if user == nil {
 		// 用户不存在也返回 nil，防枚举；但仍尝试记录（无收件人可发则不发送）
 		return nil
 	}

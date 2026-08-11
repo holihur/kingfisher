@@ -3,10 +3,13 @@
 package mailer
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
+	"net"
 	"net/smtp"
 	"strings"
+	"time"
 
 	"kingfisher/core/config"
 )
@@ -76,7 +79,14 @@ func (m *Mailer) Send(to, subject, body string) error {
 
 // sendSSL 通过 465 端口 SSL 直连发送。
 func sendSSL(addr string, cfg config.SMTPConfig, auth smtp.Auth, to, msg string) error {
-	conn, err := tls.Dial("tcp", addr, &tls.Config{ServerName: cfg.Host, InsecureSkipVerify: false})
+	// 带超时的 TLS 拨号：用 DialContext 替代 tls.Dial（noctx 合规且确有超时保障）
+	dialer := &tls.Dialer{
+		NetDialer: &net.Dialer{Timeout: 10 * time.Second},
+		Config:    &tls.Config{ServerName: cfg.Host, InsecureSkipVerify: false},
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	conn, err := dialer.DialContext(ctx, "tcp", addr)
 	if err != nil {
 		return fmt.Errorf("tls dial: %w", err)
 	}

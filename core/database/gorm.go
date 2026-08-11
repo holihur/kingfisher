@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"go.uber.org/zap"
 	"github.com/glebarez/sqlite" // 纯 Go SQLite 驱动（无 cgo），支持静态编译
+	"go.uber.org/zap"
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"

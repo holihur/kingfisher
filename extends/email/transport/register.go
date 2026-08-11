@@ -33,10 +33,10 @@ func (m *EmailModule) Worker() taskqueue.WorkerModule { return m.worker }
 
 // ---- router.Module 实现（无 HTTP 路由，空实现）----
 
-func (m *EmailModule) Name() string                       { return "email" }
-func (m *EmailModule) Init(ctx context.Context) error     { return nil }
-func (m *EmailModule) Shutdown(ctx context.Context) error { return nil }
-func (m *EmailModule) RegisterPublic(r *gin.RouterGroup)  {}
+func (m *EmailModule) Name() string                         { return "email" }
+func (m *EmailModule) Init(ctx context.Context) error       { return nil }
+func (m *EmailModule) Shutdown(ctx context.Context) error   { return nil }
+func (m *EmailModule) RegisterPublic(r *gin.RouterGroup)    {}
 func (m *EmailModule) RegisterProtected(r *gin.RouterGroup) {}
 
 // Producer 供其他模块入队发送邮件。
