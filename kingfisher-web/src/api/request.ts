@@ -65,7 +65,7 @@ request.interceptors.response.use(
         return Promise.reject(new Error(bizMsg));
     }
   },
-  (error: AxiosError<{ message?: string }>) => {
+  (error: AxiosError<{ message?: string; code?: number }>) => {
     // 可重试场景：网络错误（后端不可达）或 502/503/504，且方法幂等、未超过最大重试
     const config = error.config as InternalAxiosRequestConfig | undefined;
     const retryable =
@@ -89,6 +89,20 @@ request.interceptors.response.use(
         getMessage().error('网络异常，请稍后重试');
       }
       return Promise.reject(error);
+    }
+    // HTTP 401 且 body 带业务 code：区分"access 过期可刷新" vs "登录失效需登出"
+    // 后端 10104 映射 HTTP 401，axios 走 error 分支，故必须在这里处理刷新
+    const respCode = error.response.data?.code;
+    if (error.response.status === 401 && typeof respCode === 'number') {
+      if (respCode === 10104) {
+        return handleTokenRefresh(error.config as InternalAxiosRequestConfig);
+      }
+      if (respCode === 10105 || respCode === 10003) {
+        clearTokens();
+        pendingRequests.length = 0;
+        window.location.href = '/login';
+        return Promise.reject(new Error('登录已过期'));
+      }
     }
     // 优先使用后端返回的错误信息
     const backendMsg = error.response.data?.message;
