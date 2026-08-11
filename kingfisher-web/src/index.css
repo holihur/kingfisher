@@ -62,24 +62,31 @@ code {
 
 /* split.js 左右分栏拖拽分隔条（文档管理）：加大可视提示，便于发现可拖拽 */
 .doc-split-gutter {
-  flex: 0 0 8px;
+  flex: 0 0 10px;
   cursor: col-resize;
   position: relative;
-  background: transparent;
+  background: rgba(0, 0, 0, 0.04); /* 整体浅色条，明确标示可拖拽区域 */
+  border-radius: 3px;
   z-index: 1;
+  align-self: stretch; /* 撑满父容器高度，否则无内容 block 高度塌成 0 不可见 */
+  transition: background 0.2s;
 }
-/* 拖拽手柄：居中竖条，hover 变亮 */
+/* 拖拽手柄：居中竖条，hover 变蓝 */
 .doc-split-gutter::after {
   content: '';
   position: absolute;
-  top: 0;
-  bottom: 0;
+  top: 50%;
   left: 50%;
   width: 2px;
-  transform: translateX(-50%);
+  height: 40px;
+  transform: translate(-50%, -50%);
   border-radius: 2px;
-  background: rgba(0, 0, 0, 0.12);
+  background: rgba(0, 0, 0, 0.15);
   transition: background 0.2s;
+}
+.doc-split-gutter:hover,
+.doc-split-gutter:active {
+  background: rgba(22, 119, 255, 0.15);
 }
 .doc-split-gutter:hover::after,
 .doc-split-gutter:active::after {
