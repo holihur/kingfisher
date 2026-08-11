@@ -65,13 +65,12 @@ code {
   flex: 0 0 10px;
   cursor: col-resize;
   position: relative;
-  background: rgba(0, 0, 0, 0.04); /* 整体浅色条，明确标示可拖拽区域 */
-  border-radius: 3px;
+  background: transparent; /* 背景透明，不占视觉空间 */
   z-index: 1;
   align-self: stretch; /* 撑满父容器高度，否则无内容 block 高度塌成 0 不可见 */
   transition: background 0.2s;
 }
-/* 拖拽手柄：居中竖条，hover 变蓝 */
+/* 拖拽手柄：居中竖条，仅 hover/active 时显示，常态透明 */
 .doc-split-gutter::after {
   content: '';
   position: absolute;
@@ -81,12 +80,12 @@ code {
   height: 40px;
   transform: translate(-50%, -50%);
   border-radius: 2px;
-  background: rgba(0, 0, 0, 0.15);
+  background: transparent;
   transition: background 0.2s;
 }
 .doc-split-gutter:hover,
 .doc-split-gutter:active {
-  background: rgba(22, 119, 255, 0.15);
+  background: transparent;
 }
 .doc-split-gutter:hover::after,
 .doc-split-gutter:active::after {
