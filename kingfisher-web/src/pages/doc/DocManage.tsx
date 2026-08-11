@@ -697,13 +697,29 @@ const DocManage: React.FC = () => {
                     style={{ width: 240 }}
                   />
                 </Space>
-                <ReactQuill
-                  theme="snow"
-                  value={editContent}
-                  onChange={setEditContent}
-                  modules={quillModules}
-                  style={{ minHeight: 320 }}
-                />
+                {/* Quill 编辑器：外层注入 antd token 作为 CSS 变量，定制样式统一适配明暗主题 */}
+                <div
+                  className="doc-quill"
+                  style={{
+                    ['--ql-primary' as string]: token.colorPrimary,
+                    ['--ql-border' as string]: token.colorBorder,
+                    ['--ql-border-hover' as string]: token.colorPrimaryHover,
+                    ['--ql-bg' as string]: token.colorBgContainer,
+                    ['--ql-text' as string]: token.colorText,
+                    ['--ql-placeholder' as string]: token.colorTextPlaceholder,
+                    ['--ql-toolbar-hover' as string]: token.colorFillContentHover,
+                    ['--ql-toolbar-active' as string]: token.colorPrimaryBg,
+                    ['--ql-radius' as string]: `${token.borderRadiusLG}px`,
+                  }}
+                >
+                  <ReactQuill
+                    theme="snow"
+                    value={editContent}
+                    onChange={setEditContent}
+                    modules={quillModules}
+                    style={{ minHeight: 320 }}
+                  />
+                </div>
                 <Space>
                   <Button type="primary" onClick={() => void saveDoc()}>
                     保存
