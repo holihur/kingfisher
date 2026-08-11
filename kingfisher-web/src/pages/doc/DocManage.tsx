@@ -31,26 +31,13 @@ import {
   PlusOutlined,
   SafetyOutlined,
 } from '@ant-design/icons';
-import ReactQuill from 'react-quill-new';
-import 'react-quill-new/dist/quill.snow.css';
 import { useThemeToken } from '../../hooks/useThemeToken';
 import { useAuthStore } from '../../stores/auth';
 import { docApi, docDirApi, DocDirNode, DocItem, DocVersion } from '../../api/doc';
 import { roleApi } from '../../api/role';
 import { formatTime } from '../../utils/format';
 import RichTextPreview from '../../components/RichTextPreview';
-
-const quillModules = {
-  toolbar: [
-    [{ header: [1, 2, 3, false] }],
-    ['bold', 'italic', 'underline', 'strike'],
-    [{ list: 'ordered' }, { list: 'bullet' }],
-    ['blockquote', 'code-block'],
-    [{ align: [] }],
-    ['link', 'image'],
-    ['clean'],
-  ],
-};
+import LexicalEditor from '../../components/LexicalEditor';
 
 /** 目录节点 → antd Tree 数据（目录 + 目录下可见的文档叶子，key 带前缀区分） */
 const toTreeData = (nodes: DocDirNode[]): TreeDataNode[] =>
@@ -728,29 +715,13 @@ const DocManage: React.FC = () => {
                     style={{ width: 240 }}
                   />
                 </Space>
-                {/* Quill 编辑器：外层注入 antd token 作为 CSS 变量，定制样式统一适配明暗主题 */}
-                <div
-                  className="doc-quill"
-                  style={{
-                    ['--ql-primary' as string]: token.colorPrimary,
-                    ['--ql-border' as string]: token.colorBorder,
-                    ['--ql-border-hover' as string]: token.colorPrimaryHover,
-                    ['--ql-bg' as string]: token.colorBgContainer,
-                    ['--ql-text' as string]: token.colorText,
-                    ['--ql-placeholder' as string]: token.colorTextPlaceholder,
-                    ['--ql-toolbar-hover' as string]: token.colorFillContentHover,
-                    ['--ql-toolbar-active' as string]: token.colorPrimaryBg,
-                    ['--ql-radius' as string]: `${token.borderRadiusLG}px`,
-                  }}
-                >
-                  <ReactQuill
-                    theme="snow"
-                    value={editContent}
-                    onChange={setEditContent}
-                    modules={quillModules}
-                    style={{ minHeight: 320 }}
-                  />
-                </div>
+                {/* Lexical 富文本编辑器（HTML 导入/导出，antd 风格） */}
+                <LexicalEditor
+                  value={editContent}
+                  onChange={setEditContent}
+                  placeholder="请输入文档内容…"
+                  minHeight={320}
+                />
                 <Space>
                   <Button type="primary" onClick={() => void saveDoc()}>
                     保存
