@@ -24,7 +24,11 @@ func NewDocModule(db *gorm.DB, c cache.Cache) *DocModule {
 func (m *DocModule) Name() string                       { return "doc" }
 func (m *DocModule) Init(ctx context.Context) error     { return nil }
 func (m *DocModule) Shutdown(ctx context.Context) error { return nil }
-func (m *DocModule) RegisterPublic(r *gin.RouterGroup)  {}
+func (m *DocModule) RegisterPublic(r *gin.RouterGroup) {
+	// 公开文档预览：已发布+共享，无需登录（与 config/dict 公开端点一致）
+	pub := r.Group("/public/docs")
+	pub.GET("/:id", m.handler.GetPublicDoc)
+}
 
 func (m *DocModule) RegisterProtected(r *gin.RouterGroup) {
 	docs := r.Group("/docs")

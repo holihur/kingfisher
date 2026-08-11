@@ -174,6 +174,21 @@ func (r *DocRepo) GetDocByID(ctx context.Context, id uint, userID uint, roleIDs 
 	return doc, nil
 }
 
+// GetPublicDoc 公开文档：已发布 + 共享，不受目录角色白名单限制（匿名可读）。
+func (r *DocRepo) GetPublicDoc(ctx context.Context, id uint) (*domain.Document, error) {
+	var po documentPO
+	if err := r.db.WithContext(ctx).Model(&documentPO{}).
+		Where("id = ? AND status = ? AND visibility = ?", id, domain.DocStatusPublished, domain.VisibilityShared).
+		First(&po).Error; err != nil {
+		return nil, err
+	}
+	doc := toDocument(&po)
+	if err := r.attachDocOwnerNames(ctx, []domain.Document{*doc}); err != nil {
+		return nil, err
+	}
+	return doc, nil
+}
+
 func (r *DocRepo) CreateWithVersion(ctx context.Context, doc *domain.Document, ver *domain.DocVersion) (*domain.Document, error) {
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		po := &documentPO{

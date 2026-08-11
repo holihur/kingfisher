@@ -263,6 +263,24 @@ func (h *DocHandler) GetDoc(c *gin.Context) {
 	response.OKJSON(c, doc)
 }
 
+// @Summary 公开文档（无需登录）
+// @Tags Doc
+// @Produce json
+// @Router /public/docs/:id [get]
+func (h *DocHandler) GetPublicDoc(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "invalid id")
+		return
+	}
+	doc, err := h.svc.GetPublicDoc(c.Request.Context(), uint(id))
+	if err != nil {
+		handleSvcErr(c, err)
+		return
+	}
+	response.OKJSON(c, doc)
+}
+
 // CreateDocReq 创建文档请求体
 type CreateDocReq struct {
 	DirID      uint   `json:"dir_id" binding:"required"`

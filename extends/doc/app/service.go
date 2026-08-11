@@ -158,6 +158,15 @@ func (s *DocService) GetDoc(ctx context.Context, id uint, userID uint, roleIDs [
 	return doc, nil
 }
 
+// GetPublicDoc 公开文档（已发布+共享），匿名可读；不满足公开条件 → 404 隐藏。
+func (s *DocService) GetPublicDoc(ctx context.Context, id uint) (*domain.Document, error) {
+	doc, err := s.repo.GetPublicDoc(ctx, id)
+	if err != nil {
+		return nil, &Error{Code: errcode.ErrDocNotFound}
+	}
+	return doc, nil
+}
+
 // CreateDoc 创建文档（初始 draft + 版本 1）。dirID 需对用户可见。
 func (s *DocService) CreateDoc(ctx context.Context, dirID uint, title, content string, ownerID uint, visibility, note string, roleIDs []uint, isAdmin bool) (*domain.Document, error) {
 	dir, err := s.repo.FindDirByID(ctx, dirID)

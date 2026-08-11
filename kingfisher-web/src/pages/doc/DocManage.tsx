@@ -26,6 +26,7 @@ import {
   FolderAddOutlined,
   FolderOutlined,
   HistoryOutlined,
+  LinkOutlined,
   MenuFoldOutlined,
   MoreOutlined,
   PlusOutlined,
@@ -668,6 +669,21 @@ const DocManage: React.FC = () => {
                       <Button icon={<HistoryOutlined />} onClick={() => void openVersions(editing)}>
                         版本历史
                       </Button>
+                      {/* 已发布+共享 → 提供公开预览链接 */}
+                      {editing.status === 'published' && editing.visibility === 'shared' && (
+                        <Button
+                          icon={<LinkOutlined />}
+                          onClick={() => {
+                            const url = `${window.location.origin}/docs/public/${editing.id}`;
+                            void navigator.clipboard
+                              .writeText(url)
+                              .then(() => message.success('公开链接已复制'))
+                              .catch(() => message.warning('复制失败，请手动复制'));
+                          }}
+                        >
+                          复制公开链接
+                        </Button>
+                      )}
                       {canDelete && (
                         <Button danger onClick={() => deleteDoc(editing)}>
                           删除

@@ -47,6 +47,11 @@ export const docDirApi = {
   setRoles: (id: number, role_ids: number[]) => request.put(`/docs/dirs/${id}/roles`, { role_ids }),
 };
 
+/** 公开文档（无需登录） */
+export const publicDocApi = {
+  get: (id: number) => request.get(`/public/docs/${id}`),
+};
+
 /** 文档操作 */
 export const docApi = {
   list: (dir_id: number, params: Record<string, unknown>) => request.get('/docs', { params: { ...params, dir_id } }),

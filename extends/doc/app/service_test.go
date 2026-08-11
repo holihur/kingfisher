@@ -84,6 +84,9 @@ func (s *stubRepo) GetDocByID(ctx context.Context, id uint, userID uint, roleIDs
 	}
 	return nil, nil
 }
+func (s *stubRepo) GetPublicDoc(ctx context.Context, id uint) (*domain.Document, error) {
+	return nil, errors.New("not found")
+}
 func (s *stubRepo) CreateWithVersion(ctx context.Context, doc *domain.Document, ver *domain.DocVersion) (*domain.Document, error) {
 	if s.createWithVer != nil {
 		return s.createWithVer(ctx, doc, ver)

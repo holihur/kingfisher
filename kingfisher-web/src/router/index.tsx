@@ -16,6 +16,7 @@ const Profile = lazy(() => import('../pages/profile'));
 const RegisterPage = lazy(() => import('../pages/register'));
 const ForgotPassword = lazy(() => import('../pages/forgot'));
 const ResetPassword = lazy(() => import('../pages/reset'));
+const PublicDocView = lazy(() => import('../pages/public/DocView'));
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const userLoaded = useAuthStore((s) => s.userLoaded);
@@ -121,16 +122,60 @@ function AppRoutes() {
   // 后端 502/宕机导致菜单拉取失败时 /dashboard 仍可达，错误页"返回首页"可用）
   const menuRoutes = useMemo(
     () => buildMenuRoutes(menuTree as MenuNode[]).filter((r) => r.path !== '/dashboard'),
-    [menuTree],
+    [menuTree]
   );
 
   // 菜单未加载时（首屏刷新），展示 loading 等待菜单树
   const routeElement = useRoutes([
-    { path: '/login', element: <Lazy><LoginPage /></Lazy> },
-    { path: '/register', element: <Lazy><RegisterPage /></Lazy> },
-    { path: '/forgot-password', element: <Lazy><ForgotPassword /></Lazy> },
-    { path: '/reset', element: <Lazy><ResetPassword /></Lazy> },
-    { path: '/403', element: <Lazy><Forbidden /></Lazy> },
+    {
+      path: '/login',
+      element: (
+        <Lazy>
+          <LoginPage />
+        </Lazy>
+      ),
+    },
+    {
+      path: '/register',
+      element: (
+        <Lazy>
+          <RegisterPage />
+        </Lazy>
+      ),
+    },
+    {
+      path: '/forgot-password',
+      element: (
+        <Lazy>
+          <ForgotPassword />
+        </Lazy>
+      ),
+    },
+    {
+      path: '/reset',
+      element: (
+        <Lazy>
+          <ResetPassword />
+        </Lazy>
+      ),
+    },
+    {
+      path: '/403',
+      element: (
+        <Lazy>
+          <Forbidden />
+        </Lazy>
+      ),
+    },
+    // 公开文档预览（无需登录，独立页）
+    {
+      path: '/docs/public/:id',
+      element: (
+        <Lazy>
+          <PublicDocView />
+        </Lazy>
+      ),
+    },
     {
       path: '/',
       element: (
@@ -139,14 +184,35 @@ function AppRoutes() {
         </AuthGuard>
       ),
       children: [
-        { path: 'profile', element: <Lazy><Profile /></Lazy> },
+        {
+          path: 'profile',
+          element: (
+            <Lazy>
+              <Profile />
+            </Lazy>
+          ),
+        },
         // 首页固定路由：始终存在，保证任何情况下"返回首页"都有效
-        { path: 'dashboard', element: <Lazy><DashboardPage /></Lazy> },
+        {
+          path: 'dashboard',
+          element: (
+            <Lazy>
+              <DashboardPage />
+            </Lazy>
+          ),
+        },
         ...menuRoutes,
         { index: true, element: <Navigate to="/dashboard" replace /> },
       ],
     },
-    { path: '*', element: <Lazy><NotFound /></Lazy> },
+    {
+      path: '*',
+      element: (
+        <Lazy>
+          <NotFound />
+        </Lazy>
+      ),
+    },
   ]);
 
   // 登录态且菜单尚未加载完成时，等菜单（刷新场景；失败后 loaded=true 不再卡死）
