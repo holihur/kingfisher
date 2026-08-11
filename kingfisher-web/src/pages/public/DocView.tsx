@@ -65,9 +65,12 @@ const PublicDocView: React.FC = () => {
           <Empty description="文档不存在或未公开" image={Empty.PRESENTED_IMAGE_SIMPLE} style={{ padding: 40 }} />
         ) : (
           <>
-            <Typography.Title level={2} style={{ marginTop: 0, marginBottom: 24 }}>
+            <Typography.Title level={2} style={{ marginTop: 0, marginBottom: 8 }}>
               {doc.title}
             </Typography.Title>
+            <Typography.Text type="secondary" style={{ fontSize: 13, display: 'block', marginBottom: 24 }}>
+              最后更新：{new Date(doc.updated_at).toLocaleString('zh-CN')}
+            </Typography.Text>
             <RichTextPreview content={doc.content} />
           </>
         )}
