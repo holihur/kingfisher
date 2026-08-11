@@ -25,6 +25,7 @@ import {
   FolderAddOutlined,
   FolderOutlined,
   HistoryOutlined,
+  MenuFoldOutlined,
   MoreOutlined,
   PlusOutlined,
   SafetyOutlined,
@@ -81,6 +82,8 @@ const DocManage: React.FC = () => {
   const [treeLoading, setTreeLoading] = useState(false);
   // 目录树展开的 key（默认全展开；defaultExpandAll 对异步数据无效，需受控）
   const [expandedKeys, setExpandedKeys] = useState<React.Key[]>([]);
+  // 左栏（目录树）是否完全合上（拖拽到过小 / 手动收起）
+  const [collapsed, setCollapsed] = useState(false);
 
   // 目录 modal
   const [dirModal, setDirModal] = useState<{
@@ -184,15 +187,16 @@ const DocManage: React.FC = () => {
       .finally(() => setDocsLoading(false));
   }, [selectedDirId, docsPage, docsRefresh]);
 
-  // split.js：左右（目录树 / 内容）可拖拽调宽
+  // split.js：左右（目录树 / 内容）可拖拽调宽；左栏拖到过小自动完全合上
   const containerRef = useRef<HTMLDivElement>(null);
   const leftPaneRef = useRef<HTMLDivElement>(null);
   const rightPaneRef = useRef<HTMLDivElement>(null);
+  const splitRef = useRef<ReturnType<typeof Split> | null>(null);
   useEffect(() => {
-    const container = containerRef.current;
+    if (collapsed) return; // 合上时销毁 split，展开后再初始化
     const left = leftPaneRef.current;
     const right = rightPaneRef.current;
-    if (!container || !left || !right) return;
+    if (!left || !right) return;
     const instance = Split([left, right], {
       sizes: [20, 80],
       minSize: [160, 400],
@@ -203,9 +207,20 @@ const DocManage: React.FC = () => {
         g.className = 'doc-split-gutter';
         return g;
       },
+      // 左栏宽度占比 < 15% → 完全合上（隐藏目录树，右侧全宽）
+      onDragEnd: (sizes) => {
+        if (sizes[0] < 15) setCollapsed(true);
+      },
     });
-    return () => instance.destroy();
-  }, []);
+    splitRef.current = instance;
+    return () => {
+      instance.destroy();
+      splitRef.current = null;
+    };
+  }, [collapsed]);
+
+  const collapseLeft = () => setCollapsed(true);
+  const expandLeft = () => setCollapsed(false);
 
   const openDirModal = (mode: 'create' | 'rename', parentId: number, dir?: DocDirNode) => {
     setDirName(dir ? dir.name : '');
@@ -551,10 +566,11 @@ const DocManage: React.FC = () => {
   return (
     // split.js 容器：display:flex + 左右两个 pane（宽度由拖拽控制，见上方 useEffect）
     <div ref={containerRef} style={{ display: 'flex', alignItems: 'flex-start' }}>
-      {/* 左侧：目录树 */}
+      {/* 左侧：目录树（collapsed 时完全隐藏） */}
       <div
         ref={leftPaneRef}
         style={{
+          display: collapsed ? 'none' : undefined,
           minWidth: 0,
           background: token.colorBgContainer,
           borderRadius: token.borderRadiusLG,
@@ -563,11 +579,20 @@ const DocManage: React.FC = () => {
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
           <span style={{ fontWeight: 600 }}>文档目录</span>
-          {canCreate && (
-            <Button size="small" type="primary" ghost icon={<PlusOutlined />} onClick={() => openDirModal('create', 0)}>
-              新增
-            </Button>
-          )}
+          <Space size={2}>
+            {canCreate && (
+              <Button
+                size="small"
+                type="primary"
+                ghost
+                icon={<PlusOutlined />}
+                onClick={() => openDirModal('create', 0)}
+              >
+                新增
+              </Button>
+            )}
+            <Button size="small" type="text" icon={<MenuFoldOutlined />} title="收起目录" onClick={collapseLeft} />
+          </Space>
         </div>
         {tree.length === 0 && !treeLoading ? (
           <Empty description="暂无目录" image={Empty.PRESENTED_IMAGE_SIMPLE} />
@@ -597,16 +622,25 @@ const DocManage: React.FC = () => {
         )}
       </div>
 
-      {/* 右侧：列表 / 编辑器 */}
+      {/* 右侧：列表 / 编辑器（collapsed 时占满全宽） */}
       <div
         ref={rightPaneRef}
         style={{
           minWidth: 0,
+          width: collapsed ? '100%' : undefined,
           background: token.colorBgContainer,
           borderRadius: token.borderRadiusLG,
           padding: 16,
         }}
       >
+        {/* 左栏已合上：给出展开入口 */}
+        {collapsed && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+            <Button size="small" icon={<FolderOutlined />} onClick={expandLeft}>
+              展开目录
+            </Button>
+          </div>
+        )}
         {editing ? (
           <Space direction="vertical" size={12} style={{ width: '100%' }}>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
