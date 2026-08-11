@@ -36,7 +36,7 @@ type DocRepository interface {
 	// GetPublicDoc 公开文档：已发布 + 共享，不受目录角色限制（匿名可读）
 	GetPublicDoc(ctx context.Context, id uint) (*domain.Document, error)
 	CreateWithVersion(ctx context.Context, doc *domain.Document, ver *domain.DocVersion) (*domain.Document, error)
-	UpdateWithVersion(ctx context.Context, id uint, title, content string, ownerID uint, note string) error
+	UpdateWithVersion(ctx context.Context, id uint, title, content, visibility string, ownerID uint, note string) error
 	RestoreToVersion(ctx context.Context, docID uint, fromVersionNo int, ownerID uint, note string) error
 	SetDocStatus(ctx context.Context, id uint, status string, publishedAt *time.Time) error
 	DeleteDoc(ctx context.Context, id uint) error // 级联删除 doc_versions

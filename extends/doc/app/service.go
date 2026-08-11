@@ -189,7 +189,7 @@ func (s *DocService) CreateDoc(ctx context.Context, dirID uint, title, content s
 }
 
 // UpdateDoc 更新文档（追加新版本）。仅作者或 admin 可写（含 private/shared 的写权限）。
-func (s *DocService) UpdateDoc(ctx context.Context, id uint, title, content, note string, userID uint, isAdmin bool) (*domain.Document, error) {
+func (s *DocService) UpdateDoc(ctx context.Context, id uint, title, content, visibility, note string, userID uint, isAdmin bool) (*domain.Document, error) {
 	doc, err := s.repo.GetDocByID(ctx, id, userID, []uint{}, true) // 用 admin 视角取到行，再做写权限判定
 	if err != nil {
 		return nil, &Error{Code: errcode.ErrDocNotFound}
@@ -197,8 +197,12 @@ func (s *DocService) UpdateDoc(ctx context.Context, id uint, title, content, not
 	if !isAdmin && doc.OwnerID != userID {
 		return nil, &Error{Code: errcode.ErrDocForbidden}
 	}
+	// 仅作者/admin 可改可见性（shared/private 是敏感属性）
+	if visibility != "" && !isAdmin && doc.OwnerID != userID {
+		return nil, &Error{Code: errcode.ErrDocForbidden}
+	}
 	clean := s.sanitize.Sanitize(content)
-	if err := s.repo.UpdateWithVersion(ctx, id, title, clean, userID, note); err != nil {
+	if err := s.repo.UpdateWithVersion(ctx, id, title, clean, visibility, userID, note); err != nil {
 		if errors.Is(err, port.ErrVersionConflict) {
 			return nil, &Error{Code: errcode.ErrDocVersionConflict}
 		}
@@ -207,6 +211,9 @@ func (s *DocService) UpdateDoc(ctx context.Context, id uint, title, content, not
 	doc.Title = title
 	doc.Content = clean
 	doc.CurrentVersion++
+	if visibility != "" {
+		doc.Visibility = visibility
+	}
 	return doc, nil
 }
 

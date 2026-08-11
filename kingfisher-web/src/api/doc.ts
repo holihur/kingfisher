@@ -58,7 +58,8 @@ export const docApi = {
   getById: (id: number) => request.get(`/docs/${id}`),
   create: (data: { dir_id: number; title: string; content: string; visibility?: string; note?: string }) =>
     request.post('/docs', data),
-  update: (id: number, data: { title: string; content: string; note?: string }) => request.put(`/docs/${id}`, data),
+  update: (id: number, data: { title: string; content: string; visibility?: string; note?: string }) =>
+    request.put(`/docs/${id}`, data),
   publish: (id: number) => request.put(`/docs/${id}/publish`, {}),
   unpublish: (id: number) => request.put(`/docs/${id}/unpublish`, {}),
   versions: (id: number) => request.get(`/docs/${id}/versions`),

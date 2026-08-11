@@ -124,7 +124,7 @@ func TestCreateUpdateVersionAndConflict(t *testing.T) {
 	}
 
 	// 更新 → 版本 2
-	if err := repo.UpdateWithVersion(ctx, doc.ID, "新文档v2", "<p>v2</p>", 1, "update"); err != nil {
+	if err := repo.UpdateWithVersion(ctx, doc.ID, "新文档v2", "<p>v2</p>", "shared", 1, "update"); err != nil {
 		t.Fatalf("update: %v", err)
 	}
 	vers, err := repo.ListVersions(ctx, doc.ID)

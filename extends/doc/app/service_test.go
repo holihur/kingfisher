@@ -42,7 +42,7 @@ type stubRepo struct {
 	findDirByID   func(ctx context.Context, id uint) (*domain.DocDirectory, error)
 	getDocByID    func(ctx context.Context, id uint, userID uint, roleIDs []uint, isAdmin bool) (*domain.Document, error)
 	createWithVer func(ctx context.Context, doc *domain.Document, ver *domain.DocVersion) (*domain.Document, error)
-	updateWithVer func(ctx context.Context, id uint, title, content string, ownerID uint, note string) error
+	updateWithVer func(ctx context.Context, id uint, title, content, visibility string, ownerID uint, note string) error
 	setDirRoles   func(ctx context.Context, dirID uint, roleIDs []uint) error
 }
 
@@ -93,9 +93,9 @@ func (s *stubRepo) CreateWithVersion(ctx context.Context, doc *domain.Document, 
 	}
 	return doc, nil
 }
-func (s *stubRepo) UpdateWithVersion(ctx context.Context, id uint, title, content string, ownerID uint, note string) error {
+func (s *stubRepo) UpdateWithVersion(ctx context.Context, id uint, title, content, visibility string, ownerID uint, note string) error {
 	if s.updateWithVer != nil {
-		return s.updateWithVer(ctx, id, title, content, ownerID, note)
+		return s.updateWithVer(ctx, id, title, content, visibility, ownerID, note)
 	}
 	return nil
 }
@@ -195,12 +195,12 @@ func TestUpdateDocMapsVersionConflict(t *testing.T) {
 		getDocByID: func(_ context.Context, _ uint, _ uint, _ []uint, _ bool) (*domain.Document, error) {
 			return &domain.Document{ID: 1, OwnerID: 1}, nil
 		},
-		updateWithVer: func(_ context.Context, _ uint, _ string, _ string, _ uint, _ string) error {
+		updateWithVer: func(_ context.Context, _ uint, _ string, _ string, _ string, _ uint, _ string) error {
 			return port.ErrVersionConflict
 		},
 	}
 	svc := NewDocService(repo, nil)
-	_, err := svc.UpdateDoc(context.Background(), 1, "t", "c", "", 1, false)
+	_, err := svc.UpdateDoc(context.Background(), 1, "t", "c", "", "", 1, false)
 	var appErr *Error
 	if !errors.As(err, &appErr) || appErr.Code != errcode.ErrDocVersionConflict {
 		t.Fatalf("版本冲突应映射为 ErrDocVersionConflict，got %v", err)

@@ -216,7 +216,7 @@ func (r *DocRepo) CreateWithVersion(ctx context.Context, doc *domain.Document, v
 	return doc, nil
 }
 
-func (r *DocRepo) UpdateWithVersion(ctx context.Context, id uint, title, content string, ownerID uint, note string) error {
+func (r *DocRepo) UpdateWithVersion(ctx context.Context, id uint, title, content, visibility string, ownerID uint, note string) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var cur documentPO
 		if err := tx.Where("id = ?", id).First(&cur).Error; err != nil {
@@ -227,8 +227,11 @@ func (r *DocRepo) UpdateWithVersion(ctx context.Context, id uint, title, content
 		if err := tx.Create(vpo).Error; err != nil {
 			return r.versionErr(err)
 		}
-		if err := tx.Model(&documentPO{}).Where("id = ?", id).
-			Updates(map[string]any{"title": title, "content": content, "current_version": next}).Error; err != nil {
+		updates := map[string]any{"title": title, "content": content, "current_version": next}
+		if visibility != "" {
+			updates["visibility"] = visibility
+		}
+		if err := tx.Model(&documentPO{}).Where("id = ?", id).Updates(updates).Error; err != nil {
 			return err
 		}
 		return nil

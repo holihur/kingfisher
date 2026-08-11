@@ -312,9 +312,10 @@ func (h *DocHandler) CreateDoc(c *gin.Context) {
 
 // UpdateDocReq 更新文档请求体
 type UpdateDocReq struct {
-	Title   string `json:"title" binding:"required"`
-	Content string `json:"content"`
-	Note    string `json:"note"`
+	Title      string `json:"title" binding:"required"`
+	Content    string `json:"content"`
+	Visibility string `json:"visibility"` // shared | private（空 = 不修改）
+	Note       string `json:"note"`
 }
 
 // @Summary 更新文档（追加新版本）
@@ -333,7 +334,7 @@ func (h *DocHandler) UpdateDoc(c *gin.Context) {
 		return
 	}
 	userID, _, isAdmin := currentUser(c)
-	doc, err := h.svc.UpdateDoc(c.Request.Context(), uint(id), req.Title, req.Content, req.Note, userID, isAdmin)
+	doc, err := h.svc.UpdateDoc(c.Request.Context(), uint(id), req.Title, req.Content, req.Visibility, req.Note, userID, isAdmin)
 	if err != nil {
 		handleSvcErr(c, err)
 		return

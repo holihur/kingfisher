@@ -353,7 +353,12 @@ const DocManage: React.FC = () => {
     }
     try {
       if (editing && editing.id > 0) {
-        await docApi.update(editing.id, { title: editTitle, content: editContent, note: editNote });
+        await docApi.update(editing.id, {
+          title: editTitle,
+          content: editContent,
+          visibility: editVisibility,
+          note: editNote,
+        });
         message.success('已保存，新版本已生成');
       } else {
         await docApi.create({
@@ -632,17 +637,16 @@ const DocManage: React.FC = () => {
                     onChange={(e) => setEditTitle(e.target.value)}
                     style={{ width: 360 }}
                   />
-                  {editing.id === 0 && (
-                    <Select
-                      value={editVisibility}
-                      onChange={setEditVisibility}
-                      style={{ width: 100 }}
-                      options={[
-                        { value: 'shared', label: '共享' },
-                        { value: 'private', label: '私有' },
-                      ]}
-                    />
-                  )}
+                  {/* 可见性：新建 + 编辑都显示（仅作者/admin 可改，后端校验） */}
+                  <Select
+                    value={editVisibility}
+                    onChange={setEditVisibility}
+                    style={{ width: 100 }}
+                    options={[
+                      { value: 'shared', label: '共享' },
+                      { value: 'private', label: '私有' },
+                    ]}
+                  />
                   <Input
                     placeholder="变更说明（可选）"
                     value={editNote}
