@@ -26,7 +26,7 @@ test.describe('Layout & Navigation', () => {
   });
 
   test('菜单树可见', async ({ page }) => {
-    await expect(page.locator('.ant-menu-root').getByText('Dashboard')).toBeVisible();
+    await expect(page.locator('.ant-menu-root').getByText('仪表盘')).toBeVisible();
     await expect(page.locator('.ant-menu-root').getByText('系统管理')).toBeVisible();
   });
 

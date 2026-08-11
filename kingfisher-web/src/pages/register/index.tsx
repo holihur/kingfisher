@@ -34,37 +34,70 @@ const RegisterPage: React.FC = () => {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex' }}>
-      <div style={{ flex: 1, background: token.colorBgLayout, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: 80 }}>
+      <div
+        style={{
+          flex: 1,
+          background: token.colorBgLayout,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          padding: 80,
+        }}
+      >
         <div style={{ maxWidth: 360, marginLeft: 'auto', marginRight: 80 }}>
           <h1 style={{ fontSize: 28, fontWeight: 600, marginBottom: 12 }}>注册账号</h1>
           <p style={{ color: token.colorTextSecondary, fontSize: 14, marginBottom: 0 }}>创建新账号以使用系统服务</p>
         </div>
       </div>
 
-      <div style={{ width: 440, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: 60, background: token.colorBgContainer }}>
+      <div
+        style={{
+          width: 440,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          padding: 60,
+          background: token.colorBgContainer,
+        }}
+      >
         <div style={{ maxWidth: 340 }}>
           <h2 style={{ fontSize: 18, fontWeight: 500, marginBottom: 28 }}>注册</h2>
 
           {registrationEnabled === false && (
-            <Alert type="warning" showIcon message="当前未开放注册" description="请联系管理员开通账号。" style={{ marginBottom: 20 }} />
+            <Alert
+              type="warning"
+              showIcon
+              title="当前未开放注册"
+              description="请联系管理员开通账号。"
+              style={{ marginBottom: 20 }}
+            />
           )}
 
           <Form onFinish={onFinish} size="large" disabled={registrationEnabled === false}>
             <Form.Item name="username" rules={[{ required: true, message: '请输入用户名' }, { min: 3 }, { max: 32 }]}>
               <Input prefix={<UserOutlined />} placeholder="用户名" />
             </Form.Item>
-            <Form.Item name="password" rules={[{ required: true, message: '请输入密码' }, { min: 8, message: '至少 8 位' }]}>
+            <Form.Item
+              name="password"
+              rules={[
+                { required: true, message: '请输入密码' },
+                { min: 8, message: '至少 8 位' },
+              ]}
+            >
               <Input.Password prefix={<LockOutlined />} placeholder="密码" />
             </Form.Item>
             <Form.Item
               name="confirm_password"
               dependencies={['password']}
-              rules={[{ required: true, message: '请确认密码' }, ({ getFieldValue }) => ({
-                validator(_, value) {
-                  if (!value || getFieldValue('password') === value) return Promise.resolve();
-                  return Promise.reject(new Error('两次输入的密码不一致'));
-                },
-              })]}
+              rules={[
+                { required: true, message: '请确认密码' },
+                ({ getFieldValue }) => ({
+                  validator(_, value) {
+                    if (!value || getFieldValue('password') === value) return Promise.resolve();
+                    return Promise.reject(new Error('两次输入的密码不一致'));
+                  },
+                }),
+              ]}
             >
               <Input.Password prefix={<LockOutlined />} placeholder="确认密码" />
             </Form.Item>
@@ -72,7 +105,9 @@ const RegisterPage: React.FC = () => {
               <Input prefix={<MailOutlined />} placeholder="邮箱（选填）" />
             </Form.Item>
             <Form.Item style={{ marginBottom: 0 }}>
-              <Button type="primary" htmlType="submit" loading={loading} block disabled={registrationEnabled === false}>注册</Button>
+              <Button type="primary" htmlType="submit" loading={loading} block disabled={registrationEnabled === false}>
+                注册
+              </Button>
             </Form.Item>
           </Form>
 

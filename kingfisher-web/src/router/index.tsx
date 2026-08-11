@@ -207,10 +207,13 @@ function AppRoutes() {
     },
     {
       path: '*',
-      element: (
+      element: hasToken() ? (
         <Lazy>
           <NotFound />
         </Lazy>
+      ) : (
+        // 未登录访问任意路径（含菜单驱动受保护路由）→ 重定向登录
+        <Navigate to={`/login?redirect=${encodeURIComponent(location.pathname)}`} replace />
       ),
     },
   ]);

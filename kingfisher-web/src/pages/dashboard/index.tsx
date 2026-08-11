@@ -1,4 +1,4 @@
-import { Row, Col, Statistic, List, Tag, Badge, Avatar, Empty } from 'antd';
+import { Row, Col, Statistic, Tag, Badge, Avatar, Empty } from 'antd';
 import { UserOutlined, MenuOutlined, SafetyOutlined, SettingOutlined, ArrowRightOutlined } from '@ant-design/icons';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -84,9 +84,7 @@ const Dashboard: React.FC = () => {
           <div style={{ fontSize: 20, fontWeight: 700, color: token.colorText }}>
             你好，{(userInfo?.nickname as string) || (userInfo?.username as string) || '管理员'} 👋
           </div>
-          <div style={{ marginTop: 6, fontSize: 14, color: token.colorTextTertiary }}>
-            欢迎回来，这里是系统总览。
-          </div>
+          <div style={{ marginTop: 6, fontSize: 14, color: token.colorTextTertiary }}>欢迎回来，这里是系统总览。</div>
         </div>
       </PageCard>
 
@@ -94,11 +92,7 @@ const Dashboard: React.FC = () => {
       <Row gutter={[16, 16]}>
         {statCards.map((c) => (
           <Col xs={12} sm={12} md={6} key={c.key}>
-            <PageCard
-              hoverable
-                            styles={{ body: { padding: '20px 24px' } }}
-              onClick={() => navigate(c.link)}
-            >
+            <PageCard hoverable styles={{ body: { padding: '20px 24px' } }} onClick={() => navigate(c.link)}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                 <div
                   style={{
@@ -119,7 +113,7 @@ const Dashboard: React.FC = () => {
                 <Statistic
                   title={c.title}
                   value={stats[c.key as keyof typeof stats]}
-                  valueStyle={{ fontSize: 24, fontWeight: 600 }}
+                  styles={{ content: { fontSize: 24, fontWeight: 600 } }}
                 />
                 <ArrowRightOutlined style={{ marginLeft: 'auto', color: token.colorTextTertiary, fontSize: 12 }} />
               </div>
@@ -133,56 +127,101 @@ const Dashboard: React.FC = () => {
         <Col xs={24} md={12}>
           <PageCard
             title={<span style={{ fontSize: 15, fontWeight: 600 }}>最近用户</span>}
-            extra={<a onClick={() => navigate('/system/users')}>全部 <ArrowRightOutlined style={{ fontSize: 11 }} /></a>}
-                      >
-            <List
-              dataSource={recentUsers}
-              locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无用户" /> }}
-              renderItem={(u) => (
-                <List.Item>
-                  <List.Item.Meta
-                    avatar={<Avatar size="small" src={u.avatar || undefined}>{u.username?.charAt(0)?.toUpperCase()}</Avatar>}
-                    title={
-                      <span>
+            extra={
+              <a onClick={() => navigate('/system/users')}>
+                全部 <ArrowRightOutlined style={{ fontSize: 11 }} />
+              </a>
+            }
+          >
+            <div>
+              {recentUsers.length === 0 ? (
+                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无用户" />
+              ) : (
+                recentUsers.map((u) => (
+                  <div
+                    key={u.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 12,
+                      padding: '8px 0',
+                      borderBottom: `1px solid ${token.colorSplit}`,
+                    }}
+                  >
+                    <Avatar size="small" src={u.avatar || undefined}>
+                      {u.username?.charAt(0)?.toUpperCase()}
+                    </Avatar>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {u.username}
-                        {u.nickname ? <span style={{ color: token.colorTextTertiary, marginLeft: 6, fontSize: 12 }}>({u.nickname})</span> : null}
-                      </span>
-                    }
-                    description={formatRelativeTime(u.created_at)}
-                  />
-                  <Tag>{u.roles?.map((r) => r.name).join(' / ') || u.role_name || '未知角色'}</Tag>
-                </List.Item>
+                        {u.nickname ? (
+                          <span style={{ color: token.colorTextTertiary, marginLeft: 6, fontSize: 12 }}>
+                            ({u.nickname})
+                          </span>
+                        ) : null}
+                      </div>
+                      <div style={{ color: token.colorTextTertiary, fontSize: 12 }}>
+                        {formatRelativeTime(u.created_at)}
+                      </div>
+                    </div>
+                    <Tag>{u.roles?.map((r) => r.name).join(' / ') || u.role_name || '未知角色'}</Tag>
+                  </div>
+                ))
               )}
-            />
+            </div>
           </PageCard>
         </Col>
         <Col xs={24} md={12}>
           <PageCard
             title={<span style={{ fontSize: 15, fontWeight: 600 }}>最近操作</span>}
-            extra={<a onClick={() => navigate('/system/audit')}>全部 <ArrowRightOutlined style={{ fontSize: 11 }} /></a>}
+            extra={
+              <a onClick={() => navigate('/system/audit')}>
+                全部 <ArrowRightOutlined style={{ fontSize: 11 }} />
+              </a>
+            }
+          >
+            <div>
+              {recentLogs.length === 0 ? (
+                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无操作记录" />
+              ) : (
+                recentLogs.map((l, i) => {
+                  const a = ACTION_MAP[l.action] || { text: l.action };
+                  return (
+                    <div
+                      key={`${l.id}-${i}`}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 12,
+                        padding: '8px 0',
+                        borderBottom: `1px solid ${token.colorSplit}`,
+                      }}
+                    >
+                      <div
+                        style={{
+                          flex: 1,
+                          minWidth: 0,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
                       >
-            <List
-              dataSource={recentLogs}
-              locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无操作记录" /> }}
-              renderItem={(l) => {
-                const a = ACTION_MAP[l.action] || { text: l.action };
-                return (
-                  <List.Item>
-                    <List.Item.Meta
-                      title={
-                        <span>
-                          <Badge status="processing" style={{ marginRight: 6 }} />
-                          {l.username} <Tag color={a.color} style={{ marginLeft: 4 }}>{a.text}</Tag>
-                          <span style={{ color: token.colorTextTertiary, marginLeft: 6 }}>{l.resource}</span>
+                        <Badge status="processing" style={{ marginRight: 6 }} />
+                        {l.username}{' '}
+                        <Tag color={a.color} style={{ marginLeft: 4 }}>
+                          {a.text}
+                        </Tag>
+                        <span style={{ color: token.colorTextTertiary, marginLeft: 6 }}>{l.resource}</span>
+                        <span style={{ color: token.colorTextTertiary, fontSize: 12, marginLeft: 8 }}>
+                          {formatRelativeTime(l.created_at)}
                         </span>
-                      }
-                      description={formatRelativeTime(l.created_at)}
-                    />
-                    <span style={{ color: token.colorTextTertiary, fontSize: 12 }}>{l.ip}</span>
-                  </List.Item>
-                );
-              }}
-            />
+                      </div>
+                      <span style={{ color: token.colorTextTertiary, fontSize: 12, flexShrink: 0 }}>{l.ip}</span>
+                    </div>
+                  );
+                })
+              )}
+            </div>
           </PageCard>
         </Col>
       </Row>

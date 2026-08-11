@@ -13,6 +13,8 @@ test('未登录访问 /system/users → /login 带 redirect', async ({ page }) =
 });
 
 test('redirect 参数：登录后跳回', async ({ page }) => {
+  // 先导航建立 origin，再清 localStorage（about:blank 下访问会被拒）
+  await page.goto(URLS.login);
   await page.evaluate(() => localStorage.clear());
   await page.goto(URLS.users);
   await page.waitForURL(/\/login/);

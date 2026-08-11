@@ -619,7 +619,7 @@ const DocManage: React.FC = () => {
           </div>
         )}
         {editing ? (
-          <Space direction="vertical" size={12} style={{ width: '100%' }}>
+          <Space orientation="vertical" size={12} style={{ width: '100%' }}>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <Button onClick={backToList}>返回列表</Button>
               <Typography.Text strong style={{ fontSize: 15 }}>
@@ -772,7 +772,7 @@ const DocManage: React.FC = () => {
         onCancel={() => setVerModal((s) => ({ ...s, open: false, preview: undefined }))}
       >
         {verModal.preview ? (
-          <Space direction="vertical" style={{ width: '100%' }}>
+          <Space orientation="vertical" style={{ width: '100%' }}>
             <Space>
               <Button size="small" onClick={() => setVerModal((s) => ({ ...s, preview: undefined }))}>
                 返回列表

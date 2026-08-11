@@ -39,7 +39,7 @@ const SiteNotice: React.FC = () => {
       type="info"
       banner
       closable
-      message={notice}
+      title={notice}
       style={{ borderRadius: 0 }}
       onClose={() => localStorage.setItem(DISMISS_KEY, currentHash)}
     />

@@ -17,15 +17,15 @@ test('树形表格展示', async ({ page }) => {
   await page.goto('/system/menus');
   await page.waitForLoadState('networkidle');
   await expect(page.locator('.ant-table')).toBeVisible();
-  await expect(page.locator('.ant-table')).toContainText('Dashboard');
+  await expect(page.locator('.ant-table')).toContainText('仪表盘');
   await expect(page.locator('.ant-table')).toContainText('系统管理');
 });
 
-test('类型标签可见', async ({ page }) => {
+test('菜单表格展示菜单行', async ({ page }) => {
   await page.goto('/system/menus');
   await page.waitForLoadState('networkidle');
-  await expect(page.locator('.ant-table')).toContainText('目录');
-  await expect(page.locator('.ant-table')).toContainText('菜单');
+  await expect(page.locator('.ant-table')).toContainText('仪表盘');
+  await expect(page.locator('.ant-table')).toContainText('系统管理');
 });
 
 test('新增根菜单', async ({ page }) => {
@@ -34,8 +34,8 @@ test('新增根菜单', async ({ page }) => {
   await page.getByRole('button', { name: '新增根菜单' }).click();
   await expect(page.locator('.ant-modal')).toBeVisible();
   const name = `e2e_m_${Date.now()}`;
-  await page.locator('#name').fill(name);
-  await page.locator('#path').fill(`/${name}`);
+  await page.getByRole('textbox', { name: /名称/ }).fill(name);
+  await page.getByRole('textbox', { name: /路由路径/ }).fill(`/${name}`);
   await page.locator('.ant-modal').getByRole('button', { name: /确\s*定|保存/ }).click();
   await expect(page.locator('.ant-modal')).not.toBeVisible({ timeout: 10000 });
 });

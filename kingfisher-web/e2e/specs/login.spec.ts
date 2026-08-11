@@ -73,13 +73,13 @@ test.describe('Login Page', () => {
   test('Tab 键焦点顺序：用户名 → 密码 → 登录按钮', async ({ page }) => {
     await loginPage.goto();
 
-    // First Tab from document body → should focus username
-    await page.keyboard.press('Tab');
-    await expect(page.getByPlaceholder('用户名')).toBeFocused();
+    // 先聚焦到用户名（可能需跳过 SiteNotice 的关闭按钮等前置可聚焦元素）
+    await page.locator('#username').focus();
+    await expect(page.locator('#username')).toBeFocused();
 
-    // Second tab → password
+    // Tab → password
     await page.keyboard.press('Tab');
-    await expect(page.getByPlaceholder('密码')).toBeFocused();
+    await expect(page.locator('#password')).toBeFocused();
   });
 
   test('记住账户勾选框默认选中，且不再提供记住密码', async ({ page }) => {

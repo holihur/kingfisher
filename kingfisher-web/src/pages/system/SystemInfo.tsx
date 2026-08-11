@@ -104,13 +104,25 @@ const SystemInfo: React.FC = () => {
   }
 
   return (
-    <Space direction="vertical" size={16} style={{ width: '100%' }}>
+    <Space orientation="vertical" size={16} style={{ width: '100%' }}>
       {/* 版本信息 */}
-      <PageCard title={<span><CodeOutlined /> 版本信息</span>} >
+      <PageCard
+        title={
+          <span>
+            <CodeOutlined /> 版本信息
+          </span>
+        }
+      >
         <Descriptions column={3} size="small" bordered>
-          <Descriptions.Item label="后端版本"><Tag color="blue">{info.backend_version}</Tag></Descriptions.Item>
-          <Descriptions.Item label="Go 版本"><Tag>{info.go_version}</Tag></Descriptions.Item>
-          <Descriptions.Item label="前端版本"><Tag color="green">{__APP_VERSION__}</Tag></Descriptions.Item>
+          <Descriptions.Item label="后端版本">
+            <Tag color="blue">{info.backend_version}</Tag>
+          </Descriptions.Item>
+          <Descriptions.Item label="Go 版本">
+            <Tag>{info.go_version}</Tag>
+          </Descriptions.Item>
+          <Descriptions.Item label="前端版本">
+            <Tag color="green">{__APP_VERSION__}</Tag>
+          </Descriptions.Item>
           <Descriptions.Item label="构建 commit">{info.backend_commit}</Descriptions.Item>
           <Descriptions.Item label="构建时间">{info.build_time}</Descriptions.Item>
           <Descriptions.Item label="运行时长">{fmtUptime(info.uptime)}</Descriptions.Item>
@@ -120,7 +132,13 @@ const SystemInfo: React.FC = () => {
       {/* 运行环境 + 依赖 */}
       <Row gutter={16}>
         <Col span={12}>
-          <PageCard title={<span><AppstoreOutlined /> 运行环境</span>} >
+          <PageCard
+            title={
+              <span>
+                <AppstoreOutlined /> 运行环境
+              </span>
+            }
+          >
             <Descriptions column={1} size="small">
               <Descriptions.Item label="操作系统">{info.os}</Descriptions.Item>
               <Descriptions.Item label="内核版本">{info.os_version}</Descriptions.Item>
@@ -130,9 +148,17 @@ const SystemInfo: React.FC = () => {
           </PageCard>
         </Col>
         <Col span={12}>
-          <PageCard title={<span><CloudServerOutlined /> 依赖服务</span>} >
+          <PageCard
+            title={
+              <span>
+                <CloudServerOutlined /> 依赖服务
+              </span>
+            }
+          >
             <Descriptions column={1} size="small">
-              <Descriptions.Item label="Redis 版本"><Tag color="red">{info.redis_version || '-'}</Tag></Descriptions.Item>
+              <Descriptions.Item label="Redis 版本">
+                <Tag color="red">{info.redis_version || '-'}</Tag>
+              </Descriptions.Item>
               <Descriptions.Item label="数据库类型">{info.db_driver || '-'}</Descriptions.Item>
               <Descriptions.Item label="数据库版本">{info.db_version || '-'}</Descriptions.Item>
             </Descriptions>
@@ -143,19 +169,34 @@ const SystemInfo: React.FC = () => {
       {/* CPU + 内存 */}
       <Row gutter={16}>
         <Col span={12}>
-          <PageCard title={<span><DashboardOutlined /> CPU</span>} >
+          <PageCard
+            title={
+              <span>
+                <DashboardOutlined /> CPU
+              </span>
+            }
+          >
             <Descriptions column={1} size="small">
               <Descriptions.Item label="核心数">{info.cpu_cores} 核</Descriptions.Item>
               <Descriptions.Item label="型号">{info.cpu_model || info.cpu_vendor || '-'}</Descriptions.Item>
             </Descriptions>
             <div style={{ marginTop: 8 }}>
               <div style={{ marginBottom: 4 }}>使用率 {info.cpu_percent.toFixed(1)}%</div>
-              <Progress percent={Number(info.cpu_percent.toFixed(1))} status={info.cpu_percent > 90 ? 'exception' : 'active'} />
+              <Progress
+                percent={Number(info.cpu_percent.toFixed(1))}
+                status={info.cpu_percent > 90 ? 'exception' : 'active'}
+              />
             </div>
           </PageCard>
         </Col>
         <Col span={12}>
-          <PageCard title={<span><HddOutlined /> 内存</span>} >
+          <PageCard
+            title={
+              <span>
+                <HddOutlined /> 内存
+              </span>
+            }
+          >
             <Row gutter={16}>
               <Col span={12}>
                 <Statistic title="总内存" value={fmtBytes(info.mem_total)} />
@@ -171,7 +212,10 @@ const SystemInfo: React.FC = () => {
               </Col>
             </Row>
             <div style={{ marginTop: 8 }}>
-              <Progress percent={Number(info.mem_used_percent.toFixed(1))} status={info.mem_used_percent > 90 ? 'exception' : 'active'} />
+              <Progress
+                percent={Number(info.mem_used_percent.toFixed(1))}
+                status={info.mem_used_percent > 90 ? 'exception' : 'active'}
+              />
             </div>
           </PageCard>
         </Col>
@@ -180,24 +224,43 @@ const SystemInfo: React.FC = () => {
       {/* 磁盘 + 网络 */}
       <Row gutter={16}>
         <Col span={12}>
-          <PageCard title={<span><DatabaseOutlined /> 磁盘</span>} >
+          <PageCard
+            title={
+              <span>
+                <DatabaseOutlined /> 磁盘
+              </span>
+            }
+          >
             {info.disk.length === 0 ? (
               <div>无磁盘数据</div>
             ) : (
               info.disk.map((d) => (
                 <div key={d.path} style={{ marginBottom: 12 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <span><b>{d.path}</b> ({d.fs_type})</span>
-                    <span>{fmtBytes(d.used)} / {fmtBytes(d.total)} ({d.used_percent.toFixed(1)}%)</span>
+                    <span>
+                      <b>{d.path}</b> ({d.fs_type})
+                    </span>
+                    <span>
+                      {fmtBytes(d.used)} / {fmtBytes(d.total)} ({d.used_percent.toFixed(1)}%)
+                    </span>
                   </div>
-                  <Progress percent={Number(d.used_percent.toFixed(1))} status={d.used_percent > 90 ? 'exception' : 'normal'} />
+                  <Progress
+                    percent={Number(d.used_percent.toFixed(1))}
+                    status={d.used_percent > 90 ? 'exception' : 'normal'}
+                  />
                 </div>
               ))
             )}
           </PageCard>
         </Col>
         <Col span={12}>
-          <PageCard title={<span><DeploymentUnitOutlined /> 网络</span>} >
+          <PageCard
+            title={
+              <span>
+                <DeploymentUnitOutlined /> 网络
+              </span>
+            }
+          >
             <Row gutter={16}>
               <Col span={12}>
                 <Statistic title="实时接收" value={fmtRate(info.net_recv_rate)} />

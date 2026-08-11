@@ -13,13 +13,13 @@ export class ProfilePage {
 
   // ---- Tabs ----
   profileTab(): Locator {
-    return this.page.locator('.ant-tabs-tab').filter({ hasText: '用户资料' });
+    return this.page.locator('.ant-menu-item').filter({ hasText: '用户资料' });
   }
   passwordTab(): Locator {
-    return this.page.locator('.ant-tabs-tab').filter({ hasText: '修改密码' });
+    return this.page.locator('.ant-menu-item').filter({ hasText: '修改密码' });
   }
   logTab(): Locator {
-    return this.page.locator('.ant-tabs-tab').filter({ hasText: '登录日志' });
+    return this.page.locator('.ant-menu-item').filter({ hasText: '登录日志' });
   }
 
   // ---- Profile form ----

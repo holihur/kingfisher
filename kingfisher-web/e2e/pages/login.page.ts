@@ -7,6 +7,8 @@ export class LoginPage {
   constructor(readonly page: Page) {}
 
   async goto(): Promise<void> {
+    // 页面加载前清掉「记住账户」的已存账户，避免登录页进入"选择账户"视图而找不到登录表单
+    await this.page.addInitScript(() => localStorage.removeItem('kingfisher_accounts'));
     await this.page.goto('/login');
     await this.page.waitForLoadState('networkidle');
   }
@@ -20,7 +22,8 @@ export class LoginPage {
   }
 
   submitButton(): Locator {
-    return this.page.getByRole('button', { name: '登录' });
+    // antd v6 会自动在两个中文之间插空格（"登 录"），用正则容忍
+    return this.page.getByRole('button', { name: /登\s*录/ });
   }
 
   registerLink(): Locator {
