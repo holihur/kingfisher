@@ -80,7 +80,7 @@ code {
   height: 40px;
   transform: translate(-50%, -50%);
   border-radius: 2px;
-  background: transparent;
+  background: rgba(0, 0, 0, 0.2); /* 把手常态可见（浅灰），提示可拖拽 */
   transition: background 0.2s;
 }
 .doc-split-gutter:hover,
