@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   BoldOutlined,
   ItalicOutlined,
@@ -9,8 +9,12 @@ import {
   ClearOutlined,
   UndoOutlined,
   RedoOutlined,
+  LinkOutlined,
+  PictureOutlined,
+  CodeOutlined,
+  MinusOutlined,
 } from '@ant-design/icons';
-import { Button, Divider, Select, Tooltip } from 'antd';
+import { Button, Divider, Input, Modal, Select, Tooltip } from 'antd';
 import {
   $createParagraphNode,
   $getRoot,
@@ -24,13 +28,17 @@ import {
 } from 'lexical';
 import { $setBlocksType } from '@lexical/selection';
 import { HeadingNode, QuoteNode, $createHeadingNode } from '@lexical/rich-text';
+import { CodeNode, $createCodeNode } from '@lexical/code';
 import { INSERT_ORDERED_LIST_COMMAND, INSERT_UNORDERED_LIST_COMMAND, ListNode, ListItemNode } from '@lexical/list';
+import { $createLinkNode, LinkNode } from '@lexical/link';
+import { HorizontalRuleNode, INSERT_HORIZONTAL_RULE_COMMAND } from '@lexical/react/LexicalHorizontalRuleNode';
 import { LexicalComposer } from '@lexical/react/LexicalComposer';
 import { ContentEditable } from '@lexical/react/LexicalContentEditable';
 import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin';
 import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
 import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
 import { ListPlugin } from '@lexical/react/LexicalListPlugin';
+import { LinkPlugin } from '@lexical/react/LexicalLinkPlugin';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { $generateHtmlFromNodes, $generateNodesFromDOM } from '@lexical/html';
 import { useThemeToken } from '../hooks/useThemeToken';
@@ -55,10 +63,46 @@ function $setRootFromHTML(editor: Parameters<typeof $generateNodesFromDOM>[0], h
 function Toolbar() {
   const [editor] = useLexicalComposerContext();
   const token = useThemeToken();
+  // 链接/图片 URL 输入
+  const [urlModal, setUrlModal] = useState<{ open: boolean; type: 'link' | 'image'; url: string }>({
+    open: false,
+    type: 'link',
+    url: '',
+  });
 
   const fmt = (type: Parameters<typeof editor.dispatchCommand>[0], value?: unknown) => (e: React.MouseEvent) => {
     e.preventDefault(); // 避免 blur 丢失选区
     editor.dispatchCommand(type as never, value as never);
+  };
+
+  // 插入链接
+  const insertLink = (url: string) => {
+    editor.update(() => {
+      const selection = $getSelection();
+      if (!$isRangeSelection(selection)) return;
+      const link = $createLinkNode(url);
+      selection.insertNodes([link]);
+    });
+  };
+
+  // 插入图片（URL）：用 DOM → Lexical nodes 生成 <img>
+  const insertImage = (url: string) => {
+    editor.update(() => {
+      const selection = $getSelection();
+      if (!$isRangeSelection(selection)) return;
+      const html = `<p><img src="${url.replace(/"/g, '&quot;')}" alt="image" style="max-width:100%"/></p>`;
+      const dom = new DOMParser().parseFromString(html, 'text/html');
+      const nodes = $generateNodesFromDOM(editor as never, dom);
+      selection.insertNodes(nodes);
+    });
+  };
+
+  const submitUrlModal = () => {
+    const url = urlModal.url.trim();
+    if (!url) return;
+    if (urlModal.type === 'link') insertLink(url);
+    else insertImage(url);
+    setUrlModal({ open: false, type: 'link', url: '' });
   };
 
   return (
@@ -133,6 +177,67 @@ function Toolbar() {
         </Button>
       </Tooltip>
       <Divider orientation="vertical" />
+      {/* 段落对齐：居左 / 居中 / 居右 */}
+      <Select
+        size="small"
+        defaultValue="left"
+        style={{ width: 64, marginRight: 8 }}
+        options={[
+          { value: 'left', label: '居左' },
+          { value: 'center', label: '居中' },
+          { value: 'right', label: '居右' },
+        ]}
+        onMouseDown={(e) => e.preventDefault()}
+        onChange={(v) => {
+          editor.update(() => {
+            const selection = $getSelection();
+            if (!$isRangeSelection(selection)) return;
+            editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, v as 'left' | 'center' | 'right');
+          });
+        }}
+      />
+      <Divider orientation="vertical" />
+      <Tooltip title="插入链接">
+        <Button
+          type="text"
+          size="small"
+          icon={<LinkOutlined />}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            setUrlModal({ open: true, type: 'link', url: '' });
+          }}
+        />
+      </Tooltip>
+      <Tooltip title="插入图片">
+        <Button
+          type="text"
+          size="small"
+          icon={<PictureOutlined />}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            setUrlModal({ open: true, type: 'image', url: '' });
+          }}
+        />
+      </Tooltip>
+      <Tooltip title="代码块">
+        <Button
+          type="text"
+          size="small"
+          icon={<CodeOutlined />}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            editor.update(() => {
+              const selection = $getSelection();
+              if (!$isRangeSelection(selection)) return;
+              $setBlocksType(selection, () => $createCodeNode());
+            });
+          }}
+        />
+      </Tooltip>
+      <Tooltip title="水平分割线">
+        <Button type="text" size="small" icon={<MinusOutlined />} onMouseDown={fmt(INSERT_HORIZONTAL_RULE_COMMAND)} />
+      </Tooltip>
+      <Divider orientation="vertical" />
       <Tooltip title="撤销">
         <Button type="text" size="small" icon={<UndoOutlined />} onMouseDown={fmt(UNDO_COMMAND)} />
       </Tooltip>
@@ -142,6 +247,24 @@ function Toolbar() {
       <Tooltip title="清除格式">
         <Button type="text" size="small" icon={<ClearOutlined />} onMouseDown={fmt(FORMAT_TEXT_COMMAND, 'clear')} />
       </Tooltip>
+      {/* 链接/图片 URL 输入 */}
+      <Modal
+        open={urlModal.open}
+        title={urlModal.type === 'link' ? '插入链接' : '插入图片'}
+        okText="确定"
+        cancelText="取消"
+        onOk={submitUrlModal}
+        onCancel={() => setUrlModal({ open: false, type: 'link', url: '' })}
+        destroyOnHidden
+      >
+        <Input
+          placeholder={urlModal.type === 'link' ? 'https://example.com' : '图片 URL'}
+          value={urlModal.url}
+          onChange={(e) => setUrlModal((s) => ({ ...s, url: e.target.value }))}
+          onPressEnter={submitUrlModal}
+          autoFocus
+        />
+      </Modal>
     </div>
   );
 }
@@ -199,7 +322,7 @@ const LexicalEditor: React.FC<LexicalEditorProps> = ({ value, onChange, placehol
   const initialConfig = {
     namespace: 'doc-editor',
     onError: (error: Error) => console.error('[Lexical]', error),
-    nodes: [HeadingNode, QuoteNode, ListNode, ListItemNode],
+    nodes: [HeadingNode, QuoteNode, ListNode, ListItemNode, CodeNode, LinkNode, HorizontalRuleNode],
     // HTML → Lexical（打开文档时导入）
     editorState: (editor: Parameters<typeof $generateNodesFromDOM>[0]) => {
       $setRootFromHTML(editor, valueRef.current);
@@ -239,6 +362,7 @@ const LexicalEditor: React.FC<LexicalEditorProps> = ({ value, onChange, placehol
         </div>
         <HistoryPlugin />
         <ListPlugin />
+        <LinkPlugin />
         <HtmlExporter onHtml={handleHtml} />
       </LexicalComposer>
     </div>
