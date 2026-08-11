@@ -9,6 +9,7 @@ import { resolveComponent } from './menuComponents';
 
 // 路由级懒加载：按页面分包
 const LoginPage = lazy(() => import('../pages/login'));
+const DashboardPage = lazy(() => import('../pages/dashboard'));
 const NotFound = lazy(() => import('../pages/error/NotFound'));
 const Forbidden = lazy(() => import('../pages/error/Forbidden'));
 const Profile = lazy(() => import('../pages/profile'));
@@ -116,7 +117,12 @@ function AppRoutes() {
     }
   }, [token, menuTree.length, menuLoaded, fetchMenus]);
 
-  const menuRoutes = useMemo(() => buildMenuRoutes(menuTree as MenuNode[]), [menuTree]);
+  // 菜单动态路由（过滤 /dashboard：首页由下方静态路由统一提供，不依赖菜单树加载，
+  // 后端 502/宕机导致菜单拉取失败时 /dashboard 仍可达，错误页"返回首页"可用）
+  const menuRoutes = useMemo(
+    () => buildMenuRoutes(menuTree as MenuNode[]).filter((r) => r.path !== '/dashboard'),
+    [menuTree],
+  );
 
   // 菜单未加载时（首屏刷新），展示 loading 等待菜单树
   const routeElement = useRoutes([
@@ -134,6 +140,8 @@ function AppRoutes() {
       ),
       children: [
         { path: 'profile', element: <Lazy><Profile /></Lazy> },
+        // 首页固定路由：始终存在，保证任何情况下"返回首页"都有效
+        { path: 'dashboard', element: <Lazy><DashboardPage /></Lazy> },
         ...menuRoutes,
         { index: true, element: <Navigate to="/dashboard" replace /> },
       ],

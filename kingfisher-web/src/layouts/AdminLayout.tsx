@@ -156,6 +156,8 @@ const AdminLayout: React.FC = () => {
           styles={{ body: { padding: 0, background: sidebarBg } }}
         >
           <div
+            onClick={() => navigate('/dashboard')}
+            title="返回首页"
             style={{
               height: 64,
               display: 'flex',
@@ -165,6 +167,7 @@ const AdminLayout: React.FC = () => {
               color: sidebarTextColor,
               fontSize: 18,
               fontWeight: 'bold',
+              cursor: 'pointer',
               borderBottom: `1px solid ${sidebarBorderColor}`,
             }}
           >
@@ -182,6 +185,8 @@ const AdminLayout: React.FC = () => {
       ) : (
         <Layout.Sider collapsible collapsed={collapsed} onCollapse={setCollapsed} theme={theme === 'dark' ? 'dark' : 'light'} width={220}>
           <div
+            onClick={() => navigate('/dashboard')}
+            title="返回首页"
             style={{
               height: 64,
               display: 'flex',
@@ -191,6 +196,7 @@ const AdminLayout: React.FC = () => {
               color: sidebarTextColor,
               fontSize: collapsed ? 22 : 18,
               fontWeight: 'bold',
+              cursor: 'pointer',
               borderBottom: `1px solid ${sidebarBorderColor}`,
             }}
           >

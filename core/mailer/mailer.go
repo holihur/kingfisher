@@ -52,7 +52,7 @@ func (m *Mailer) Send(to, subject, body string) error {
 		return fmt.Errorf("smtp dial: %w", err)
 	}
 	defer func() { _ = client.Close() }()
-	if err := client.StartTLS(&tls.Config{ServerName: m.cfg.Host, InsecureSkipVerify: false}); err != nil {
+	if err := client.StartTLS(&tls.Config{ServerName: m.cfg.Host, InsecureSkipVerify: false, MinVersion: tls.VersionTLS12}); err != nil {
 		return fmt.Errorf("smtp starttls: %w", err)
 	}
 	if err := client.Auth(auth); err != nil {
@@ -82,7 +82,7 @@ func sendSSL(addr string, cfg config.SMTPConfig, auth smtp.Auth, to, msg string)
 	// 带超时的 TLS 拨号：用 DialContext 替代 tls.Dial（noctx 合规且确有超时保障）
 	dialer := &tls.Dialer{
 		NetDialer: &net.Dialer{Timeout: 10 * time.Second},
-		Config:    &tls.Config{ServerName: cfg.Host, InsecureSkipVerify: false},
+		Config:    &tls.Config{ServerName: cfg.Host, InsecureSkipVerify: false, MinVersion: tls.VersionTLS12},
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
