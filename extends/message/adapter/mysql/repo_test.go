@@ -46,8 +46,12 @@ func parseMessageQuery(t *testing.T, raw string) *query.Query {
 }
 
 func seedMessage(t *testing.T, repo *MessageRepo, recipientID uint, title string) uint {
+	return seedMessageBatch(t, repo, recipientID, title, 0)
+}
+
+func seedMessageBatch(t *testing.T, repo *MessageRepo, recipientID uint, title string, batchID int64) uint {
 	t.Helper()
-	m := &domain.Message{SenderID: 1, SenderType: "admin", RecipientID: recipientID, Title: title, Content: "c", Status: "sent"}
+	m := &domain.Message{SenderID: 1, SenderType: "admin", RecipientID: recipientID, BatchID: batchID, Title: title, Content: "c", Status: "sent"}
 	if err := repo.Create(context.Background(), m); err != nil {
 		t.Fatal(err)
 	}
@@ -60,17 +64,20 @@ func TestMessageRevokedExcludedFromUnread(t *testing.T) {
 	repo := NewMessageRepo(newMessageTestDB(t))
 	ctx := context.Background()
 
-	id1 := seedMessage(t, repo, 1, "待撤回")
+	// 同一批次 100 发给两个人
+	id1 := seedMessageBatch(t, repo, 1, "待撤回", 100)
+	id2 := seedMessageBatch(t, repo, 2, "待撤回", 100)
 	seedMessage(t, repo, 1, "正常")
 
 	if n, _ := repo.CountUnread(ctx, 1); n != 2 {
 		t.Fatalf("初始未读应为 2，got %d", n)
 	}
 
-	// 撤回 id1（发送者本人）
-	if err := repo.Revoke(ctx, id1, 1); err != nil {
-		t.Fatalf("revoke: %v", err)
+	// 撤回批次 100（发送者本人）
+	if err := repo.RevokeBatch(ctx, 100, 1); err != nil {
+		t.Fatalf("revoke batch: %v", err)
 	}
+	_ = id2
 
 	// 未读数排除撤回
 	if n, _ := repo.CountUnread(ctx, 1); n != 1 {

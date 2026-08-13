@@ -40,6 +40,8 @@ func (m *MessageModule) RegisterProtected(r *gin.RouterGroup) {
 	msgs := r.Group("/messages")
 	msgs.POST("", rbacTransport.RequirePerm("message:create"), m.handler.Send)
 	msgs.GET("", rbacTransport.RequirePerm("message:list"), m.handler.ListSent)
+	msgs.GET("/batch/:batchId", rbacTransport.RequirePerm("message:list"), m.handler.ListBatchMessages)
+	msgs.PUT("/batch/:batchId/revoke", rbacTransport.RequirePerm("message:update"), m.handler.RevokeBatch)
 	msgs.PUT("/:id/revoke", rbacTransport.RequirePerm("message:update"), m.handler.Revoke)
 
 	// 个人收件箱

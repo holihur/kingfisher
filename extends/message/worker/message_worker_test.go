@@ -34,8 +34,17 @@ func (f *fakeMessageRepo) MarkRead(ctx context.Context, id, recipientID uint) er
 func (f *fakeMessageRepo) ListBySender(ctx context.Context, senderID uint, q *query.Query) ([]domain.Message, int64, error) {
 	return nil, 0, errors.New("not implemented")
 }
+func (f *fakeMessageRepo) ListSentBatches(ctx context.Context, senderID uint, q *query.Query) ([]domain.MessageBatch, int64, error) {
+	return nil, 0, errors.New("not implemented")
+}
 func (f *fakeMessageRepo) Revoke(ctx context.Context, id, senderID uint) error {
 	return errors.New("not implemented")
+}
+func (f *fakeMessageRepo) RevokeBatch(ctx context.Context, batchID, senderID uint) error {
+	return errors.New("not implemented")
+}
+func (f *fakeMessageRepo) ListBatchMessages(ctx context.Context, batchID, senderID uint) ([]domain.Message, error) {
+	return nil, errors.New("not implemented")
 }
 func (f *fakeMessageRepo) DeleteBatch(ctx context.Context, ids []uint, recipientID uint) error {
 	return errors.New("not implemented")

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Form, Input, Select, Button, App, Tag, Modal } from 'antd';
+import { Form, Input, Select, Button, App, Tag, Modal, Spin } from 'antd';
 import { SendOutlined, RollbackOutlined } from '@ant-design/icons';
 import DataTable from '../../components/DataTable';
 import { userApi } from '../../api/user';
@@ -11,13 +11,28 @@ interface UserOption {
   value: number;
 }
 
+/** 管理端按批次聚合的一条已发送记录 */
 interface SentRow {
+  batch_id: number;
+  title: string;
+  content?: string;
+  recipient_count: number;
+  recipient_names?: string;
+  status: 'sent' | 'partial' | 'revoked';
+  read_count?: number;
+  unread_count?: number;
+  created_at: string;
+}
+
+/** 批次详情里单条消息（逐收件人） */
+interface BatchMsg {
   id: number;
   recipient_id: number;
   recipient_name?: string;
   title: string;
   content?: string;
   status: 'sent' | 'revoked';
+  is_read: boolean;
   created_at: string;
 }
 
@@ -29,8 +44,35 @@ const MessageManage: React.FC = () => {
   const [searching, setSearching] = useState(false);
   const [sending, setSending] = useState(false);
   const [sendOpen, setSendOpen] = useState(false);
-  const [detail, setDetail] = useState<SentRow | null>(null);
+  const [detail, setDetail] = useState<{ batch: SentRow; msgs: BatchMsg[]; loading: boolean } | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+
+  // 打开批次详情：拉取该批次逐收件人消息
+  const openDetail = async (row: SentRow) => {
+    setDetail({ batch: row, msgs: [], loading: true });
+    try {
+      const r = await messageApi.listBatchMessages(row.batch_id);
+      setDetail({ batch: row, msgs: (r.data as BatchMsg[]) || [], loading: false });
+    } catch {
+      setDetail({ batch: row, msgs: [], loading: false });
+    }
+  };
+
+  // 批次详情里对单个收件人撤回
+  const handleRevokeOne = (msg: BatchMsg) => {
+    modal.confirm({
+      title: `撤回发给「${msg.recipient_name || msg.recipient_id}」的消息？`,
+      content: '撤回后该收件人将无法再看到。',
+      okText: '撤回',
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        await messageApi.revoke(msg.id);
+        message.success('已撤回');
+        setDetail((d) => (d ? { ...d, msgs: d.msgs.map((m) => (m.id === msg.id ? { ...m, status: 'revoked' } : m)) } : d));
+        setRefreshKey((k) => k + 1);
+      },
+    });
+  };
 
   // 远程搜索收件人（按 username/nickname 模糊匹配，避免一次性拉全量用户）
   const searchUsers = async (keyword?: string) => {
@@ -82,7 +124,7 @@ const MessageManage: React.FC = () => {
       okText: '撤回',
       okButtonProps: { danger: true },
       onOk: async () => {
-        await messageApi.revoke(row.id);
+        await messageApi.revokeBatch(row.batch_id);
         message.success('已撤回');
         setRefreshKey((k) => k + 1);
       },
@@ -109,7 +151,7 @@ const MessageManage: React.FC = () => {
           };
         }}
         columns={[
-          { title: 'ID', dataIndex: 'id', width: 60 },
+          { title: 'ID', dataIndex: 'batch_id', width: 90, render: (v: number) => `#${v}` },
           { title: '标题', dataIndex: 'title', ellipsis: true },
           {
             title: '内容',
@@ -119,15 +161,28 @@ const MessageManage: React.FC = () => {
           },
           {
             title: '收件人',
-            dataIndex: 'recipient_name',
-            width: 120,
-            render: (v: string | undefined, row: SentRow) => v || `#${row.recipient_id}`,
+            dataIndex: 'recipient_names',
+            ellipsis: true,
+            render: (v: string, row: SentRow) => (v ? `${v}（${row.recipient_count}人）` : `${row.recipient_count}人`),
+          },
+          {
+            title: '已读',
+            dataIndex: 'read_count',
+            width: 80,
+            render: (v: number, row: SentRow) => `${v || 0}/${(row.read_count || 0) + (row.unread_count || 0)}`,
           },
           {
             title: '状态',
             dataIndex: 'status',
-            width: 90,
-            render: (v: string) => (v === 'revoked' ? <Tag color="red">已撤回</Tag> : <Tag color="green">已发送</Tag>),
+            width: 100,
+            render: (v: string) =>
+              v === 'revoked' ? (
+                <Tag color="red">已撤回</Tag>
+              ) : v === 'partial' ? (
+                <Tag color="orange">部分撤回</Tag>
+              ) : (
+                <Tag color="green">已发送</Tag>
+              ),
           },
           {
             title: '时间',
@@ -141,7 +196,7 @@ const MessageManage: React.FC = () => {
             width: 120,
             render: (_: unknown, row: SentRow) => (
               <>
-                <a onClick={() => setDetail(row)}>查看</a>
+                <a onClick={() => void openDetail(row)}>查看</a>
                 {row.status === 'revoked' ? (
                   <span style={{ color: 'rgba(0,0,0,0.25)', marginLeft: 8 }}>已撤回</span>
                 ) : (
@@ -155,38 +210,65 @@ const MessageManage: React.FC = () => {
         ]}
       />
 
-      {/* 详情弹窗 */}
+      {/* 批次详情弹窗：批次摘要 + 逐收件人列表（可单个撤回） */}
       <Modal
         open={detail !== null}
-        title="站内信详情"
+        title="批次详情"
         footer={null}
         onCancel={() => setDetail(null)}
-        width={520}
+        width={620}
         destroyOnHidden
       >
         {detail && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div>
               <div style={{ color: 'rgba(0,0,0,0.45)', fontSize: 12 }}>标题</div>
-              <div style={{ fontWeight: 600, fontSize: 16 }}>{detail.title}</div>
-            </div>
-            <div>
-              <div style={{ color: 'rgba(0,0,0,0.45)', fontSize: 12 }}>收件人</div>
-              <div>{detail.recipient_name || `#${detail.recipient_id}`}</div>
-            </div>
-            <div>
-              <div style={{ color: 'rgba(0,0,0,0.45)', fontSize: 12 }}>状态</div>
-              <div>
-                {detail.status === 'revoked' ? <Tag color="red">已撤回</Tag> : <Tag color="green">已发送</Tag>}
-              </div>
-            </div>
-            <div>
-              <div style={{ color: 'rgba(0,0,0,0.45)', fontSize: 12 }}>发送时间</div>
-              <div>{formatTime(detail.created_at)}</div>
+              <div style={{ fontWeight: 600, fontSize: 16 }}>{detail.batch.title}</div>
             </div>
             <div>
               <div style={{ color: 'rgba(0,0,0,0.45)', fontSize: 12 }}>内容</div>
-              <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{detail.content || '-'}</div>
+              <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{detail.batch.content || '-'}</div>
+            </div>
+            <div>
+              <div style={{ color: 'rgba(0,0,0,0.45)', fontSize: 12, marginBottom: 4 }}>
+                收件人明细（{detail.msgs.length}人）
+              </div>
+              <Spin spinning={detail.loading}>
+                {detail.msgs.length === 0 && !detail.loading ? (
+                  <div style={{ color: 'rgba(0,0,0,0.25)' }}>暂无明细</div>
+                ) : (
+                  <div style={{ border: '1px solid rgba(0,0,0,0.06)', borderRadius: 6 }}>
+                    {detail.msgs.map((m) => (
+                      <div
+                        key={m.id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '8px 12px',
+                          borderBottom: '1px solid rgba(0,0,0,0.06)',
+                        }}
+                      >
+                        <span>
+                          {m.recipient_name || `#${m.recipient_id}`}
+                          {m.status === 'revoked' ? (
+                            <Tag color="red" style={{ marginLeft: 8 }}>已撤回</Tag>
+                          ) : m.is_read ? (
+                            <Tag style={{ marginLeft: 8 }}>已读</Tag>
+                          ) : (
+                            <Tag color="blue" style={{ marginLeft: 8 }}>未读</Tag>
+                          )}
+                        </span>
+                        {m.status !== 'revoked' && (
+                          <a style={{ color: 'red' }} onClick={() => handleRevokeOne(m)}>
+                            撤回
+                          </a>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Spin>
             </div>
           </div>
         )}

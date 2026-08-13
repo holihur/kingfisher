@@ -5,6 +5,8 @@ export const messageApi = {
   send: (data: { recipient_ids: number[]; title: string; content?: string }) =>
     request.post('/messages', data),
   listSent: (params: Record<string, unknown>) => request.get('/messages', { params }),
+  listBatchMessages: (batchId: number) => request.get(`/messages/batch/${batchId}`),
+  revokeBatch: (batchId: number) => request.put(`/messages/batch/${batchId}/revoke`),
   revoke: (id: number) => request.put(`/messages/${id}/revoke`),
   // 个人收件箱
   list: (params: Record<string, unknown>) => request.get('/me/messages', { params }),

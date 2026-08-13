@@ -182,13 +182,15 @@ type MessagePO struct {
 	SenderID    uint   `gorm:"index"`
 	SenderType  string `gorm:"size:16;default:admin"` // admin | system
 	RecipientID uint   `gorm:"index;not null"`
-	Title       string `gorm:"size:128;not null"`
-	Content     string `gorm:"type:text"`
-	Status      string `gorm:"size:16;default:sent"` // draft | sent
-	IsRead      bool   `gorm:"default:false;index"`
-	ReadAt      *time.Time
-	CreatedAt   time.Time `gorm:"index"`
-	UpdatedAt   time.Time
+	// BatchID 同一次发送的批次号（同一批收件人共用；0 = 未分组的历史数据）
+	BatchID   int64  `gorm:"index;default:0"`
+	Title     string `gorm:"size:128;not null"`
+	Content   string `gorm:"type:text"`
+	Status    string `gorm:"size:16;default:sent"` // draft | sent | revoked
+	IsRead    bool   `gorm:"default:false;index"`
+	ReadAt    *time.Time
+	CreatedAt time.Time `gorm:"index"`
+	UpdatedAt time.Time
 }
 
 func (MessagePO) TableName() string { return "messages" }

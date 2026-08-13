@@ -66,8 +66,45 @@ func (h *MessageHandler) ListSent(c *gin.Context) {
 	response.PageJSON(c, messages, total, pq.Page, pq.PageSize)
 }
 
-// Revoke 撤回已发送站内信（仅发送者本人）
-// @Summary 撤回站内信
+// RevokeBatch 撤回整批已发送站内信（仅发送者本人）
+// @Summary 撤回整批站内信
+// @Tags Message
+// @Security BearerAuth
+// @Router /messages/batch/:batchId/revoke [put]
+func (h *MessageHandler) RevokeBatch(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("batchId"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "invalid batch id")
+		return
+	}
+	if err := h.svc.RevokeBatch(c.Request.Context(), uint(id), c.GetUint("user_id")); err != nil {
+		response.InternalError(c)
+		return
+	}
+	response.OKJSON(c, nil)
+}
+
+// ListBatchMessages 批次详情：逐收件人的消息（管理端）
+// @Summary 批次详情
+// @Tags Message
+// @Security BearerAuth
+// @Router /messages/batch/:batchId [get]
+func (h *MessageHandler) ListBatchMessages(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("batchId"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "invalid batch id")
+		return
+	}
+	msgs, err := h.svc.ListBatchMessages(c.Request.Context(), uint(id), c.GetUint("user_id"))
+	if err != nil {
+		response.InternalError(c)
+		return
+	}
+	response.OKJSON(c, msgs)
+}
+
+// Revoke 撤回单条（批次详情里对单个收件人撤回）
+// @Summary 撤回单条站内信
 // @Tags Message
 // @Security BearerAuth
 // @Router /messages/:id/revoke [put]

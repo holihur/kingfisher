@@ -7,6 +7,7 @@ type messagePO struct {
 	SenderID    uint
 	SenderType  string
 	RecipientID uint
+	BatchID     int64
 	Title       string
 	Content     string
 	Status      string

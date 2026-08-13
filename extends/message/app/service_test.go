@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"kingfisher/core/query"
 	"kingfisher/extends/message/domain"
@@ -64,6 +65,46 @@ func (m *mockMessageRepo) ListBySender(ctx context.Context, senderID uint, q *qu
 	return out, int64(len(out)), nil
 }
 
+func (m *mockMessageRepo) ListSentBatches(ctx context.Context, senderID uint, q *query.Query) ([]domain.MessageBatch, int64, error) {
+	// 简单按 batch_id 聚合（测试用）
+	byBatch := map[int64]*domain.MessageBatch{}
+	for _, v := range m.msgs {
+		if v.SenderID != senderID {
+			continue
+		}
+		b := byBatch[v.BatchID]
+		if b == nil {
+			b = &domain.MessageBatch{BatchID: v.BatchID, Title: v.Title, Content: v.Content, CreatedAt: v.CreatedAt.Format(time.RFC3339)}
+			byBatch[v.BatchID] = b
+		}
+		b.RecipientCount++
+		if b.Status != "revoked" && v.Status == "revoked" {
+			b.Status = "revoked"
+		} else if b.Status == "" {
+			b.Status = v.Status
+		}
+	}
+	out := make([]domain.MessageBatch, 0, len(byBatch))
+	for _, b := range byBatch {
+		out = append(out, *b)
+	}
+	return out, int64(len(out)), nil
+}
+
+func (m *mockMessageRepo) RevokeBatch(ctx context.Context, batchID, senderID uint) error {
+	found := false
+	for _, v := range m.msgs {
+		if uint(v.BatchID) == batchID && v.SenderID == senderID {
+			v.Status = "revoked"
+			found = true
+		}
+	}
+	if !found {
+		return errMsgNotFound
+	}
+	return nil
+}
+
 func (m *mockMessageRepo) Revoke(ctx context.Context, id, senderID uint) error {
 	v, ok := m.msgs[id]
 	if !ok || v.SenderID != senderID {
@@ -71,6 +112,16 @@ func (m *mockMessageRepo) Revoke(ctx context.Context, id, senderID uint) error {
 	}
 	v.Status = "revoked"
 	return nil
+}
+
+func (m *mockMessageRepo) ListBatchMessages(ctx context.Context, batchID, senderID uint) ([]domain.Message, error) {
+	var out []domain.Message
+	for _, v := range m.msgs {
+		if uint(v.BatchID) == batchID && v.SenderID == senderID {
+			out = append(out, *v)
+		}
+	}
+	return out, nil
 }
 
 func (m *mockMessageRepo) Delete(ctx context.Context, id, recipientID uint) error {
