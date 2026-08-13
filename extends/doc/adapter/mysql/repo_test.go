@@ -33,18 +33,14 @@ func newTestRepo(t *testing.T) (*DocRepo, *gorm.DB) {
 
 func seedVisibleData(t *testing.T, db *gorm.DB) {
 	t.Helper()
-	// 目录：1 全角色可见(1,3,4)；2 仅 admin(1)
-	db.Create(&docDirectoryPO{ID: 1, ParentID: 0, Name: "公开目录", Sort: 1})
-	db.Create(&docDirectoryPO{ID: 2, ParentID: 0, Name: "受限目录", Sort: 2})
-	db.Create(&docDirRolePO{DirID: 1, RoleID: 1})
-	db.Create(&docDirRolePO{DirID: 1, RoleID: 3})
-	db.Create(&docDirRolePO{DirID: 1, RoleID: 4})
-	db.Create(&docDirRolePO{DirID: 2, RoleID: 1})
+	// 目录：1 shared（所有人可见）；2 private（仅 admin）
+	db.Create(&docDirectoryPO{ID: 1, ParentID: 0, Name: "公开目录", Sort: 1, Visibility: "shared"})
+	db.Create(&docDirectoryPO{ID: 2, ParentID: 0, Name: "私有目录", Sort: 2, Visibility: "private"})
 	// 文档：doc1 已发布共享；doc2 草稿（作者 2）；doc3 private 已发布（作者 2）
 	db.Create(&documentPO{ID: 1, DirID: 1, Title: "已发布共享", Content: "c1", OwnerID: 1, Visibility: "shared", Status: "published", CurrentVersion: 1})
 	db.Create(&documentPO{ID: 2, DirID: 1, Title: "草稿", Content: "c2", OwnerID: 2, Visibility: "shared", Status: "draft", CurrentVersion: 1})
 	db.Create(&documentPO{ID: 3, DirID: 1, Title: "私有", Content: "c3", OwnerID: 2, Visibility: "private", Status: "published", CurrentVersion: 1})
-	db.Create(&documentPO{ID: 4, DirID: 2, Title: "受限目录文档", Content: "c4", OwnerID: 1, Visibility: "shared", Status: "published", CurrentVersion: 1})
+	db.Create(&documentPO{ID: 4, DirID: 2, Title: "私有目录文档", Content: "c4", OwnerID: 1, Visibility: "shared", Status: "published", CurrentVersion: 1})
 }
 
 func TestVisibleScope(t *testing.T) {
@@ -158,27 +154,25 @@ func TestCreateUpdateVersionAndConflict(t *testing.T) {
 	}
 }
 
-func TestSetDirRolesReplaces(t *testing.T) {
+func TestListAllPublicDocs(t *testing.T) {
 	repo, db := newTestRepo(t)
 	seedVisibleData(t, db)
 	ctx := context.Background()
 
-	if err := repo.SetDirRoles(ctx, 1, []uint{1, 3}); err != nil {
-		t.Fatalf("set roles: %v", err)
-	}
-	ids, err := repo.GetDirRoleIDs(ctx, 1)
+	docs, err := repo.ListAllPublicDocs(ctx)
 	if err != nil {
-		t.Fatalf("get roles: %v", err)
+		t.Fatalf("list public docs: %v", err)
 	}
-	if len(ids) != 2 {
-		t.Fatalf("应只剩 2 个角色，got %v", ids)
+	// 公开文档 = published + shared：只有 doc1（doc4 在 private 目录但公开文档查询不含目录条件，
+	// 目录是否公开由 service 层 filterPublicTree 裁剪）
+	if len(docs) != 2 {
+		t.Fatalf("公开文档应为 doc1+doc4 共 2 篇，got %d: %+v", len(docs), docs)
 	}
-	// 清空 = 全量替换为空
-	if err := repo.SetDirRoles(ctx, 1, []uint{}); err != nil {
-		t.Fatalf("clear roles: %v", err)
+	titles := map[string]bool{}
+	for _, d := range docs {
+		titles[d.Title] = true
 	}
-	ids2, _ := repo.GetDirRoleIDs(ctx, 1)
-	if len(ids2) != 0 {
-		t.Fatalf("清空后应无角色，got %v", ids2)
+	if !titles["已发布共享"] || !titles["私有目录文档"] {
+		t.Fatalf("公开文档标题不符，got %+v", titles)
 	}
 }

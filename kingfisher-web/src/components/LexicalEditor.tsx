@@ -1,285 +1,88 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  BoldOutlined,
-  ItalicOutlined,
-  UnderlineOutlined,
-  StrikethroughOutlined,
-  OrderedListOutlined,
-  UnorderedListOutlined,
-  ClearOutlined,
-  UndoOutlined,
-  RedoOutlined,
-  LinkOutlined,
-  PictureOutlined,
-  CodeOutlined,
-  MinusOutlined,
-} from '@ant-design/icons';
-import { Button, Divider, Input, Modal, Select, Tooltip } from 'antd';
-import {
-  $createParagraphNode,
-  $getRoot,
-  $getSelection,
-  $isRangeSelection,
-  EditorState,
-  FORMAT_ELEMENT_COMMAND,
-  FORMAT_TEXT_COMMAND,
-  REDO_COMMAND,
-  UNDO_COMMAND,
-} from 'lexical';
-import { $setBlocksType } from '@lexical/selection';
-import { HeadingNode, QuoteNode, $createHeadingNode } from '@lexical/rich-text';
-import { CodeNode, $createCodeNode } from '@lexical/code';
-import { INSERT_ORDERED_LIST_COMMAND, INSERT_UNORDERED_LIST_COMMAND, ListNode, ListItemNode } from '@lexical/list';
-import { $createLinkNode, LinkNode } from '@lexical/link';
-import { HorizontalRuleNode, INSERT_HORIZONTAL_RULE_COMMAND } from '@lexical/react/LexicalHorizontalRuleNode';
+import type { EditorState } from 'lexical';
+import { HeadingNode, QuoteNode } from '@lexical/rich-text';
+import { CodeNode, CodeHighlightNode, registerCodeHighlighting } from '@lexical/code';
+import { ListNode, ListItemNode } from '@lexical/list';
+import { LinkNode } from '@lexical/link';
+import { HorizontalRuleNode } from '@lexical/react/LexicalHorizontalRuleNode';
+import { TableNode, TableRowNode, TableCellNode } from '@lexical/table';
 import { LexicalComposer } from '@lexical/react/LexicalComposer';
 import { ContentEditable } from '@lexical/react/LexicalContentEditable';
-import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin';
+import { HistoryPlugin, createEmptyHistoryState } from '@lexical/react/LexicalHistoryPlugin';
 import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
 import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
 import { ListPlugin } from '@lexical/react/LexicalListPlugin';
 import { LinkPlugin } from '@lexical/react/LexicalLinkPlugin';
+import { MarkdownShortcutPlugin, DEFAULT_TRANSFORMERS } from '@lexical/react/LexicalMarkdownShortcutPlugin';
+import { CheckListPlugin } from '@lexical/react/LexicalCheckListPlugin';
+import { TablePlugin } from '@lexical/react/LexicalTablePlugin';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
-import { $generateHtmlFromNodes, $generateNodesFromDOM } from '@lexical/html';
 import { useThemeToken } from '../hooks/useThemeToken';
+import { CalloutNode, ToggleNode } from './lexical/blocks';
+import { ImageNode } from './lexical/ImageNode';
+import { SlashMenuPlugin } from './lexical/SlashMenuPlugin';
+import { FloatingFormatToolbar } from './lexical/FloatingFormatToolbar';
+import { DraggableBlocks } from './lexical/DraggableBlocks';
+import { ToolbarPlugin } from './lexical/ToolbarPlugin';
+import { TableActionMenuPlugin } from './lexical/TableActionMenuPlugin';
 
 interface LexicalEditorProps {
-  value: string; // HTML 内容（编辑时导入，变更时导出）
-  onChange: (html: string) => void;
+  value: string; // Lexical editorState JSON（编辑时导入，变更时导出）
+  onChange: (json: string) => void;
   placeholder?: string;
   minHeight?: number;
 }
 
-/** 用 HTML 字符串初始化/重置 Lexical 根节点 */
-function $setRootFromHTML(editor: Parameters<typeof $generateNodesFromDOM>[0], html: string) {
-  const dom = new DOMParser().parseFromString(html || '<p></p>', 'text/html');
-  const nodes = $generateNodesFromDOM(editor as never, dom);
-  const root = $getRoot();
-  root.clear();
-  root.append(...nodes);
+/** 空文档的 serialized editorState（根下挂一个空段落，避免 parseEditorState 对空根抛错） */
+const EMPTY_STATE_JSON =
+  '{"root":{"type":"root","direction":null,"format":"","indent":0,"version":1,"children":[{"type":"paragraph","version":1,"children":[]}]}}';
+
+/** 递归补齐序列化时被省略的默认字段：0.49 的 exportJSON 省略 direction(null)/indent(0)，
+ *  import 端不回填，直接渲染会产出 dir="undefined" / calc(undefined * …)。 */
+function normalizeElementDefaults(json: unknown): unknown {
+  if (Array.isArray(json)) {
+    json.forEach(normalizeElementDefaults);
+    return json;
+  }
+  if (json && typeof json === 'object') {
+    const node = json as Record<string, any>;
+    if (Array.isArray(node.children)) {
+      if (node.direction === undefined) node.direction = null;
+      if (node.indent === undefined) node.indent = 0;
+      node.children.forEach(normalizeElementDefaults);
+    }
+  }
+  return json;
 }
 
-/** antd 风格工具栏 + 变更导出（放在 LexicalComposer 内以访问 editor） */
-function Toolbar() {
+/** 校验 value 是否为合法 editorState JSON；非法（空/旧数据）时回退为空文档 */
+const resolveInitialState = (value: string): string => {
+  const trimmed = (value || '').trim();
+  if (trimmed.startsWith('{')) {
+    try {
+      return JSON.stringify(normalizeElementDefaults(JSON.parse(trimmed)));
+    } catch {
+      /* 落到空文档兜底 */
+    }
+  }
+  return EMPTY_STATE_JSON;
+};
+
+/** 代码语法高亮（@lexical/code 的 Prism 注册） */
+function CodeHighlightPlugin() {
   const [editor] = useLexicalComposerContext();
-  const token = useThemeToken();
-  // 链接/图片 URL 输入
-  const [urlModal, setUrlModal] = useState<{ open: boolean; type: 'link' | 'image'; url: string }>({
-    open: false,
-    type: 'link',
-    url: '',
-  });
-
-  const fmt = (type: Parameters<typeof editor.dispatchCommand>[0], value?: unknown) => (e: React.MouseEvent) => {
-    e.preventDefault(); // 避免 blur 丢失选区
-    editor.dispatchCommand(type as never, value as never);
-  };
-
-  // 插入链接
-  const insertLink = (url: string) => {
-    editor.update(() => {
-      const selection = $getSelection();
-      if (!$isRangeSelection(selection)) return;
-      const link = $createLinkNode(url);
-      selection.insertNodes([link]);
-    });
-  };
-
-  // 插入图片（URL）：用 DOM → Lexical nodes 生成 <img>
-  const insertImage = (url: string) => {
-    editor.update(() => {
-      const selection = $getSelection();
-      if (!$isRangeSelection(selection)) return;
-      const html = `<p><img src="${url.replace(/"/g, '&quot;')}" alt="image" style="max-width:100%"/></p>`;
-      const dom = new DOMParser().parseFromString(html, 'text/html');
-      const nodes = $generateNodesFromDOM(editor as never, dom);
-      selection.insertNodes(nodes);
-    });
-  };
-
-  const submitUrlModal = () => {
-    const url = urlModal.url.trim();
-    if (!url) return;
-    if (urlModal.type === 'link') insertLink(url);
-    else insertImage(url);
-    setUrlModal({ open: false, type: 'link', url: '' });
-  };
-
-  return (
-    <div className="lex-toolbar" style={{ borderBottom: `1px solid ${token.colorBorder}` }}>
-      <Select
-        size="small"
-        defaultValue="paragraph"
-        style={{ width: 84, marginRight: 8 }}
-        options={[
-          { value: 'paragraph', label: '段落' },
-          { value: 'h1', label: '标题 1' },
-          { value: 'h2', label: '标题 2' },
-          { value: 'h3', label: '标题 3' },
-        ]}
-        onMouseDown={(e) => e.preventDefault()}
-        onChange={(v) => {
-          editor.update(() => {
-            const selection = $getSelection();
-            if (!$isRangeSelection(selection)) return;
-            if (v === 'paragraph') {
-              $setBlocksType(selection, () => $createParagraphNode());
-            } else {
-              const level = Number(v.replace('h', '')) as 1 | 2 | 3;
-              $setBlocksType(selection, () => $createHeadingNode(`h${level}`));
-            }
-          });
-        }}
-      />
-      <Divider orientation="vertical" />
-      <Tooltip title="加粗">
-        <Button type="text" size="small" icon={<BoldOutlined />} onMouseDown={fmt(FORMAT_TEXT_COMMAND, 'bold')} />
-      </Tooltip>
-      <Tooltip title="斜体">
-        <Button type="text" size="small" icon={<ItalicOutlined />} onMouseDown={fmt(FORMAT_TEXT_COMMAND, 'italic')} />
-      </Tooltip>
-      <Tooltip title="下划线">
-        <Button
-          type="text"
-          size="small"
-          icon={<UnderlineOutlined />}
-          onMouseDown={fmt(FORMAT_TEXT_COMMAND, 'underline')}
-        />
-      </Tooltip>
-      <Tooltip title="删除线">
-        <Button
-          type="text"
-          size="small"
-          icon={<StrikethroughOutlined />}
-          onMouseDown={fmt(FORMAT_TEXT_COMMAND, 'strikethrough')}
-        />
-      </Tooltip>
-      <Divider orientation="vertical" />
-      <Tooltip title="无序列表">
-        <Button
-          type="text"
-          size="small"
-          icon={<UnorderedListOutlined />}
-          onMouseDown={fmt(INSERT_UNORDERED_LIST_COMMAND)}
-        />
-      </Tooltip>
-      <Tooltip title="有序列表">
-        <Button
-          type="text"
-          size="small"
-          icon={<OrderedListOutlined />}
-          onMouseDown={fmt(INSERT_ORDERED_LIST_COMMAND)}
-        />
-      </Tooltip>
-      <Tooltip title="引用块">
-        <Button type="text" size="small" onMouseDown={fmt(FORMAT_ELEMENT_COMMAND, 'quote')}>
-          ❝
-        </Button>
-      </Tooltip>
-      <Divider orientation="vertical" />
-      {/* 段落对齐：居左 / 居中 / 居右 */}
-      <Select
-        size="small"
-        defaultValue="left"
-        style={{ width: 64, marginRight: 8 }}
-        options={[
-          { value: 'left', label: '居左' },
-          { value: 'center', label: '居中' },
-          { value: 'right', label: '居右' },
-        ]}
-        onMouseDown={(e) => e.preventDefault()}
-        onChange={(v) => {
-          editor.update(() => {
-            const selection = $getSelection();
-            if (!$isRangeSelection(selection)) return;
-            editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, v as 'left' | 'center' | 'right');
-          });
-        }}
-      />
-      <Divider orientation="vertical" />
-      <Tooltip title="插入链接">
-        <Button
-          type="text"
-          size="small"
-          icon={<LinkOutlined />}
-          onMouseDown={(e) => {
-            e.preventDefault();
-            setUrlModal({ open: true, type: 'link', url: '' });
-          }}
-        />
-      </Tooltip>
-      <Tooltip title="插入图片">
-        <Button
-          type="text"
-          size="small"
-          icon={<PictureOutlined />}
-          onMouseDown={(e) => {
-            e.preventDefault();
-            setUrlModal({ open: true, type: 'image', url: '' });
-          }}
-        />
-      </Tooltip>
-      <Tooltip title="代码块">
-        <Button
-          type="text"
-          size="small"
-          icon={<CodeOutlined />}
-          onMouseDown={(e) => {
-            e.preventDefault();
-            editor.update(() => {
-              const selection = $getSelection();
-              if (!$isRangeSelection(selection)) return;
-              $setBlocksType(selection, () => $createCodeNode());
-            });
-          }}
-        />
-      </Tooltip>
-      <Tooltip title="水平分割线">
-        <Button type="text" size="small" icon={<MinusOutlined />} onMouseDown={fmt(INSERT_HORIZONTAL_RULE_COMMAND)} />
-      </Tooltip>
-      <Divider orientation="vertical" />
-      <Tooltip title="撤销">
-        <Button type="text" size="small" icon={<UndoOutlined />} onMouseDown={fmt(UNDO_COMMAND)} />
-      </Tooltip>
-      <Tooltip title="重做">
-        <Button type="text" size="small" icon={<RedoOutlined />} onMouseDown={fmt(REDO_COMMAND)} />
-      </Tooltip>
-      <Tooltip title="清除格式">
-        <Button type="text" size="small" icon={<ClearOutlined />} onMouseDown={fmt(FORMAT_TEXT_COMMAND, 'clear')} />
-      </Tooltip>
-      {/* 链接/图片 URL 输入 */}
-      <Modal
-        open={urlModal.open}
-        title={urlModal.type === 'link' ? '插入链接' : '插入图片'}
-        okText="确定"
-        cancelText="取消"
-        onOk={submitUrlModal}
-        onCancel={() => setUrlModal({ open: false, type: 'link', url: '' })}
-        destroyOnHidden
-      >
-        <Input
-          placeholder={urlModal.type === 'link' ? 'https://example.com' : '图片 URL'}
-          value={urlModal.url}
-          onChange={(e) => setUrlModal((s) => ({ ...s, url: e.target.value }))}
-          onPressEnter={submitUrlModal}
-          autoFocus
-        />
-      </Modal>
-    </div>
-  );
+  useEffect(() => registerCodeHighlighting(editor), [editor]);
+  return null;
 }
 
-/** 变更 → 导出 HTML 回调（内部组件才能拿 editor） */
-function HtmlExporter({ onHtml }: { onHtml: (html: string) => void }) {
-  const [editor] = useLexicalComposerContext();
+/** 变更 → 导出 editorState JSON 回调（内部组件才能拿 editor context） */
+function StateExporter({ onJson }: { onJson: (json: string) => void }) {
+  useLexicalComposerContext();
   const handleChange = useCallback(
     (editorState: EditorState) => {
-      editorState.read(() => {
-        const html = $generateHtmlFromNodes(editor);
-        onHtml(html);
-      });
+      onJson(JSON.stringify(editorState.toJSON()));
     },
-    [editor, onHtml]
+    [onJson]
   );
   return <OnChangePlugin onChange={handleChange} />;
 }
@@ -303,15 +106,55 @@ class LexicalErrorBoundary extends React.Component<
   }
 }
 
+/** 代码高亮 token 的主题类名（供 registerCodeHighlighting 使用） */
+const codeTheme: Record<string, string> = {
+  atrule: 'lex-tok-atrule',
+  attr: 'lex-tok-attr',
+  boolean: 'lex-tok-boolean',
+  builtin: 'lex-tok-builtin',
+  cdata: 'lex-tok-cdata',
+  char: 'lex-tok-char',
+  class: 'lex-tok-class',
+  'class-name': 'lex-tok-class-name',
+  comment: 'lex-tok-comment',
+  constant: 'lex-tok-constant',
+  deleted: 'lex-tok-deleted',
+  doctype: 'lex-tok-doctype',
+  entity: 'lex-tok-entity',
+  function: 'lex-tok-function',
+  important: 'lex-tok-important',
+  inserted: 'lex-tok-inserted',
+  keyword: 'lex-tok-keyword',
+  namespace: 'lex-tok-namespace',
+  number: 'lex-tok-number',
+  operator: 'lex-tok-operator',
+  property: 'lex-tok-property',
+  punctuation: 'lex-tok-punctuation',
+  regex: 'lex-tok-regex',
+  selector: 'lex-tok-selector',
+  string: 'lex-tok-string',
+  symbol: 'lex-tok-symbol',
+  tag: 'lex-tok-tag',
+  url: 'lex-tok-url',
+  variable: 'lex-tok-variable',
+};
+
 /**
- * Lexical 富文本编辑器，antd 风格，兼容项目 HTML 存储。
- * 编辑内容以 HTML 导入/导出（与后端 content 字段、XSS 管线、RichTextPreview 兼容）。
+ * Lexical 富文本编辑器，Notion 风格：斜杠命令、Markdown 快捷键、块手柄拖拽、
+ * 待办/提示框/折叠块/表格/代码高亮、顶部工具栏 + 选中浮动格式栏。
+ * 内容以 Lexical editorState JSON 存取（无损往返；预览由 RichTextPreview 经
+ * toHtml 序列化渲染）。粘贴外部 HTML 仍走内置 importDOM 转换。
  */
 const LexicalEditor: React.FC<LexicalEditorProps> = ({ value, onChange, placeholder, minHeight = 300 }) => {
   const token = useThemeToken();
   // value 变化（打开另一文档/新建）时用 key 重建编辑器，从新 HTML 导入
   const valueRef = useRef(value);
   const [instanceKey, setInstanceKey] = React.useState(0);
+  const [paperEl, setPaperEl] = useState<HTMLDivElement | null>(null);
+  // 共享历史栈：HistoryPlugin 与顶部工具栏（撤销/重做按钮可用性）共用同一实例。
+  // 依赖 instanceKey：切换文档重建编辑器时清空旧文档的历史栈，避免跨文档撤销。
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- instanceKey 是刻意的重建信号，createEmptyHistoryState 本身无依赖
+  const historyState = React.useMemo(() => createEmptyHistoryState(), [instanceKey]);
   useEffect(() => {
     if (value !== valueRef.current) {
       valueRef.current = value;
@@ -322,18 +165,49 @@ const LexicalEditor: React.FC<LexicalEditorProps> = ({ value, onChange, placehol
   const initialConfig = {
     namespace: 'doc-editor',
     onError: (error: Error) => console.error('[Lexical]', error),
-    nodes: [HeadingNode, QuoteNode, ListNode, ListItemNode, CodeNode, LinkNode, HorizontalRuleNode],
-    // HTML → Lexical（打开文档时导入）
-    editorState: (editor: Parameters<typeof $generateNodesFromDOM>[0]) => {
-      $setRootFromHTML(editor, valueRef.current);
+    nodes: [
+      HeadingNode,
+      QuoteNode,
+      ListNode,
+      ListItemNode,
+      CodeNode,
+      CodeHighlightNode,
+      LinkNode,
+      HorizontalRuleNode,
+      TableNode,
+      TableRowNode,
+      TableCellNode,
+      CalloutNode,
+      ToggleNode,
+      ImageNode,
+    ],
+    theme: {
+      code: 'lex-code',
+      codeHighlight: codeTheme,
+      // 下划线/删除线在 0.49 不再渲染为 <u>/<s> 标签，而是走 theme.text 的 CSS 类；
+      // 必须提供类名否则格式位已置但视觉无效果。underlineStrikethrough 处理两者叠加。
+      text: {
+        underline: 'lex-text-underline',
+        strikethrough: 'lex-text-strikethrough',
+        underlineStrikethrough: 'lex-text-underline-strikethrough',
+      },
+      // 待办 checkbox 的可见/可点击区域（由 ListItemNode 渲染为 li 上的主题类）
+      list: {
+        listitemChecked: 'lex-checklist-item lex-checklist-item-checked',
+        listitemUnchecked: 'lex-checklist-item',
+      },
     },
+    // editorState JSON 字符串 → parseEditorState → setEditorState。
+    // 不再走 HTML 往返，自定义节点（callout/toggle 等）靠 exportJSON/importJSON 无损还原；
+    // 待办 checkbox 由 ListPlugin 主题类渲染，无需 html.export 覆盖（跨应用复制粘贴除外）。
+    editorState: resolveInitialState(value),
   };
 
-  const handleHtml = useCallback(
-    (html: string) => {
-      if (html !== valueRef.current) {
-        valueRef.current = html;
-        onChange(html);
+  const handleJson = useCallback(
+    (json: string) => {
+      if (json !== valueRef.current) {
+        valueRef.current = json;
+        onChange(json);
       }
     },
     [onChange]
@@ -349,21 +223,33 @@ const LexicalEditor: React.FC<LexicalEditorProps> = ({ value, onChange, placehol
         ['--lex-text' as string]: token.colorText,
         ['--lex-placeholder' as string]: token.colorTextPlaceholder,
         ['--lex-radius' as string]: `${token.borderRadiusLG}px`,
+        ['--lex-bg-secondary' as string]: token.colorBgLayout,
       }}
     >
       <LexicalComposer key={instanceKey} initialConfig={initialConfig}>
-        <Toolbar />
         <div className="lex-content">
-          <RichTextPlugin
-            contentEditable={<ContentEditable className="lex-editable" style={{ minHeight }} />}
-            placeholder={<div className="lex-placeholder">{placeholder || '请输入内容…'}</div>}
-            ErrorBoundary={LexicalErrorBoundary as never}
-          />
+          {/* 常驻顶部工具栏（参照 Lexical playground） */}
+          <ToolbarPlugin historyState={historyState} />
+          <div className="lex-paper" ref={(el) => setPaperEl(el)}>
+            <RichTextPlugin
+              contentEditable={<ContentEditable className="lex-editable" style={{ minHeight }} />}
+              placeholder={<div className="lex-placeholder">{placeholder || '请输入内容…'}</div>}
+              ErrorBoundary={LexicalErrorBoundary as never}
+            />
+          </div>
         </div>
-        <HistoryPlugin />
+        <HistoryPlugin externalHistoryState={historyState} />
         <ListPlugin />
         <LinkPlugin />
-        <HtmlExporter onHtml={handleHtml} />
+        <CodeHighlightPlugin />
+        <MarkdownShortcutPlugin transformers={DEFAULT_TRANSFORMERS} />
+        <CheckListPlugin />
+        <TablePlugin hasHorizontalScroll />
+        <SlashMenuPlugin />
+        <FloatingFormatToolbar />
+        <TableActionMenuPlugin />
+        {paperEl && <DraggableBlocks anchorElem={paperEl} />}
+        <StateExporter onJson={handleJson} />
       </LexicalComposer>
     </div>
   );

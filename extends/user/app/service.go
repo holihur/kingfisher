@@ -269,9 +269,11 @@ func (s *UserService) Update(ctx context.Context, id uint, updates map[string]an
 	if err := s.repo.Update(ctx, id, updates); err != nil {
 		return err
 	}
-	// When roles change, invalidate cached permissions so RBAC middleware
-	// picks up the new roles' permissions on next request.
+	// 角色/部门变更都影响有效权限：失效该用户权限缓存，RBAC 中间件下次请求读取新权限。
 	if _, ok := updates["role_ids"]; ok && s.cache != nil {
+		_ = s.cache.Delete(ctx, "user:perms:"+strconv.FormatUint(uint64(id), 10))
+	}
+	if _, ok := updates["dept_ids"]; ok && s.cache != nil {
 		_ = s.cache.Delete(ctx, "user:perms:"+strconv.FormatUint(uint64(id), 10))
 	}
 	return nil
@@ -289,7 +291,7 @@ func (s *UserService) BatchUpdateStatus(ctx context.Context, ids []uint, status 
 	return s.repo.UpdateStatusBatch(ctx, ids, status)
 }
 
-func (s *UserService) CreateUser(ctx context.Context, username, password, email string, roleIDs []uint) (*domain.User, error) {
+func (s *UserService) CreateUser(ctx context.Context, username, password, email string, roleIDs, deptIDs []uint) (*domain.User, error) {
 	_, err := s.repo.FindByUsername(ctx, username)
 	if err == nil {
 		return nil, fmt.Errorf("user exists")
@@ -298,11 +300,11 @@ func (s *UserService) CreateUser(ctx context.Context, username, password, email 
 	if err != nil {
 		return nil, fmt.Errorf("hash: %w", err)
 	}
-	// 未指定角色时默认访客(4)
-	if len(roleIDs) == 0 {
+	// 未指定角色且未指定部门时默认访客(4)；指定了部门则依赖部门角色，无需默认角色
+	if len(roleIDs) == 0 && len(deptIDs) == 0 {
 		roleIDs = []uint{4}
 	}
-	user := &domain.User{Username: username, Password: string(hashed), Email: email, Status: 1, RoleIDs: roleIDs}
+	user := &domain.User{Username: username, Password: string(hashed), Email: email, Status: 1, RoleIDs: roleIDs, DeptIDs: deptIDs}
 	if err := s.repo.Create(ctx, user); err != nil {
 		return nil, err
 	}

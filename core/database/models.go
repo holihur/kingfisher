@@ -226,21 +226,22 @@ type ScheduledTaskPO struct {
 
 func (ScheduledTaskPO) TableName() string { return "scheduled_tasks" }
 
-// DocDirectoryPO 文档目录（树形）
+// DocDirectoryPO 文档目录（树形）。可见性 shared/private（shared 公开，private 仅 admin）
 type DocDirectoryPO struct {
-	ID        uint   `gorm:"primaryKey"`
-	ParentID  uint   `gorm:"default:0;index"`
-	Name      string `gorm:"size:64;not null"`
-	Sort      int    `gorm:"default:0"`
-	Status    int    `gorm:"default:1"`
-	Version   string `gorm:"size:32"`
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID         uint   `gorm:"primaryKey"`
+	ParentID   uint   `gorm:"default:0;index"`
+	Name       string `gorm:"size:64;not null"`
+	Sort       int    `gorm:"default:0"`
+	Status     int    `gorm:"default:1"`
+	Version    string `gorm:"size:32"`
+	Visibility string `gorm:"size:16;default:shared"` // shared | private
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
 }
 
 func (DocDirectoryPO) TableName() string { return "doc_directories" }
 
-// DocDirRolePO 目录-角色授权（复合主键；无授权记录 = 默认拒绝，仅 admin 可见）
+// DocDirRolePO 目录-角色授权（历史遗留表，已弃用：目录可见性改为 shared/private）
 type DocDirRolePO struct {
 	DirID  uint `gorm:"primaryKey"`
 	RoleID uint `gorm:"primaryKey"`
@@ -279,3 +280,34 @@ type DocVersionPO struct {
 }
 
 func (DocVersionPO) TableName() string { return "doc_versions" }
+
+// DepartmentPO 部门（树形）。一个部门可挂多个角色（department_roles），一个用户可属于多个部门（user_departments）
+type DepartmentPO struct {
+	ID        uint   `gorm:"primaryKey"`
+	ParentID  uint   `gorm:"default:0;index"` // 0=根
+	Name      string `gorm:"size:64;not null"`
+	Sort      int    `gorm:"default:0"`
+	Status    int    `gorm:"default:1"` // 1=启用 0=停用
+	Remark    string `gorm:"size:255"`
+	Version   string `gorm:"size:32"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+func (DepartmentPO) TableName() string { return "departments" }
+
+// UserDepartmentPO 用户-部门关联（多对多，一个用户可属于多个部门）
+type UserDepartmentPO struct {
+	UserID       uint `gorm:"primaryKey"`
+	DepartmentID uint `gorm:"primaryKey"`
+}
+
+func (UserDepartmentPO) TableName() string { return "user_departments" }
+
+// DepartmentRolePO 部门-角色关联（多对多，一个部门可有多个角色）
+type DepartmentRolePO struct {
+	DepartmentID uint `gorm:"primaryKey"`
+	RoleID       uint `gorm:"primaryKey"`
+}
+
+func (DepartmentRolePO) TableName() string { return "department_roles" }

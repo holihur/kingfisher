@@ -46,6 +46,7 @@ import (
 	configAdapter "kingfisher/extends/config/adapter/mysql"
 	configApp "kingfisher/extends/config/app"
 	configTransport "kingfisher/extends/config/transport"
+	departmentTransport "kingfisher/extends/department/transport"
 	dictTransport "kingfisher/extends/dict/transport"
 	docTransport "kingfisher/extends/doc/transport"
 	emailTransport "kingfisher/extends/email/transport"
@@ -226,6 +227,7 @@ func main() {
 	})
 	mods := []router.Module{
 		userMod,
+		departmentTransport.NewDepartmentModule(db, redisCache),
 		rbacTransport.NewRBACModule(db, redisCache),
 		menuTransport.NewMenuModule(db, redisCache),
 		configTransport.NewConfigModule(db, redisCache),

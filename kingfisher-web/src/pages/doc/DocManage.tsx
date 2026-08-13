@@ -4,7 +4,6 @@ import Split from 'split.js';
 import {
   App,
   Button,
-  Checkbox,
   Dropdown,
   Empty,
   Input,
@@ -27,18 +26,16 @@ import {
   FolderOutlined,
   HistoryOutlined,
   LinkOutlined,
-  MenuFoldOutlined,
   MoreOutlined,
   PlusOutlined,
-  SafetyOutlined,
 } from '@ant-design/icons';
 import { useThemeToken } from '../../hooks/useThemeToken';
 import { useAuthStore } from '../../stores/auth';
 import { docApi, docDirApi, DocDirNode, DocItem, DocVersion } from '../../api/doc';
-import { roleApi } from '../../api/role';
 import { formatTime } from '../../utils/format';
 import RichTextPreview from '../../components/RichTextPreview';
 import LexicalEditor from '../../components/LexicalEditor';
+import DocOutline from '../../components/DocOutline';
 
 /** 目录节点 → antd Tree 数据（目录 + 目录下可见的文档叶子，key 带前缀区分） */
 const toTreeData = (nodes: DocDirNode[]): TreeDataNode[] =>
@@ -76,7 +73,7 @@ const DocManage: React.FC = () => {
   // 左栏（目录树）是否完全合上（拖拽到过小 / 手动收起）
   const [collapsed, setCollapsed] = useState(false);
 
-  // 目录 modal
+  // 目录 modal（创建/重命名，可设可见性 shared/private）
   const [dirModal, setDirModal] = useState<{
     open: boolean;
     mode: 'create' | 'rename';
@@ -88,18 +85,7 @@ const DocManage: React.FC = () => {
     parentId: 0,
   });
   const [dirName, setDirName] = useState('');
-
-  // 授权 modal
-  const [authModal, setAuthModal] = useState<{
-    open: boolean;
-    dir?: DocDirNode;
-    roleIds: number[];
-    allRoles: { id: number; name: string }[];
-  }>({
-    open: false,
-    roleIds: [],
-    allRoles: [],
-  });
+  const [dirVisibility, setDirVisibility] = useState<'shared' | 'private'>('shared');
 
   // 右侧文档区：目录树选中节点 key（dir-<id> | doc-<id>），驱动高亮与编辑
   const [selectedDirId, setSelectedDirId] = useState<number | null>(null);
@@ -171,16 +157,41 @@ const DocManage: React.FC = () => {
   // 实例只初始化一次、不销毁：合上用 setSizes([0,100])，gutter 常驻可拖拽展开，右栏自动贴合占满。
   const containerRef = useRef<HTMLDivElement>(null);
   const leftPaneRef = useRef<HTMLDivElement>(null);
-  const rightPaneRef = useRef<HTMLDivElement>(null);
+  const docPaneRef = useRef<HTMLDivElement>(null);
+  const outlinePaneRef = useRef<HTMLDivElement>(null);
+  // 大纲滚动容器：编辑态指向编辑器包裹、查看态指向预览包裹
+  const outlineTargetRef = useRef<HTMLDivElement>(null);
   const splitRef = useRef<ReturnType<typeof Split> | null>(null);
+  // 大纲列折叠状态本地记忆（默认折叠）
+  const OUTLINE_COLLAPSED_KEY = 'layout:doc-outline-collapsed';
+  const [outlineCollapsed, setOutlineCollapsed] = useState<boolean>(() => {
+    try {
+      const v = localStorage.getItem(OUTLINE_COLLAPSED_KEY);
+      return v === null ? true : v === '1';
+    } catch {
+      return true;
+    }
+  });
+  // 折叠状态变化写入 localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(OUTLINE_COLLAPSED_KEY, outlineCollapsed ? '1' : '0');
+    } catch {
+      /* 忽略 */
+    }
+  }, [outlineCollapsed]);
+
+  // 三列布局（目录 | 文档 | 大纲）的 split 实例。始终渲染三个 pane，split 只初始化一次。
   useEffect(() => {
     const left = leftPaneRef.current;
-    const right = rightPaneRef.current;
-    if (!left || !right) return;
-    const instance = Split([left, right], {
-      sizes: [20, 80],
-      // 左栏 min 0：允许拖到 0 完全合上（过小时由 onDragEnd 触发）
-      minSize: [0, 400],
+    const doc = docPaneRef.current;
+    const outline = outlinePaneRef.current;
+    if (!left || !doc || !outline) return;
+    const instance = Split([left, doc, outline], {
+      // 默认 25/60/15，但初始 outlineCollapsed=true → 首帧被 applySizes 收成 [25,75,0]
+      sizes: [25, 60, 15],
+      // 左栏/大纲栏 min 0：允许拖到 0 完全合上（目录过小由 onDragEnd 触发）
+      minSize: [0, 400, 0],
       gutterSize: 6,
       cursor: 'col-resize',
       gutter: (_index, _direction) => {
@@ -188,11 +199,10 @@ const DocManage: React.FC = () => {
         g.className = 'doc-split-gutter';
         return g;
       },
-      // 左栏宽度占比 < 15% → 完全合上（setSizes 置 0，右栏自动贴合占满）
+      // 目录栏拖到过小 → 完全合上（大纲列保留原占比）
       onDragEnd: (sizes) => {
-        if (sizes[0] < 15) {
+        if (sizes[0] < 12) {
           setCollapsed(true);
-          splitRef.current?.setSizes([0, 100]);
         } else {
           setCollapsed(false);
         }
@@ -205,17 +215,30 @@ const DocManage: React.FC = () => {
     };
   }, []);
 
-  const collapseLeft = () => {
-    setCollapsed(true);
-    splitRef.current?.setSizes([0, 100]);
-  };
+  // 依据目录折叠 / 大纲折叠 / 是否编辑态，重算三列占比
+  useEffect(() => {
+    const sp = splitRef.current;
+    if (!sp) return;
+    const editingActive = !!editing;
+    // 非编辑态（列表视图）：大纲列收起，目录+文档两列
+    if (!editingActive) {
+      sp.setSizes(collapsed ? [0, 100, 0] : [25, 75, 0]);
+      return;
+    }
+    if (collapsed && outlineCollapsed) sp.setSizes([0, 100, 0]);
+    else if (collapsed) sp.setSizes([0, 85, 15]);
+    else if (outlineCollapsed) sp.setSizes([25, 75, 0]);
+    else sp.setSizes([25, 60, 15]);
+  }, [collapsed, outlineCollapsed, editing]);
+
   const expandLeft = () => {
     setCollapsed(false);
-    splitRef.current?.setSizes([20, 80]);
   };
 
   const openDirModal = (mode: 'create' | 'rename', parentId: number, dir?: DocDirNode) => {
     setDirName(dir ? dir.name : '');
+    // 重命名时沿用目录当前可见性；新建默认共享
+    setDirVisibility((dir?.visibility as 'shared' | 'private') || 'shared');
     setDirModal({ open: true, mode, parentId, dir });
   };
 
@@ -227,11 +250,11 @@ const DocManage: React.FC = () => {
     }
     try {
       if (dirModal.mode === 'create') {
-        await docDirApi.create({ parent_id: dirModal.parentId, name });
+        await docDirApi.create({ parent_id: dirModal.parentId, name, visibility: dirVisibility });
         message.success('目录已创建');
       } else if (dirModal.dir) {
-        await docDirApi.update(dirModal.dir.id, { name });
-        message.success('目录已重命名');
+        await docDirApi.update(dirModal.dir.id, { name, visibility: dirVisibility });
+        message.success('目录已更新');
       }
       setDirModal((s) => ({ ...s, open: false }));
       void loadTree();
@@ -262,31 +285,6 @@ const DocManage: React.FC = () => {
     });
   };
 
-  const openAuthModal = async (dir: DocDirNode) => {
-    try {
-      const [rolesR, grantedR] = await Promise.all([
-        roleApi.getList({ page: 1, page_size: 100 }),
-        docDirApi.getRoles(dir.id),
-      ]);
-      const roles = ((rolesR.data as Record<string, unknown>).items as { id: number; name: string }[]) || [];
-      setAuthModal({ open: true, dir, roleIds: (grantedR.data as number[]) || [], allRoles: roles });
-    } catch {
-      /* 已提示 */
-    }
-  };
-
-  const submitAuth = async () => {
-    if (!authModal.dir) return;
-    try {
-      await docDirApi.setRoles(authModal.dir.id, authModal.roleIds);
-      message.success('可见角色已更新');
-      setAuthModal((s) => ({ ...s, open: false }));
-      void loadTree();
-    } catch {
-      /* 已提示 */
-    }
-  };
-
   // —— 文档 ——
   const openDoc = async (doc: DocItem) => {
     try {
@@ -311,15 +309,6 @@ const DocManage: React.FC = () => {
   // 从目录树叶子节点打开文档
   const openDocById = async (docId: number) => {
     await openDoc({ id: docId } as DocItem);
-  };
-
-  // 返回列表：清除 URL 的 doc_id，保留 dir_id 定位
-  const backToList = () => {
-    setEditing(null);
-    const next = new URLSearchParams(searchParams);
-    next.delete('doc_id');
-    setSearchParams(next, { replace: true });
-    if (selectedDirId) setSelectedKey(`dir-${selectedDirId}`);
   };
 
   // 新建文档（可在指定目录下创建；缺省用当前选中目录）
@@ -458,7 +447,7 @@ const DocManage: React.FC = () => {
   // —— 渲染 ——
   const treeData = useMemo(() => toTreeData(tree), [tree]);
 
-  // 目录操作：hover 显示「更多」按钮 → Dropdown 下拉菜单（按权限动态出项）
+  // 目录操作：悬停目录行才显示「更多」按钮（默认隐藏）→ 点击弹下拉菜单（按权限动态出项）
   const dirActions = (dir: DocDirNode) => (
     <Dropdown
       trigger={['click']}
@@ -466,8 +455,7 @@ const DocManage: React.FC = () => {
         items: [
           ...(canCreate ? [{ key: 'new-doc', icon: <FileAddOutlined />, label: '新建文档' }] : []),
           ...(canCreate ? [{ key: 'create', icon: <FolderAddOutlined />, label: '新建子目录' }] : []),
-          ...(canUpdate ? [{ key: 'rename', icon: <EditOutlined />, label: '重命名' }] : []),
-          ...(canUpdate ? [{ key: 'roles', icon: <SafetyOutlined />, label: '可见角色' }] : []),
+          ...(canUpdate ? [{ key: 'rename', icon: <EditOutlined />, label: '重命名/可见性' }] : []),
           ...(canDelete ? [{ key: 'delete', icon: <DeleteOutlined />, label: '删除', danger: true }] : []),
         ],
         onClick: ({ key, domEvent }) => {
@@ -475,12 +463,18 @@ const DocManage: React.FC = () => {
           if (key === 'new-doc') createDoc(dir.id);
           else if (key === 'create') openDirModal('create', dir.id);
           else if (key === 'rename') openDirModal('rename', dir.parent_id, dir);
-          else if (key === 'roles') void openAuthModal(dir);
           else if (key === 'delete') handleDeleteDir(dir);
         },
       }}
     >
-      <Button size="small" type="text" icon={<MoreOutlined />} title="操作" onClick={(e) => e.stopPropagation()} />
+      <Button
+        size="small"
+        type="text"
+        className="doc-dir-actions"
+        icon={<MoreOutlined />}
+        title="操作"
+        onClick={(e) => e.stopPropagation()}
+      />
     </Dropdown>
   );
 
@@ -565,7 +559,6 @@ const DocManage: React.FC = () => {
                 新增
               </Button>
             )}
-            <Button size="small" type="text" icon={<MenuFoldOutlined />} title="收起目录" onClick={collapseLeft} />
           </Space>
         </div>
         {tree.length === 0 && !treeLoading ? (
@@ -574,6 +567,7 @@ const DocManage: React.FC = () => {
           <Tree
             treeData={treeData}
             showLine
+            blockNode
             expandedKeys={expandedKeys}
             onExpand={setExpandedKeys}
             selectedKeys={selectedKey ? [selectedKey] : []}
@@ -599,9 +593,9 @@ const DocManage: React.FC = () => {
         )}
       </div>
 
-      {/* 右侧：列表 / 编辑器（宽度由 setSizes 控制，collapsed 时自动贴合占满） */}
+      {/* 中间列：文档（列表 / 编辑器 / 预览）。三列布局中占比由 split 控制 */}
       <div
-        ref={rightPaneRef}
+        ref={docPaneRef}
         style={{
           minWidth: 0,
           overflow: 'hidden',
@@ -621,7 +615,6 @@ const DocManage: React.FC = () => {
         {editing ? (
           <Space orientation="vertical" size={12} style={{ width: '100%' }}>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <Button onClick={backToList}>返回列表</Button>
               <Typography.Text strong style={{ fontSize: 15 }}>
                 {editing.id > 0 ? '编辑文档' : '新建文档'}
               </Typography.Text>
@@ -654,13 +647,15 @@ const DocManage: React.FC = () => {
                     style={{ width: 240 }}
                   />
                 </Space>
-                {/* Lexical 富文本编辑器（HTML 导入/导出，antd 风格） */}
-                <LexicalEditor
-                  value={editContent}
-                  onChange={setEditContent}
-                  placeholder="请输入文档内容…"
-                  minHeight={320}
-                />
+                {/* 编辑器（大纲在独立第三列，不再内部分栏） */}
+                <div ref={outlineTargetRef}>
+                  <LexicalEditor
+                    value={editContent}
+                    onChange={setEditContent}
+                    placeholder="请输入文档内容…"
+                    minHeight={320}
+                  />
+                </div>
                 <Space>
                   <Button type="primary" onClick={() => void saveDoc()}>
                     保存
@@ -670,10 +665,7 @@ const DocManage: React.FC = () => {
                       <Button onClick={() => void togglePublish()}>
                         {editing.status === 'published' ? '撤稿' : '发布'}
                       </Button>
-                      <Button icon={<HistoryOutlined />} onClick={() => void openVersions(editing)}>
-                        版本历史
-                      </Button>
-                      {/* 已发布+共享 → 提供公开预览链接 */}
+                      {/* 已发布+共享 → 提供公开预览链接（紧跟发布按钮） */}
                       {editing.status === 'published' && editing.visibility === 'shared' && (
                         <Button
                           icon={<LinkOutlined />}
@@ -688,6 +680,9 @@ const DocManage: React.FC = () => {
                           复制公开链接
                         </Button>
                       )}
+                      <Button icon={<HistoryOutlined />} onClick={() => void openVersions(editing)}>
+                        版本历史
+                      </Button>
                       {canDelete && (
                         <Button danger onClick={() => deleteDoc(editing)}>
                           删除
@@ -702,7 +697,9 @@ const DocManage: React.FC = () => {
                 <Typography.Title level={4} style={{ marginTop: 0 }}>
                   {editing.title}
                 </Typography.Title>
-                <RichTextPreview content={editing.content} />
+                <div ref={outlineTargetRef}>
+                  <RichTextPreview content={editing.content} />
+                </div>
                 {isAuthor && (
                   <Button
                     icon={<HistoryOutlined />}
@@ -729,6 +726,29 @@ const DocManage: React.FC = () => {
         )}
       </div>
 
+      {/* 第三列：文档大纲（编辑/查看态显示，占比由 split 控制；非编辑态收起） */}
+      <div
+        ref={outlinePaneRef}
+        style={{
+          minWidth: 0,
+          overflow: 'hidden',
+          background: token.colorBgContainer,
+          borderRadius: token.borderRadiusLG,
+          // 大纲折叠时 padding 归 0（同目录树折叠），只留竖排 tab
+          padding: editing && !outlineCollapsed ? 12 : 0,
+        }}
+      >
+        {editing && (
+          <DocOutline
+            mode="inline"
+            content={editing.id > 0 && !showEditor ? editing.content : editContent}
+            targetRef={outlineTargetRef}
+            onCollapseChange={(c) => setOutlineCollapsed(c)}
+            defaultCollapsed={outlineCollapsed}
+          />
+        )}
+      </div>
+
       {/* 目录创建/重命名 Modal */}
       <Modal
         open={dirModal.open}
@@ -737,30 +757,22 @@ const DocManage: React.FC = () => {
         onCancel={() => setDirModal((s) => ({ ...s, open: false }))}
         destroyOnHidden
       >
-        <Input
-          placeholder="目录名称"
-          value={dirName}
-          onChange={(e) => setDirName(e.target.value)}
-          onPressEnter={() => void submitDirModal()}
-        />
-      </Modal>
-
-      {/* 目录可见角色 Modal */}
-      <Modal
-        open={authModal.open}
-        title={`「${authModal.dir?.name || ''}」可见角色`}
-        okText="保存"
-        onOk={() => void submitAuth()}
-        onCancel={() => setAuthModal((s) => ({ ...s, open: false }))}
-      >
-        <Typography.Paragraph type="secondary" style={{ fontSize: 12 }}>
-          仅勾选的角色可见该目录（含子目录）。不勾选任何角色 = 目录对所有人隐藏（仅管理员可见）。
-        </Typography.Paragraph>
-        <Checkbox.Group
-          value={authModal.roleIds}
-          onChange={(vals) => setAuthModal((s) => ({ ...s, roleIds: vals as number[] }))}
-          options={authModal.allRoles.map((r) => ({ label: r.name, value: r.id }))}
-        />
+        <Space orientation="vertical" style={{ width: '100%' }}>
+          <Input
+            placeholder="目录名称"
+            value={dirName}
+            onChange={(e) => setDirName(e.target.value)}
+            onPressEnter={() => void submitDirModal()}
+          />
+          <Select
+            value={dirVisibility}
+            onChange={setDirVisibility}
+            options={[
+              { value: 'shared', label: '公开（所有登录用户可见，公开页展示）' },
+              { value: 'private', label: '私有（仅管理员可见）' },
+            ]}
+          />
+        </Space>
       </Modal>
 
       {/* 版本历史 Modal */}

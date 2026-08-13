@@ -1,5 +1,43 @@
 basePath: /api/v1
 definitions:
+  extends_department_transport.AssignRolesReq:
+    properties:
+      role_ids:
+        items:
+          type: integer
+        type: array
+    required:
+    - role_ids
+    type: object
+  extends_department_transport.CreateDeptReq:
+    properties:
+      name:
+        example: 技术部
+        type: string
+      parent_id:
+        type: integer
+      remark:
+        type: string
+      sort:
+        type: integer
+      status:
+        type: integer
+    required:
+    - name
+    type: object
+  extends_department_transport.UpdateDeptReq:
+    properties:
+      name:
+        type: string
+      parent_id:
+        type: integer
+      remark:
+        type: string
+      sort:
+        type: integer
+      status:
+        type: integer
+    type: object
   extends_dict_transport.DictEntryReq:
     properties:
       label:
@@ -74,6 +112,10 @@ definitions:
     type: object
   extends_user_transport.CreateUserReq:
     properties:
+      dept_ids:
+        items:
+          type: integer
+        type: array
       email:
         example: user@example.com
         type: string
@@ -94,6 +136,14 @@ definitions:
     required:
     - password
     - username
+    type: object
+  extends_user_transport.ForgotPasswordReq:
+    properties:
+      email:
+        example: user@example.com
+        type: string
+    required:
+    - email
     type: object
   extends_user_transport.LoginReq:
     properties:
@@ -144,6 +194,20 @@ definitions:
     - password
     - username
     type: object
+  extends_user_transport.ResetPasswordReq:
+    properties:
+      new_password:
+        example: NewPass123
+        maxLength: 64
+        minLength: 8
+        type: string
+      token:
+        example: abc123
+        type: string
+    required:
+    - new_password
+    - token
+    type: object
   extends_user_transport.UpdateMeReq:
     properties:
       avatar:
@@ -157,6 +221,10 @@ definitions:
     type: object
   extends_user_transport.UpdateUserReq:
     properties:
+      dept_ids:
+        items:
+          type: integer
+        type: array
       email:
         type: string
       role_ids:
@@ -184,6 +252,99 @@ definitions:
       message:
         type: string
     type: object
+  kingfisher_extends_department_domain.Department:
+    properties:
+      children:
+        items:
+          $ref: '#/definitions/kingfisher_extends_department_domain.Department'
+        type: array
+      created_at:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      parent_id:
+        description: 0=根
+        type: integer
+      remark:
+        type: string
+      role_ids:
+        description: 部门直接挂载的角色 ID
+        items:
+          type: integer
+        type: array
+      roles:
+        description: 部门挂载的角色详情
+        items:
+          $ref: '#/definitions/kingfisher_extends_department_domain.Role'
+        type: array
+      sort:
+        type: integer
+      status:
+        description: 1=启用 0=停用
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  kingfisher_extends_department_domain.Role:
+    properties:
+      code:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
+  kingfisher_extends_doc_domain.DocDirectory:
+    properties:
+      children:
+        items:
+          $ref: '#/definitions/kingfisher_extends_doc_domain.DocDirectory'
+        type: array
+      created_at:
+        type: string
+      docs:
+        description: 该目录下当前用户可见的文档（叶子节点）
+        items:
+          $ref: '#/definitions/kingfisher_extends_doc_domain.DocTreeItem'
+        type: array
+      id:
+        type: integer
+      name:
+        type: string
+      parent_id:
+        type: integer
+      sort:
+        type: integer
+      status:
+        type: integer
+      updated_at:
+        type: string
+      version:
+        type: string
+      visibility:
+        description: shared | private
+        type: string
+    type: object
+  kingfisher_extends_doc_domain.DocTreeItem:
+    properties:
+      id:
+        type: integer
+      status:
+        type: string
+      title:
+        type: string
+      visibility:
+        type: string
+    type: object
+  kingfisher_extends_user_domain.Department:
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
   kingfisher_extends_user_domain.Role:
     properties:
       code:
@@ -199,6 +360,19 @@ definitions:
         type: string
       created_at:
         type: string
+      departments:
+        items:
+          $ref: '#/definitions/kingfisher_extends_user_domain.Department'
+        type: array
+      dept_ids:
+        items:
+          type: integer
+        type: array
+      direct_role_ids:
+        description: DirectRoleIDs 直接分配的角色（user_roles），供编辑表单回填；部门继承角色不在其中
+        items:
+          type: integer
+        type: array
       email:
         type: string
       id:
@@ -206,6 +380,7 @@ definitions:
       nickname:
         type: string
       role_ids:
+        description: RoleIDs/Roles 为「有效角色」= 直接分配 ∪ 部门继承（查询时合并，去重）
         items:
           type: integer
         type: array
@@ -228,6 +403,32 @@ info:
   title: Kingfisher Admin API
   version: "1.0"
 paths:
+  /auth/forgot-password:
+    post:
+      consumes:
+      - application/json
+      description: 按邮箱发送密码重置邮件（含一次性 token 链接）。防枚举：邮箱不存在也返回成功
+      parameters:
+      - description: 找回密码请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/extends_user_transport.ForgotPasswordReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 邮件已发送
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+      summary: 找回密码
+      tags:
+      - Auth
   /auth/login:
     post:
       consumes:
@@ -351,6 +552,32 @@ paths:
       summary: 用户注册
       tags:
       - Auth
+  /auth/reset-password:
+    post:
+      consumes:
+      - application/json
+      description: 用邮件中的一次性 token 设置新密码，并使旧 session 失效
+      parameters:
+      - description: 重置密码请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/extends_user_transport.ResetPasswordReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 密码已重置
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+        "400":
+          description: 参数错误或 token 无效
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+      summary: 重置密码
+      tags:
+      - Auth
   /config-groups:
     get:
       responses: {}
@@ -405,6 +632,209 @@ paths:
       summary: 上传配置图片
       tags:
       - Config
+  /departments:
+    get:
+      description: 分页部门列表；filter 支持 subtree_id（某部门及其子孙）、parent_id、status、q=名称搜索
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页数量
+        in: query
+        name: page_size
+        type: integer
+      - description: 关键词（搜索名称）
+        in: query
+        name: q
+        type: string
+      - description: 筛选 JSON，如 {\
+        in: query
+        name: filter
+        type: string
+      - default: -id
+        description: 排序
+        in: query
+        name: sort
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 部门列表
+          schema:
+            allOf:
+            - $ref: '#/definitions/kingfisher_core_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/kingfisher_core_response.PageData'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 部门列表（分页）
+      tags:
+      - Department
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 创建请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/extends_department_transport.CreateDeptReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 创建成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/kingfisher_core_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/kingfisher_extends_department_domain.Department'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 创建部门
+      tags:
+      - Department
+  /departments/{id}:
+    delete:
+      description: 有子部门时拒绝删除（返回 10902）
+      parameters:
+      - description: 部门ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+        "10902":
+          description: 存在子部门，不可删除
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+      security:
+      - BearerAuth: []
+      summary: 删除部门
+      tags:
+      - Department
+    get:
+      description: 返回单个部门（含挂载的角色）
+      parameters:
+      - description: 部门ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 部门详情
+          schema:
+            allOf:
+            - $ref: '#/definitions/kingfisher_core_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/kingfisher_extends_department_domain.Department'
+              type: object
+        "10901":
+          description: 部门不存在
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+      security:
+      - BearerAuth: []
+      summary: 部门详情
+      tags:
+      - Department
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 部门ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/extends_department_transport.UpdateDeptReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+      security:
+      - BearerAuth: []
+      summary: 更新部门
+      tags:
+      - Department
+  /departments/{id}/roles:
+    put:
+      consumes:
+      - application/json
+      description: 全量替换部门的角色关联（部门角色会合并进成员用户的有效权限）
+      parameters:
+      - description: 部门ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 角色ID列表
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/extends_department_transport.AssignRolesReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 分配成功
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+      security:
+      - BearerAuth: []
+      summary: 分配部门角色
+      tags:
+      - Department
+  /departments/tree:
+    get:
+      description: 返回全部部门树（含每个部门挂载的角色）
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 部门树
+          schema:
+            allOf:
+            - $ref: '#/definitions/kingfisher_core_response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/kingfisher_extends_department_domain.Department'
+                  type: array
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 部门树
+      tags:
+      - Department
   /dict-types:
     post:
       consumes:
@@ -647,6 +1077,173 @@ paths:
       summary: 批量启用/禁用字典类型
       tags:
       - Dict
+  /docs:
+    get:
+      parameters:
+      - description: 目录 ID
+        in: query
+        name: dir_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 文档列表
+          schema:
+            allOf:
+            - $ref: '#/definitions/kingfisher_core_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/kingfisher_core_response.PageData'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 目录内文档分页列表
+      tags:
+      - Doc
+    post:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: 创建文档（初始 draft，版本 1）
+      tags:
+      - Doc
+  /docs/:id:
+    delete:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: 删除文档（级联删版本）
+      tags:
+      - Doc
+    get:
+      produces:
+      - application/json
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: 文档详情
+      tags:
+      - Doc
+    put:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: 更新文档（追加新版本）
+      tags:
+      - Doc
+  /docs/:id/publish:
+    put:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: 发布文档 draft → published
+      tags:
+      - Doc
+  /docs/:id/restore:
+    post:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: 还原到指定版本（追加新版本）
+      tags:
+      - Doc
+  /docs/:id/unpublish:
+    put:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: 撤稿 published → draft
+      tags:
+      - Doc
+  /docs/:id/versions:
+    get:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: 文档版本历史列表
+      tags:
+      - Doc
+  /docs/:id/versions/:no:
+    get:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: 查看指定版本内容
+      tags:
+      - Doc
+  /docs/dirs:
+    post:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: 创建目录
+      tags:
+      - Doc
+  /docs/dirs/:id:
+    delete:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: 删除目录（有子目录/文档则拒绝）
+      tags:
+      - Doc
+    put:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: 更新目录（改名/移动/排序）
+      tags:
+      - Doc
+  /docs/tree:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 目录树
+          schema:
+            allOf:
+            - $ref: '#/definitions/kingfisher_core_response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/kingfisher_extends_doc_domain.DocDirectory'
+                  type: array
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 当前用户可见目录树
+      tags:
+      - Doc
+  /docs/upload:
+    post:
+      consumes:
+      - multipart/form-data
+      parameters:
+      - description: 图片文件（png/jpg/jpeg/gif/webp，≤2MB）
+        in: formData
+        name: file
+        required: true
+        type: file
+      responses:
+        "200":
+          description: url
+          schema:
+            allOf:
+            - $ref: '#/definitions/kingfisher_core_response.Response'
+            - properties:
+                data:
+                  additionalProperties:
+                    type: string
+                  type: object
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 上传文档图片
+      tags:
+      - Doc
   /me/messages:
     get:
       responses: {}
@@ -798,6 +1395,20 @@ paths:
       summary: 公开字典条目（无需登录）
       tags:
       - Dict
+  /public/docs/:id:
+    get:
+      produces:
+      - application/json
+      responses: {}
+      summary: 公开文档（无需登录）
+      tags:
+      - Doc
+  /public/docs/tree:
+    get:
+      responses: {}
+      summary: 公开目录树（匿名，shared 目录 + 公开文档）
+      tags:
+      - Doc
   /scheduled-tasks:
     get:
       responses: {}

@@ -118,6 +118,9 @@ func autoMigrate(db *gorm.DB) error {
 		&DocDirRolePO{},
 		&DocumentPO{},
 		&DocVersionPO{},
+		&DepartmentPO{},
+		&UserDepartmentPO{},
+		&DepartmentRolePO{},
 	)
 }
 
@@ -167,6 +170,10 @@ func SeedData(db *gorm.DB) error {
 			{ID: 34, Name: "创建文档", Code: "doc:create", Resource: "doc", Action: "create"},
 			{ID: 35, Name: "更新文档", Code: "doc:update", Resource: "doc", Action: "update"},
 			{ID: 36, Name: "删除文档", Code: "doc:delete", Resource: "doc", Action: "delete"},
+			{ID: 37, Name: "查看部门", Code: "department:list", Resource: "department", Action: "read"},
+			{ID: 38, Name: "创建部门", Code: "department:create", Resource: "department", Action: "create"},
+			{ID: 39, Name: "更新部门", Code: "department:update", Resource: "department", Action: "update"},
+			{ID: 40, Name: "删除部门", Code: "department:delete", Resource: "department", Action: "delete"},
 		}
 		if err := tx.Create(&perms).Error; err != nil {
 			return fmt.Errorf("seed permissions: %w", err)
@@ -192,8 +199,11 @@ func SeedData(db *gorm.DB) error {
 			{1, 24}, {1, 25}, {1, 26}, {1, 27},
 			{1, 28}, {1, 29}, {1, 30}, {1, 31}, {1, 32},
 			{1, 33}, {1, 34}, {1, 35}, {1, 36},
+			{1, 37}, {1, 38}, {1, 39}, {1, 40},
 			{3, 1}, {3, 2}, {3, 3}, {3, 5}, {3, 6}, {3, 7}, {3, 9}, {3, 13}, {3, 16},
 			{3, 33}, {3, 34}, {3, 35},
+			{3, 37}, {3, 38}, {3, 39},
+			// viewer（访客）仅仪表盘 + 用户/角色/菜单/审计只读 + 文档只读；不授部门管理
 			{4, 1}, {4, 5}, {4, 9}, {4, 13}, {4, 16},
 			{4, 33},
 		}
@@ -216,18 +226,20 @@ func SeedData(db *gorm.DB) error {
 			{ID: 20, ParentID: 2, Name: "任务管理", Path: "/system/tasks", Component: "pages/Task/TaskManage", Icon: "ScheduleOutlined", Sort: 9, Permission: "task:list", Version: "1.0.0"},
 			{ID: 21, ParentID: 2, Name: "系统信息", Path: "/system/info", Component: "pages/System/SystemInfo", Icon: "MonitorOutlined", Sort: 10, Permission: "system:list", Version: "1.0.0"},
 			{ID: 22, ParentID: 2, Name: "文档管理", Path: "/system/docs", Component: "pages/Doc/DocManage", Icon: "FileTextOutlined", Sort: 11, Permission: "doc:list", Version: "1.0.0"},
+			{ID: 23, ParentID: 2, Name: "部门管理", Path: "/system/departments", Component: "pages/Department/DeptManage", Icon: "ApartmentOutlined", Sort: 12, Permission: "department:list", Version: "1.0.0"},
 		}
 		if err := tx.Create(&menus).Error; err != nil {
 			return fmt.Errorf("seed menus: %w", err)
 		}
 
-		// Role-Menu links (admin sees all, editor sees Dashboard+Users+Menus, viewer sees Dashboard only)
+		// Role-Menu links (admin sees all, editor sees Dashboard+Users+Menus+文档+部门, viewer sees Dashboard+用户+文档 only)
 		type RM struct{ RoleID, MenuID uint }
 		rm := []RM{
-			{1, 1}, {1, 2}, {1, 3}, {1, 7}, {1, 11}, {1, 15}, {1, 16}, {1, 17}, {1, 18}, {1, 19}, {1, 20}, {1, 21}, {1, 22},
-			// editor：含系统管理目录（id 2），否则其子菜单（用户/菜单/文档）在 buildTree 时无父级被丢弃
-			{3, 1}, {3, 2}, {3, 3}, {3, 7}, {3, 22},
-			{4, 1}, {4, 22},
+			{1, 1}, {1, 2}, {1, 3}, {1, 7}, {1, 11}, {1, 15}, {1, 16}, {1, 17}, {1, 18}, {1, 19}, {1, 20}, {1, 21}, {1, 22}, {1, 23},
+			// editor：含系统管理目录（id 2），否则其子菜单（用户/菜单/文档/部门）在 buildTree 时无父级被丢弃
+			{3, 1}, {3, 2}, {3, 3}, {3, 7}, {3, 22}, {3, 23},
+			// viewer（访客）：系统管理目录（id2）+ 用户管理 + 文档管理；部门管理不授予
+			{4, 1}, {4, 2}, {4, 3}, {4, 22},
 		}
 		if err := tx.Table("role_menus").Create(&rm).Error; err != nil {
 			return fmt.Errorf("seed role_menus: %w", err)
@@ -356,7 +368,37 @@ func SeedData(db *gorm.DB) error {
 			{DocID: 1, VersionNo: 1, Title: "产品使用手册", Content: "<h2>欢迎使用 Kingfisher</h2><p>本文档介绍产品核心功能。</p>", OwnerID: 1, Note: "初始版本"},
 			{DocID: 2, VersionNo: 1, Title: "开发规范", Content: "<p>代码风格与提交流程。</p>", OwnerID: 2, Note: "初始版本"},
 		}
-		return tx.Create(&docVersions).Error
+		if err := tx.Create(&docVersions).Error; err != nil {
+			return fmt.Errorf("seed doc versions: %w", err)
+		}
+
+		// Department 模块示例数据：部门树 + 部门-角色关联 + 用户-部门关联
+		departments := []DepartmentPO{
+			{ID: 1, ParentID: 0, Name: "技术部", Sort: 1, Status: 1, Remark: "研发与技术支持", Version: "1.0.0"},
+			{ID: 2, ParentID: 0, Name: "产品部", Sort: 2, Status: 1, Remark: "产品规划与设计", Version: "1.0.0"},
+			{ID: 3, ParentID: 1, Name: "后端组", Sort: 1, Status: 1, Remark: "服务端开发", Version: "1.0.0"},
+		}
+		if err := tx.Create(&departments).Error; err != nil {
+			return fmt.Errorf("seed departments: %w", err)
+		}
+		// 部门-角色关联：技术部挂「编辑」角色，产品部挂「访客」角色（演示部门角色继承）
+		deptRoles := []DepartmentRolePO{
+			{DepartmentID: 1, RoleID: 3},
+			{DepartmentID: 2, RoleID: 4},
+		}
+		if err := tx.Create(&deptRoles).Error; err != nil {
+			return fmt.Errorf("seed department_roles: %w", err)
+		}
+		// 用户-部门关联：admin→技术部+产品部；editor→技术部；viewer→产品部；multi→技术部+产品部
+		userDepts := []UserDepartmentPO{
+			{UserID: 1, DepartmentID: 1},
+			{UserID: 1, DepartmentID: 2},
+			{UserID: 2, DepartmentID: 1},
+			{UserID: 3, DepartmentID: 2},
+			{UserID: 4, DepartmentID: 1},
+			{UserID: 4, DepartmentID: 2},
+		}
+		return tx.Create(&userDepts).Error
 	})
 }
 

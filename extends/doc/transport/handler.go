@@ -2,7 +2,14 @@ package transport
 
 import (
 	"errors"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -71,9 +78,10 @@ func (h *DocHandler) GetTree(c *gin.Context) {
 
 // CreateDirReq 创建目录请求体
 type CreateDirReq struct {
-	ParentID uint   `json:"parent_id"`
-	Name     string `json:"name" binding:"required"`
-	Sort     *int   `json:"sort"`
+	ParentID   uint    `json:"parent_id"`
+	Name       *string `json:"name" binding:"required"`
+	Sort       *int    `json:"sort"`
+	Visibility *string `json:"visibility"` // shared | private（默认 shared）
 }
 
 // @Summary 创建目录
@@ -86,7 +94,11 @@ func (h *DocHandler) CreateDir(c *gin.Context) {
 		response.BadRequest(c, err.Error())
 		return
 	}
-	d := &domain.DocDirectory{ParentID: req.ParentID, Name: req.Name, Sort: reqOr(req.Sort, 0), Status: 1}
+	vis := domain.VisibilityShared
+	if req.Visibility != nil && (*req.Visibility == domain.VisibilityPrivate || *req.Visibility == domain.VisibilityShared) {
+		vis = *req.Visibility
+	}
+	d := &domain.DocDirectory{ParentID: req.ParentID, Name: *req.Name, Sort: reqOr(req.Sort, 0), Status: 1, Visibility: vis}
 	if err := h.svc.CreateDir(c.Request.Context(), d); err != nil {
 		handleSvcErr(c, err)
 		return
@@ -96,10 +108,11 @@ func (h *DocHandler) CreateDir(c *gin.Context) {
 
 // UpdateDirReq 目录更新请求体（白名单字段，防 mass assignment）
 type UpdateDirReq struct {
-	Name     *string `json:"name"`
-	ParentID *uint   `json:"parent_id"`
-	Sort     *int    `json:"sort"`
-	Status   *int    `json:"status"`
+	Name       *string `json:"name"`
+	ParentID   *uint   `json:"parent_id"`
+	Sort       *int    `json:"sort"`
+	Status     *int    `json:"status"`
+	Visibility *string `json:"visibility"` // shared | private
 }
 
 // @Summary 更新目录（改名/移动/排序）
@@ -130,6 +143,9 @@ func (h *DocHandler) UpdateDir(c *gin.Context) {
 	if req.Status != nil {
 		updates["status"] = *req.Status
 	}
+	if req.Visibility != nil && (*req.Visibility == domain.VisibilityShared || *req.Visibility == domain.VisibilityPrivate) {
+		updates["visibility"] = *req.Visibility
+	}
 	if len(updates) == 0 {
 		response.BadRequest(c, "no fields to update")
 		return
@@ -152,51 +168,6 @@ func (h *DocHandler) DeleteDir(c *gin.Context) {
 		return
 	}
 	if err := h.svc.DeleteDir(c.Request.Context(), uint(id)); err != nil {
-		handleSvcErr(c, err)
-		return
-	}
-	response.OKJSON(c, nil)
-}
-
-// @Summary 目录已授权角色 id 列表
-// @Tags Doc
-// @Security BearerAuth
-// @Router /docs/dirs/:id/roles [get]
-func (h *DocHandler) GetDirRoles(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		response.BadRequest(c, "invalid id")
-		return
-	}
-	ids, err := h.svc.GetDirRoleIDs(c.Request.Context(), uint(id))
-	if err != nil {
-		handleSvcErr(c, err)
-		return
-	}
-	response.OKJSON(c, ids)
-}
-
-// SetDirRolesReq 设置目录可见角色请求体（全量替换）
-type SetDirRolesReq struct {
-	RoleIDs []uint `json:"role_ids"`
-}
-
-// @Summary 设置目录可见角色（全量替换）
-// @Tags Doc
-// @Security BearerAuth
-// @Router /docs/dirs/:id/roles [put]
-func (h *DocHandler) SetDirRoles(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		response.BadRequest(c, "invalid id")
-		return
-	}
-	var req SetDirRolesReq
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
-		return
-	}
-	if err := h.svc.SetDirRoles(c.Request.Context(), uint(id), req.RoleIDs); err != nil {
 		handleSvcErr(c, err)
 		return
 	}
@@ -279,6 +250,84 @@ func (h *DocHandler) GetPublicDoc(c *gin.Context) {
 		return
 	}
 	response.OKJSON(c, doc)
+}
+
+// @Summary 公开目录树（匿名，shared 目录 + 公开文档）
+// @Tags Doc
+// @Router /public/docs/tree [get]
+func (h *DocHandler) GetPublicTree(c *gin.Context) {
+	tree, err := h.svc.GetPublicTree(c.Request.Context())
+	if err != nil {
+		handleSvcErr(c, err)
+		return
+	}
+	response.OKJSON(c, tree)
+}
+
+// UploadImage 上传文档图片（存 uploads/docs/，返回可访问 URL）。
+// 独立于 config 的 upload-image：文档图片单独目录，权限用 doc:update。
+// @Summary 上传文档图片
+// @Tags Doc
+// @Security BearerAuth
+// @Accept multipart/form-data
+// @Param file formData file true "图片文件（png/jpg/jpeg/gif/webp，≤2MB）"
+// @Success 200 {object} response.Response{data=map[string]string} "url"
+// @Router /docs/upload [post]
+func (h *DocHandler) UploadImage(c *gin.Context) {
+	file, header, err := c.Request.FormFile("file")
+	if err != nil {
+		response.BadRequest(c, "请选择文件")
+		return
+	}
+	defer func() { _ = file.Close() }()
+
+	// 校验扩展名 + 大小 + magic bytes（与 config/upload-image 一致）
+	ext := strings.ToLower(filepath.Ext(header.Filename))
+	switch ext {
+	case ".png", ".jpg", ".jpeg", ".gif", ".webp":
+	default:
+		response.BadRequest(c, "不支持的文件类型，仅支持 png/jpg/jpeg/gif/webp")
+		return
+	}
+	if header.Size > 2<<20 {
+		response.BadRequest(c, "文件大小不能超过 2MB")
+		return
+	}
+	buf := make([]byte, 512)
+	n, _ := file.Read(buf)
+	if n > 0 {
+		detected := http.DetectContentType(buf[:n])
+		if !strings.HasPrefix(detected, "image/") {
+			response.BadRequest(c, "不支持的文件内容，仅支持图片文件")
+			return
+		}
+	}
+
+	uploadDir := "uploads/docs"
+	if err := os.MkdirAll(uploadDir, 0750); err != nil {
+		response.InternalError(c)
+		return
+	}
+	filename := fmt.Sprintf("%d%s", time.Now().UnixNano(), ext)
+	savePath := filepath.Join(uploadDir, filename)
+	//nolint:gosec // G304: filename 由时间戳生成，非用户输入，无路径注入风险
+	dst, err := os.Create(savePath)
+	if err != nil {
+		response.InternalError(c)
+		return
+	}
+	defer func() { _ = dst.Close() }()
+
+	if _, err := dst.Write(buf[:n]); err != nil {
+		response.InternalError(c)
+		return
+	}
+	if _, err := io.Copy(dst, file); err != nil {
+		response.InternalError(c)
+		return
+	}
+
+	response.OKJSON(c, gin.H{"url": "/uploads/docs/" + filename})
 }
 
 // CreateDocReq 创建文档请求体

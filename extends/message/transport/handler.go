@@ -47,6 +47,43 @@ func (h *MessageHandler) List(c *gin.Context) {
 	response.PageJSON(c, messages, total, pq.Page, pq.PageSize)
 }
 
+// ListSent 管理端：当前管理员已发送的站内信列表（含撤回状态）
+// @Summary 已发送站内信（管理端）
+// @Tags Message
+// @Security BearerAuth
+// @Router /messages [get]
+func (h *MessageHandler) ListSent(c *gin.Context) {
+	pq, err := query.Parse(c, messageQueryDefs)
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	messages, total, err := h.svc.ListSent(c.Request.Context(), c.GetUint("user_id"), pq)
+	if err != nil {
+		response.InternalError(c)
+		return
+	}
+	response.PageJSON(c, messages, total, pq.Page, pq.PageSize)
+}
+
+// Revoke 撤回已发送站内信（仅发送者本人）
+// @Summary 撤回站内信
+// @Tags Message
+// @Security BearerAuth
+// @Router /messages/:id/revoke [put]
+func (h *MessageHandler) Revoke(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "invalid id")
+		return
+	}
+	if err := h.svc.Revoke(c.Request.Context(), uint(id), c.GetUint("user_id")); err != nil {
+		response.InternalError(c)
+		return
+	}
+	response.OKJSON(c, nil)
+}
+
 // GetByID 消息详情（仅限自己的）
 // @Summary 消息详情
 // @Tags Message

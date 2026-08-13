@@ -21,6 +21,7 @@ import {
   MonitorOutlined,
   BulbOutlined,
   BulbFilled,
+  ApartmentOutlined,
 } from '@ant-design/icons';
 import { useAuthStore } from '../stores/auth';
 import { useTheme } from '../hooks/useTheme';
@@ -42,15 +43,42 @@ const icons: Record<string, React.ReactNode> = {
   FileTextOutlined: <FileTextOutlined />,
   ScheduleOutlined: <ScheduleOutlined />,
   MonitorOutlined: <MonitorOutlined />,
+  ApartmentOutlined: <ApartmentOutlined />,
 };
 
 const MOBILE_BREAKPOINT = 768;
 
+// 侧边栏开合状态本地记忆（桌面折叠偏好 + 子菜单展开项）
+const SIDER_COLLAPSED_KEY = 'layout:sider-collapsed';
+const MENU_OPEN_KEYS_KEY = 'layout:menu-open-keys';
+
+const readStoredCollapsed = (): boolean => {
+  try {
+    const v = localStorage.getItem(SIDER_COLLAPSED_KEY);
+    return v === null ? false : v === '1';
+  } catch {
+    return false;
+  }
+};
+
+const readStoredOpenKeys = (): string[] => {
+  try {
+    const v = localStorage.getItem(MENU_OPEN_KEYS_KEY);
+    const keys = v ? (JSON.parse(v) as unknown) : [];
+    return Array.isArray(keys) ? (keys as string[]).filter((k) => typeof k === 'string') : [];
+  } catch {
+    return [];
+  }
+};
+
 const AdminLayout: React.FC = () => {
   const [mobileDrawer, setMobileDrawer] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < MOBILE_BREAKPOINT);
-  const [collapsed, setCollapsed] = useState(isMobile);
-  const [openKeys, setOpenKeys] = useState<string[]>([]);
+  // 桌面端从 localStorage 恢复上次折叠偏好；移动端始终折叠
+  const [collapsed, setCollapsed] = useState<boolean>(() =>
+    window.innerWidth < MOBILE_BREAKPOINT ? true : readStoredCollapsed()
+  );
+  const [openKeys, setOpenKeys] = useState<string[]>(() => readStoredOpenKeys());
   const [siteName, setSiteName] = useState('Kingfisher');
   const [siteLogo, setSiteLogo] = useState('');
   const [unreadCount, setUnreadCount] = useState(0);
@@ -79,6 +107,25 @@ const AdminLayout: React.FC = () => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // 桌面端折叠偏好写入 localStorage（移动端强制折叠不覆盖，回到桌面仍保持上次偏好）
+  useEffect(() => {
+    if (isMobile) return;
+    try {
+      localStorage.setItem(SIDER_COLLAPSED_KEY, collapsed ? '1' : '0');
+    } catch {
+      /* 隐私模式等写入失败忽略 */
+    }
+  }, [collapsed, isMobile]);
+
+  // 子菜单展开项写入 localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(MENU_OPEN_KEYS_KEY, JSON.stringify(openKeys));
+    } catch {
+      /* 忽略 */
+    }
+  }, [openKeys]);
 
   // 未读站内信轮询
   useEffect(() => {
@@ -129,7 +176,8 @@ const AdminLayout: React.FC = () => {
     theme: (theme === 'dark' ? 'dark' : 'light') as 'dark' | 'light',
     mode: 'inline' as const,
     selectedKeys: [location.pathname],
-    openKeys,
+    // 折叠时 openKeys 交给 antd 悬停弹层（否则持久化的展开项会在 80px 栏里渲染成弹层）
+    openKeys: collapsed ? [] : openKeys,
     onOpenChange: (keys: string[]) => setOpenKeys(keys),
     onClick: ({ key }: { key: string }) => {
       navigate(key);
@@ -183,7 +231,7 @@ const AdminLayout: React.FC = () => {
           {siderContent}
         </Drawer>
       ) : (
-        <Layout.Sider collapsible collapsed={collapsed} onCollapse={setCollapsed} theme={theme === 'dark' ? 'dark' : 'light'} width={220}>
+        <Layout.Sider trigger={null} collapsible collapsed={collapsed} onCollapse={setCollapsed} theme={theme === 'dark' ? 'dark' : 'light'} width={220}>
           <div
             onClick={() => navigate('/dashboard')}
             title="返回首页"

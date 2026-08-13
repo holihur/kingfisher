@@ -85,10 +85,21 @@ func (r *RoleRepo) AssignMenus(ctx context.Context, roleID uint, menuIDs []uint)
 		return nil
 	})
 }
+
+// GetUserPermissions 返回用户的全部权限码（有效角色 = 直接角色 ∪ 部门继承角色，取并集去重）。
+// 直接角色来自 user_roles；部门继承角色来自 user_departments ⋈ department_roles。
 func (r *RoleRepo) GetUserPermissions(ctx context.Context, userID uint) ([]string, error) {
 	var codes []string
-	err := r.db.WithContext(ctx).Raw(
-		"SELECT DISTINCT p.code FROM permissions p JOIN role_permissions rp ON p.id = rp.permission_id JOIN user_roles ur ON ur.role_id = rp.role_id WHERE ur.user_id = ?", userID).Scan(&codes).Error
+	err := r.db.WithContext(ctx).Raw(`
+SELECT DISTINCT p.code FROM permissions p
+JOIN role_permissions rp ON p.id = rp.permission_id
+JOIN (
+    SELECT ur.role_id FROM user_roles ur WHERE ur.user_id = ?
+    UNION
+    SELECT dr.role_id FROM department_roles dr
+    JOIN user_departments ud ON ud.department_id = dr.department_id
+    WHERE ud.user_id = ?
+) r ON r.role_id = rp.role_id`, userID, userID).Scan(&codes).Error
 	return codes, err
 }
 

@@ -85,14 +85,16 @@ type UpdateUserReq struct {
 	Email   *string `json:"email"`
 	Status  *int    `json:"status"`
 	RoleIDs []uint  `json:"role_ids"`
+	DeptIDs []uint  `json:"dept_ids"`
 }
 
-// CreateUserReq 管理员创建用户（可指定多个角色）
+// CreateUserReq 管理员创建用户（可指定多个角色与部门）
 type CreateUserReq struct {
 	Username string `json:"username" binding:"required,min=3,max=32" example:"newuser"`
 	Password string `json:"password" binding:"required,min=8,max=64,password" example:"Abcd1234"`
 	Email    string `json:"email" example:"user@example.com"`
 	RoleIDs  []uint `json:"role_ids"`
+	DeptIDs  []uint `json:"dept_ids"`
 }
 
 type ChangePwdReq struct {
@@ -294,7 +296,7 @@ func (h *UserHandler) Create(c *gin.Context) {
 		response.BadRequest(c, err.Error())
 		return
 	}
-	user, err := h.svc.CreateUser(c.Request.Context(), req.Username, req.Password, req.Email, req.RoleIDs)
+	user, err := h.svc.CreateUser(c.Request.Context(), req.Username, req.Password, req.Email, req.RoleIDs, req.DeptIDs)
 	if err != nil {
 		response.ErrorJSON(c, errcode.ErrUserExists)
 		return
@@ -585,11 +587,15 @@ func (h *UserHandler) Update(c *gin.Context) {
 		updates["status"] = *req.Status
 	}
 	if req.RoleIDs != nil {
-		if len(req.RoleIDs) == 0 {
-			response.BadRequest(c, "至少需要分配一个角色")
+		// 角色可清空（依赖部门继承角色），但「无直接角色且无部门」才是非法状态
+		if len(req.RoleIDs) == 0 && len(req.DeptIDs) == 0 {
+			response.BadRequest(c, "至少需要分配一个角色或部门")
 			return
 		}
 		updates["role_ids"] = req.RoleIDs
+	}
+	if req.DeptIDs != nil {
+		updates["dept_ids"] = req.DeptIDs
 	}
 
 	// 变更 Diff：更新前读取旧值，构造 旧值→新值 供审计记录
@@ -602,8 +608,11 @@ func (h *UserHandler) Update(c *gin.Context) {
 			if req.Status != nil && old.Status != *req.Status {
 				diff["status"] = map[string]any{"old": old.Status, "new": *req.Status}
 			}
-			if req.RoleIDs != nil && !sameUintSlice(old.RoleIDs, req.RoleIDs) {
-				diff["role_ids"] = map[string]any{"old": old.RoleIDs, "new": req.RoleIDs}
+			if req.RoleIDs != nil && !sameUintSlice(old.DirectRoleIDs, req.RoleIDs) {
+				diff["role_ids"] = map[string]any{"old": old.DirectRoleIDs, "new": req.RoleIDs}
+			}
+			if req.DeptIDs != nil && !sameUintSlice(old.DeptIDs, req.DeptIDs) {
+				diff["dept_ids"] = map[string]any{"old": old.DeptIDs, "new": req.DeptIDs}
 			}
 			if len(diff) > 0 {
 				if b, err := json.Marshal(diff); err == nil {
@@ -730,12 +739,13 @@ func (h *UserHandler) RevokeSessions(c *gin.Context) {
 // ---------- helpers ----------
 
 var userQueryDefs = query.Defs{
-	"username":   {Name: "username", Type: query.TypeString, Searchable: true, Filterable: true},
-	"email":      {Name: "email", Type: query.TypeString, Searchable: true, Filterable: true},
-	"status":     {Name: "status", Type: query.TypeInt, Filterable: true},
-	"role_id":    {Name: "role_id", Type: query.TypeUint, Filterable: true},
-	"created_at": {Name: "created_at", Type: query.TypeTime, Filterable: true},
-	"updated_at": {Name: "updated_at", Type: query.TypeTime, Filterable: true},
+	"username":      {Name: "username", Type: query.TypeString, Searchable: true, Filterable: true},
+	"email":         {Name: "email", Type: query.TypeString, Searchable: true, Filterable: true},
+	"status":        {Name: "status", Type: query.TypeInt, Filterable: true},
+	"role_id":       {Name: "role_id", Type: query.TypeUint, Filterable: true},
+	"department_id": {Name: "department_id", Type: query.TypeUint, Filterable: true},
+	"created_at":    {Name: "created_at", Type: query.TypeTime, Filterable: true},
+	"updated_at":    {Name: "updated_at", Type: query.TypeTime, Filterable: true},
 }
 
 var auditLogQueryDefs = query.Defs{

@@ -167,9 +167,9 @@ function AppRoutes() {
         </Lazy>
       ),
     },
-    // 公开文档预览（无需登录，独立页）
+    // 公开文档站（无需登录，独立页）：/docs/public 目录导航，/docs/public/:id 文档
     {
-      path: '/docs/public/:id',
+      path: '/docs/public/:id?',
       element: (
         <Lazy>
           <PublicDocView />

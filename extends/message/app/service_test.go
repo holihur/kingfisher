@@ -54,6 +54,25 @@ func (m *mockMessageRepo) MarkRead(ctx context.Context, id, recipientID uint) er
 	return nil
 }
 
+func (m *mockMessageRepo) ListBySender(ctx context.Context, senderID uint, q *query.Query) ([]domain.Message, int64, error) {
+	var out []domain.Message
+	for _, v := range m.msgs {
+		if v.SenderID == senderID {
+			out = append(out, *v)
+		}
+	}
+	return out, int64(len(out)), nil
+}
+
+func (m *mockMessageRepo) Revoke(ctx context.Context, id, senderID uint) error {
+	v, ok := m.msgs[id]
+	if !ok || v.SenderID != senderID {
+		return errMsgNotFound
+	}
+	v.Status = "revoked"
+	return nil
+}
+
 func (m *mockMessageRepo) Delete(ctx context.Context, id, recipientID uint) error {
 	v, ok := m.msgs[id]
 	if !ok || v.RecipientID != recipientID {
@@ -131,7 +150,7 @@ func TestMessageServiceCreateDefaultsAndScope(t *testing.T) {
 		t.Errorf("total after delete=%d", total)
 	}
 	// List 隔离：给 user3 的未读数与 user2 无关
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		if _, err := svc.Create(ctx, 1, "admin", uint(3), "批量", ""); err != nil {
 			t.Fatal(err)
 		}

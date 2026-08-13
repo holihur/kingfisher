@@ -22,18 +22,18 @@ type DocRepository interface {
 	FindDirByID(ctx context.Context, id uint) (*domain.DocDirectory, error)
 	CreateDir(ctx context.Context, d *domain.DocDirectory) error
 	UpdateDir(ctx context.Context, id uint, updates map[string]any) error
-	DeleteDir(ctx context.Context, id uint) error // 顺带删除 doc_dir_roles 授权行
+	DeleteDir(ctx context.Context, id uint) error
 	HasDirChildren(ctx context.Context, parentID uint) (bool, error)
 	HasDirDocuments(ctx context.Context, dirID uint) (bool, error)
-	GetDirRoleIDs(ctx context.Context, dirID uint) ([]uint, error)
-	SetDirRoles(ctx context.Context, dirID uint, roleIDs []uint) error // 全量替换
 
 	// —— 文档 ——
 	ListDocs(ctx context.Context, dirID uint, q *query.Query, userID uint, roleIDs []uint, isAdmin bool) ([]domain.Document, int64, error)
 	// ListAllVisibleDocs 返回当前用户可见的全部文档（不分页，用于目录树叶子节点；可见性同 ListDocs）
 	ListAllVisibleDocs(ctx context.Context, userID uint, roleIDs []uint, isAdmin bool) ([]domain.Document, error)
+	// ListAllPublicDocs 全部公开文档（published + shared，用于公开页目录树叶子）
+	ListAllPublicDocs(ctx context.Context) ([]domain.Document, error)
 	GetDocByID(ctx context.Context, id uint, userID uint, roleIDs []uint, isAdmin bool) (*domain.Document, error)
-	// GetPublicDoc 公开文档：已发布 + 共享，不受目录角色限制（匿名可读）
+	// GetPublicDoc 公开文档：已发布 + 共享（匿名可读）
 	GetPublicDoc(ctx context.Context, id uint) (*domain.Document, error)
 	CreateWithVersion(ctx context.Context, doc *domain.Document, ver *domain.DocVersion) (*domain.Document, error)
 	UpdateWithVersion(ctx context.Context, id uint, title, content, visibility string, ownerID uint, note string) error

@@ -15,19 +15,21 @@ const (
 	DocStatusPublished = "published" // 已发布：按可见性规则公开
 )
 
-// DocDirectory 文档目录（树形）
+// DocDirectory 文档目录（树形）。
+// 可见性与文档一致（shared/private）：shared 目录所有登录用户可见且出现在公开页；
+// private 目录仅 admin 可见（公开页不出现）。
 type DocDirectory struct {
-	ID           uint           `json:"id"`
-	ParentID     uint           `json:"parent_id"`
-	Name         string         `json:"name"`
-	Sort         int            `json:"sort"`
-	Status       int            `json:"status"`
-	Version      string         `json:"version"`
-	GrantedRoles []uint         `json:"granted_roles,omitempty"` // 可见角色 id 白名单（空 = 默认拒绝：仅 admin 可见）
-	Docs         []DocTreeItem  `json:"docs,omitempty"`          // 该目录下当前用户可见的文档（叶子节点）
-	Children     []DocDirectory `json:"children,omitempty"`
-	CreatedAt    time.Time      `json:"created_at"`
-	UpdatedAt    time.Time      `json:"updated_at"`
+	ID         uint           `json:"id"`
+	ParentID   uint           `json:"parent_id"`
+	Name       string         `json:"name"`
+	Sort       int            `json:"sort"`
+	Status     int            `json:"status"`
+	Version    string         `json:"version"`
+	Visibility string         `json:"visibility"`     // shared | private
+	Docs       []DocTreeItem  `json:"docs,omitempty"` // 该目录下当前用户可见的文档（叶子节点）
+	Children   []DocDirectory `json:"children,omitempty"`
+	CreatedAt  time.Time      `json:"created_at"`
+	UpdatedAt  time.Time      `json:"updated_at"`
 }
 
 // DocTreeItem 目录树中的文档叶子节点（轻量，不含正文）
@@ -43,7 +45,7 @@ type Document struct {
 	ID             uint       `json:"id"`
 	DirID          uint       `json:"dir_id"`
 	Title          string     `json:"title"`
-	Content        string     `json:"content"` // Quill 输出的 HTML（当前最新内容）
+	Content        string     `json:"content"` // Lexical editorState JSON（当前最新内容）
 	OwnerID        uint       `json:"owner_id"`
 	OwnerName      string     `json:"owner_name,omitempty"`
 	Visibility     string     `json:"visibility"`      // shared | private

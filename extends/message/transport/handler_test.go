@@ -32,6 +32,12 @@ func (stubRepo) GetByID(ctx context.Context, id, recipientID uint) (*domain.Mess
 func (stubRepo) MarkRead(ctx context.Context, id, recipientID uint) error {
 	return errors.New("not implemented")
 }
+func (stubRepo) ListBySender(ctx context.Context, senderID uint, q *query.Query) ([]domain.Message, int64, error) {
+	return nil, 0, errors.New("not implemented")
+}
+func (stubRepo) Revoke(ctx context.Context, id, senderID uint) error {
+	return errors.New("not implemented")
+}
 func (stubRepo) DeleteBatch(ctx context.Context, ids []uint, recipientID uint) error {
 	return errors.New("not implemented")
 }

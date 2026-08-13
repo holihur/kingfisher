@@ -5,9 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
-
-	"github.com/microcosm-cc/bluemonday"
 
 	coreCache "kingfisher/core/cache"
 	"kingfisher/core/errcode"
@@ -26,13 +25,12 @@ const treeCacheKey = "doc:tree"
 
 // DocService 文档服务
 type DocService struct {
-	repo     port.DocRepository
-	cache    coreCache.Cache
-	sanitize *bluemonday.Policy
+	repo  port.DocRepository
+	cache coreCache.Cache
 }
 
 func NewDocService(repo port.DocRepository, cache coreCache.Cache) *DocService {
-	return &DocService{repo: repo, cache: cache, sanitize: newSanitizer()}
+	return &DocService{repo: repo, cache: cache}
 }
 
 // ———— 目录 ————
@@ -124,19 +122,6 @@ func (s *DocService) DeleteDir(ctx context.Context, id uint) error {
 	return nil
 }
 
-func (s *DocService) GetDirRoleIDs(ctx context.Context, dirID uint) ([]uint, error) {
-	return s.repo.GetDirRoleIDs(ctx, dirID)
-}
-
-// SetDirRoles 全量替换目录可见角色；设置后目录仅对这些角色可见（默认拒绝）。
-func (s *DocService) SetDirRoles(ctx context.Context, dirID uint, roleIDs []uint) error {
-	if err := s.repo.SetDirRoles(ctx, dirID, roleIDs); err != nil {
-		return err
-	}
-	_ = s.invalidateTreeCache(ctx)
-	return nil
-}
-
 func (s *DocService) invalidateTreeCache(ctx context.Context) error {
 	if s.cache == nil {
 		return nil
@@ -156,6 +141,20 @@ func (s *DocService) GetDoc(ctx context.Context, id uint, userID uint, roleIDs [
 		return nil, &Error{Code: errcode.ErrDocNotFound}
 	}
 	return doc, nil
+}
+
+// GetPublicTree 公开目录树（匿名）：只含 shared 目录及其下 published+shared 文档叶子，
+// 供公开文档页左侧导航。private 目录整体隐藏。
+func (s *DocService) GetPublicTree(ctx context.Context) ([]domain.DocDirectory, error) {
+	tree, err := s.getFullTree(ctx)
+	if err != nil {
+		return nil, err
+	}
+	publicDocs, err := s.repo.ListAllPublicDocs(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return filterPublicTree(tree, publicDocs), nil
 }
 
 // GetPublicDoc 公开文档（已发布+共享），匿名可读；不满足公开条件 → 404 隐藏。
@@ -179,9 +178,11 @@ func (s *DocService) CreateDoc(ctx context.Context, dirID uint, title, content s
 	if title == "" {
 		return nil, &Error{Code: errcode.ErrInvalidParam}
 	}
-	clean := s.sanitize.Sanitize(content)
+	if err := validateDocContent(content); err != nil {
+		return nil, err
+	}
 	doc := &domain.Document{
-		DirID: dirID, Title: title, Content: clean, OwnerID: ownerID,
+		DirID: dirID, Title: title, Content: content, OwnerID: ownerID,
 		Visibility: visibility, Status: domain.DocStatusDraft, CurrentVersion: 1,
 	}
 	ver := &domain.DocVersion{OwnerID: ownerID, Note: note}
@@ -201,15 +202,17 @@ func (s *DocService) UpdateDoc(ctx context.Context, id uint, title, content, vis
 	if visibility != "" && !isAdmin && doc.OwnerID != userID {
 		return nil, &Error{Code: errcode.ErrDocForbidden}
 	}
-	clean := s.sanitize.Sanitize(content)
-	if err := s.repo.UpdateWithVersion(ctx, id, title, clean, visibility, userID, note); err != nil {
+	if err := validateDocContent(content); err != nil {
+		return nil, err
+	}
+	if err := s.repo.UpdateWithVersion(ctx, id, title, content, visibility, userID, note); err != nil {
 		if errors.Is(err, port.ErrVersionConflict) {
 			return nil, &Error{Code: errcode.ErrDocVersionConflict}
 		}
 		return nil, err
 	}
 	doc.Title = title
-	doc.Content = clean
+	doc.Content = content
 	doc.CurrentVersion++
 	if visibility != "" {
 		doc.Visibility = visibility
@@ -305,22 +308,12 @@ func (s *DocService) ensureOwnerOrAdmin(ctx context.Context, docID uint, userID 
 
 // ———— 可见性与树工具 ————
 
-// canSeeDir 目录可见（默认拒绝）：admin 直通；有授权记录且角色交集非空才可见。
-func canSeeDir(dir *domain.DocDirectory, roleIDs []uint, isAdmin bool) bool {
+// canSeeDir 目录可见：admin 直通；shared 目录所有登录用户可见；private 仅 admin。
+func canSeeDir(dir *domain.DocDirectory, _ []uint, isAdmin bool) bool {
 	if isAdmin {
 		return true
 	}
-	if dir == nil || len(dir.GrantedRoles) == 0 {
-		return false
-	}
-	for _, gid := range dir.GrantedRoles {
-		for _, rid := range roleIDs {
-			if gid == rid {
-				return true
-			}
-		}
-	}
-	return false
+	return dir != nil && dir.Visibility == domain.VisibilityShared
 }
 
 // filterTree 按可见性过滤树：不可见的节点连同其子树整体裁剪。
@@ -336,6 +329,30 @@ func filterTree(tree []domain.DocDirectory, roleIDs []uint, isAdmin bool) []doma
 	return out
 }
 
+// filterPublicTree 保留 shared 目录（private 目录连同子树裁掉），并把公开文档挂到对应目录。
+func filterPublicTree(tree []domain.DocDirectory, publicDocs []domain.Document) []domain.DocDirectory {
+	byDir := make(map[uint][]domain.DocTreeItem, len(publicDocs))
+	for _, d := range publicDocs {
+		byDir[d.DirID] = append(byDir[d.DirID], domain.DocTreeItem{
+			ID: d.ID, Title: d.Title, Status: d.Status, Visibility: d.Visibility,
+		})
+	}
+	var walk func([]domain.DocDirectory) []domain.DocDirectory
+	walk = func(nodes []domain.DocDirectory) []domain.DocDirectory {
+		var out []domain.DocDirectory
+		for _, n := range nodes {
+			if n.Visibility != domain.VisibilityShared {
+				continue
+			}
+			n.Docs = byDir[n.ID]
+			n.Children = walk(n.Children)
+			out = append(out, n)
+		}
+		return out
+	}
+	return walk(tree)
+}
+
 func buildTree(dirs []domain.DocDirectory, parentID uint) []domain.DocDirectory {
 	var result []domain.DocDirectory
 	for _, d := range dirs {
@@ -347,13 +364,80 @@ func buildTree(dirs []domain.DocDirectory, parentID uint) []domain.DocDirectory 
 	return result
 }
 
-// newSanitizer 构造富文本白名单清洗策略（XSS 防护：删除 script/事件属性/javascript: 协议）。
-func newSanitizer() *bluemonday.Policy {
-	p := bluemonday.UGCPolicy()
-	// Quill 常用元素（UGCPolicy 已含 p/ul/ol/li/a/img 等，补充标题/代码块/对齐）
-	p.AllowElements("h1", "h2", "h3", "h4", "h5", "h6", "blockquote", "pre", "code", "span", "br", "strike", "sub", "sup")
-	p.AllowAttrs("align", "class", "style").OnElements("p", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote", "span", "div", "pre", "code")
-	p.AllowAttrs("href", "target", "rel").OnElements("a")
-	p.AllowAttrs("src", "alt", "title", "width", "height").OnElements("img")
-	return p
+// 文档内容的资源上限：防止单文档过大 / 恶意深嵌套拖垮前端渲染与预览。
+const (
+	docContentMaxBytes   = 2 << 20 // 2MB
+	docContentMaxNodes   = 20000
+	docContentMaxDepth   = 20
+	docContentMaxTextLen = 1 << 20 // 单文本节点 1MB
+)
+
+// 允许的 Lexical 节点类型白名单（前端编辑器可产出的全部节点）。
+// 渲染侧只认这些类型，其余一律按纯文本/丢弃降级，杜绝未知节点夹带危险内容。
+var docAllowedNodeTypes = map[string]bool{
+	"root": true, "paragraph": true, "text": true, "heading": true, "quote": true,
+	"code": true, "code-highlight": true, "list": true, "listitem": true, "link": true,
+	"table": true, "tablerow": true, "tablecell": true, "horizontalrule": true,
+	"linebreak": true, "callout": true, "toggle": true, "image": true,
+}
+
+// validateDocContent 校验文档内容为合法的 Lexical editorState JSON。
+// content 是 JSON 数据结构（非 HTML），渲染走 React 转义 + 预览序列化器白名单，
+// 因此这里不做 HTML 清洗，只做结构/资源校验：
+// 长度上限、合法 JSON、node type 白名单、节点数/深度/单文本长度上限。
+func validateDocContent(content string) *Error {
+	if len(content) > docContentMaxBytes {
+		return &Error{Code: errcode.ErrDocContentInvalid}
+	}
+	if strings.TrimSpace(content) == "" {
+		return nil // 允许空文档
+	}
+	var state struct {
+		Root *struct {
+			Children []json.RawMessage `json:"children"`
+		} `json:"root"`
+	}
+	if err := json.Unmarshal([]byte(content), &state); err != nil {
+		return &Error{Code: errcode.ErrDocContentInvalid}
+	}
+	if state.Root == nil {
+		return &Error{Code: errcode.ErrDocContentInvalid}
+	}
+	count := 0
+	var walk func(raw json.RawMessage, depth int) bool
+	walk = func(raw json.RawMessage, depth int) bool {
+		if depth > docContentMaxDepth {
+			return false
+		}
+		var node struct {
+			Type     string            `json:"type"`
+			Children []json.RawMessage `json:"children"`
+			Text     string            `json:"text"`
+		}
+		if err := json.Unmarshal(raw, &node); err != nil {
+			return false
+		}
+		count++
+		if count > docContentMaxNodes {
+			return false
+		}
+		if !docAllowedNodeTypes[node.Type] {
+			return false
+		}
+		if len(node.Text) > docContentMaxTextLen {
+			return false
+		}
+		for _, c := range node.Children {
+			if !walk(c, depth+1) {
+				return false
+			}
+		}
+		return true
+	}
+	for _, c := range state.Root.Children {
+		if !walk(c, 1) {
+			return &Error{Code: errcode.ErrDocContentInvalid}
+		}
+	}
+	return nil
 }

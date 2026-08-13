@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -43,7 +44,7 @@ type stubRepo struct {
 	getDocByID    func(ctx context.Context, id uint, userID uint, roleIDs []uint, isAdmin bool) (*domain.Document, error)
 	createWithVer func(ctx context.Context, doc *domain.Document, ver *domain.DocVersion) (*domain.Document, error)
 	updateWithVer func(ctx context.Context, id uint, title, content, visibility string, ownerID uint, note string) error
-	setDirRoles   func(ctx context.Context, dirID uint, roleIDs []uint) error
+	listAllPublic func(ctx context.Context) ([]domain.Document, error)
 }
 
 func (s *stubRepo) FindAllDirs(ctx context.Context) ([]domain.DocDirectory, error) {
@@ -65,17 +66,16 @@ func (s *stubRepo) HasDirChildren(ctx context.Context, parentID uint) (bool, err
 	return false, nil
 }
 func (s *stubRepo) HasDirDocuments(ctx context.Context, dirID uint) (bool, error) { return false, nil }
-func (s *stubRepo) GetDirRoleIDs(ctx context.Context, dirID uint) ([]uint, error) { return nil, nil }
-func (s *stubRepo) SetDirRoles(ctx context.Context, dirID uint, roleIDs []uint) error {
-	if s.setDirRoles != nil {
-		return s.setDirRoles(ctx, dirID, roleIDs)
-	}
-	return nil
-}
 func (s *stubRepo) ListDocs(ctx context.Context, dirID uint, q *query.Query, userID uint, roleIDs []uint, isAdmin bool) ([]domain.Document, int64, error) {
 	return nil, 0, nil
 }
 func (s *stubRepo) ListAllVisibleDocs(ctx context.Context, userID uint, roleIDs []uint, isAdmin bool) ([]domain.Document, error) {
+	return nil, nil
+}
+func (s *stubRepo) ListAllPublicDocs(ctx context.Context) ([]domain.Document, error) {
+	if s.listAllPublic != nil {
+		return s.listAllPublic(ctx)
+	}
 	return nil, nil
 }
 func (s *stubRepo) GetDocByID(ctx context.Context, id uint, userID uint, roleIDs []uint, isAdmin bool) (*domain.Document, error) {
@@ -113,71 +113,165 @@ func (s *stubRepo) GetVersion(ctx context.Context, docID uint, versionNo int) (*
 	return nil, nil
 }
 
-func TestGetTreeFiltersByRole(t *testing.T) {
+func TestGetTreeFiltersByVisibility(t *testing.T) {
 	repo := &stubRepo{
 		findAllDirs: func(_ context.Context) ([]domain.DocDirectory, error) {
 			return []domain.DocDirectory{
-				{ID: 1, ParentID: 0, Name: "公开", GrantedRoles: []uint{1, 3, 4}},
-				{ID: 2, ParentID: 0, Name: "仅admin", GrantedRoles: []uint{1}},
-				{ID: 3, ParentID: 1, Name: "子目录", GrantedRoles: []uint{1, 3}},
-				{ID: 4, ParentID: 0, Name: "未授权", GrantedRoles: nil}, // 默认拒绝
+				{ID: 1, ParentID: 0, Name: "公开", Visibility: domain.VisibilityShared},
+				{ID: 2, ParentID: 0, Name: "仅admin", Visibility: domain.VisibilityPrivate},
+				{ID: 3, ParentID: 1, Name: "子目录", Visibility: domain.VisibilityShared},
+				{ID: 4, ParentID: 0, Name: "私有默认", Visibility: ""}, // 空视为非 shared → 非 admin 隐藏
 			}, nil
 		},
 	}
 	svc := NewDocService(repo, nil)
 
-	// 非 admin viewer(role 4)：只见 dir1，且 dir1 下的 dir3(无 role4) 被裁剪
+	// 非 admin：只见 shared 目录（private 及其下子树整体裁剪）
 	tree, err := svc.GetTree(context.Background(), 99, []uint{4}, false)
 	if err != nil {
 		t.Fatalf("gettree: %v", err)
 	}
 	if len(tree) != 1 || tree[0].Name != "公开" {
-		t.Fatalf("viewer 应只见 公开，got %+v", tree)
+		t.Fatalf("非 admin 应只见 公开，got %+v", tree)
 	}
-	if len(tree[0].Children) != 0 {
-		t.Fatalf("viewer 不应见 子目录，got %+v", tree[0].Children)
+	if len(tree[0].Children) != 1 || tree[0].Children[0].Name != "子目录" {
+		t.Fatalf("shared 子目录应可见，got %+v", tree[0].Children)
 	}
 
-	// admin：全量（含未授权目录）
+	// admin：全量（含 private 目录）
 	tree2, _ := svc.GetTree(context.Background(), 1, nil, true)
 	if len(tree2) != 3 || len(tree2[0].Children) != 1 {
 		t.Fatalf("admin 应见全部 3 个顶级+1 子目录，got %+v", tree2)
 	}
 
-	// 无授权目录（GrantedRoles 空）= 默认拒绝：即使角色匹配也看不到未授权目录
-	tree3, _ := svc.GetTree(context.Background(), 99, []uint{4}, false)
-	for _, n := range tree3 {
-		if n.Name == "未授权" {
-			t.Fatalf("未授权目录对非 admin 默认拒绝，got %+v", tree3)
+	// 私有默认（visibility 空）对非 admin 隐藏
+	for _, n := range tree {
+		if n.Name == "私有默认" {
+			t.Fatalf("私有目录对非 admin 应隐藏，got %+v", tree)
 		}
 	}
 }
 
-func TestCreateDocSanitizesXSS(t *testing.T) {
+func TestGetPublicTree(t *testing.T) {
+	repo := &stubRepo{
+		findAllDirs: func(_ context.Context) ([]domain.DocDirectory, error) {
+			return []domain.DocDirectory{
+				{ID: 1, ParentID: 0, Name: "公开目录", Visibility: domain.VisibilityShared},
+				{ID: 2, ParentID: 0, Name: "私有目录", Visibility: domain.VisibilityPrivate},
+				{ID: 3, ParentID: 1, Name: "公开子目录", Visibility: domain.VisibilityShared},
+			}, nil
+		},
+		listAllPublic: func(_ context.Context) ([]domain.Document, error) {
+			return []domain.Document{
+				{ID: 10, DirID: 1, Title: "文档A", Status: domain.DocStatusPublished, Visibility: domain.VisibilityShared},
+				{ID: 11, DirID: 3, Title: "文档B", Status: domain.DocStatusPublished, Visibility: domain.VisibilityShared},
+			}, nil
+		},
+	}
+	svc := NewDocService(repo, nil)
+	tree, err := svc.GetPublicTree(context.Background())
+	if err != nil {
+		t.Fatalf("GetPublicTree: %v", err)
+	}
+	// 私有目录被裁剪；公开目录挂上公开文档
+	if len(tree) != 1 || tree[0].Name != "公开目录" {
+		t.Fatalf("公开树应只剩 公开目录，got %+v", tree)
+	}
+	if len(tree[0].Docs) != 1 || tree[0].Docs[0].Title != "文档A" {
+		t.Fatalf("公开目录应挂 文档A，got %+v", tree[0].Docs)
+	}
+	if len(tree[0].Children) != 1 || len(tree[0].Children[0].Docs) != 1 {
+		t.Fatalf("公开子目录应挂 文档B，got %+v", tree[0].Children)
+	}
+}
+
+// 一段合法的 Lexical editorState JSON（含标题/待办/代码块/提示框/文本格式）
+const validDocStateJSON = `{"root":{"type":"root","direction":null,"format":"","indent":0,"version":1,"children":[` +
+	`{"type":"heading","tag":"h1","version":1,"children":[{"type":"text","text":"标题","format":1,"style":"","mode":"normal","detail":0,"version":1}]},` +
+	`{"type":"list","listType":"check","start":1,"tag":"ul","version":1,"children":[{"type":"listitem","checked":true,"value":1,"version":1,"children":[{"type":"text","text":"待办","format":0,"style":"color: rgb(225, 29, 72);","mode":"normal","detail":0,"version":1}]}]},` +
+	`{"type":"code","language":"go","version":1,"children":[{"type":"code-highlight","text":"fmt.Println(1)","highlightType":"","format":0,"style":"","mode":"normal","detail":0,"version":1}]},` +
+	`{"type":"callout","icon":"💡","version":1,"children":[{"type":"paragraph","version":1,"children":[]}]}` +
+	`]}}`
+
+func TestValidateDocContent(t *testing.T) {
+	cases := []struct {
+		name    string
+		content string
+		wantErr bool
+	}{
+		{name: "合法 editorState JSON", content: validDocStateJSON},
+		{name: "空文档允许", content: ""},
+		{name: "纯空格允许", content: "  \n "},
+		{name: "旧 HTML 数据拒绝", content: "<p>ok</p><script>alert(1)</script>", wantErr: true},
+		{name: "非 JSON 字符串拒绝", content: "hello", wantErr: true},
+		{name: "缺 root 拒绝", content: `{"foo":"bar"}`, wantErr: true},
+		{name: "未知节点类型拒绝", content: `{"root":{"children":[{"type":"evil","children":[]}]}}`, wantErr: true},
+		{name: "超深嵌套拒绝", content: deepJSON(21), wantErr: true},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			err := validateDocContent(c.content)
+			if c.wantErr != (err != nil) {
+				t.Fatalf("validateDocContent(%q) err=%v, wantErr=%v", c.content, err, c.wantErr)
+			}
+			if err != nil {
+				var appErr *Error
+				if !errors.As(err, &appErr) || appErr.Code != errcode.ErrDocContentInvalid {
+					t.Fatalf("应返回 ErrDocContentInvalid，got %v", err)
+				}
+			}
+		})
+	}
+}
+
+// deepJSON 构造深度为 depth 的嵌套段落 JSON
+func deepJSON(depth int) string {
+	var sb strings.Builder
+	sb.WriteString(`{"root":{"children":[`)
+	for range depth {
+		sb.WriteString(`{"type":"paragraph","children":[`)
+	}
+	sb.WriteString(`{"type":"text","text":"x"}`)
+	for range depth {
+		sb.WriteString(`]}`)
+	}
+	sb.WriteString(`]}}`)
+	return sb.String()
+}
+
+func TestCreateDocRejectsInvalidContent(t *testing.T) {
 	svc := NewDocService(&stubRepo{}, nil)
 	svc.repo = &stubRepo{
 		findDirByID: func(_ context.Context, _ uint) (*domain.DocDirectory, error) {
-			return &domain.DocDirectory{ID: 1, GrantedRoles: []uint{1, 3, 4}}, nil
+			return &domain.DocDirectory{ID: 1, Visibility: domain.VisibilityShared}, nil
 		},
 		createWithVer: func(_ context.Context, doc *domain.Document, _ *domain.DocVersion) (*domain.Document, error) {
 			return doc, nil
 		},
 	}
-	doc, err := svc.CreateDoc(context.Background(), 1, "标题",
-		"<p>ok</p><script>alert(1)</script><img src=x onerror=alert(2)>", 1,
+	// 旧 HTML 内容应被拒绝（不再是清洗后放行）
+	_, err := svc.CreateDoc(context.Background(), 1, "标题",
+		"<p>ok</p><script>alert(1)</script>", 1,
+		domain.VisibilityShared, "", []uint{4}, false)
+	var appErr *Error
+	if !errors.As(err, &appErr) || appErr.Code != errcode.ErrDocContentInvalid {
+		t.Fatalf("旧 HTML 内容应返回 ErrDocContentInvalid，got %v", err)
+	}
+	// 合法 JSON 内容原样存储（不再清洗改动）
+	doc, err := svc.CreateDoc(context.Background(), 1, "标题", validDocStateJSON, 1,
 		domain.VisibilityShared, "", []uint{4}, false)
 	if err != nil {
-		t.Fatalf("create: %v", err)
+		t.Fatalf("合法 JSON 创建失败: %v", err)
 	}
-	if doc.Content != "<p>ok</p><img src=\"x\">" {
-		t.Fatalf("XSS 未被清洗干净，got: %q", doc.Content)
+	if doc.Content != validDocStateJSON {
+		t.Fatalf("内容应原样存储\n got: %s\nwant: %s", doc.Content, validDocStateJSON)
 	}
 }
 
 func TestCreateDocDirNotVisible(t *testing.T) {
 	svc := NewDocService(&stubRepo{
 		findDirByID: func(_ context.Context, _ uint) (*domain.DocDirectory, error) {
-			return &domain.DocDirectory{ID: 1, GrantedRoles: []uint{1}}, nil // 仅 admin 可见
+			return &domain.DocDirectory{ID: 1, Visibility: domain.VisibilityPrivate}, nil // private 仅 admin 可见
 		},
 	}, nil)
 	_, err := svc.CreateDoc(context.Background(), 1, "标题", "x", 5, domain.VisibilityShared, "", []uint{4}, false)
@@ -200,14 +294,14 @@ func TestUpdateDocMapsVersionConflict(t *testing.T) {
 		},
 	}
 	svc := NewDocService(repo, nil)
-	_, err := svc.UpdateDoc(context.Background(), 1, "t", "c", "", "", 1, false)
+	_, err := svc.UpdateDoc(context.Background(), 1, "t", validDocStateJSON, "", "", 1, false)
 	var appErr *Error
 	if !errors.As(err, &appErr) || appErr.Code != errcode.ErrDocVersionConflict {
 		t.Fatalf("版本冲突应映射为 ErrDocVersionConflict，got %v", err)
 	}
 }
 
-func TestSetDirRolesInvalidatesCache(t *testing.T) {
+func TestUpdateDirInvalidatesCache(t *testing.T) {
 	cache := newMockCache()
 	repo := &stubRepo{}
 	svc := NewDocService(repo, cache)
@@ -215,10 +309,10 @@ func TestSetDirRolesInvalidatesCache(t *testing.T) {
 	if _, ok := cache.store[treeCacheKey]; !ok {
 		t.Fatal("目录树应写入缓存")
 	}
-	if err := svc.SetDirRoles(context.Background(), 1, []uint{1}); err != nil {
-		t.Fatalf("setroles: %v", err)
+	if err := svc.UpdateDir(context.Background(), 1, map[string]any{"visibility": domain.VisibilityPrivate}); err != nil {
+		t.Fatalf("updatedir: %v", err)
 	}
 	if !cache.del[treeCacheKey] {
-		t.Fatal("SetDirRoles 后应失效目录树缓存")
+		t.Fatal("UpdateDir 后应失效目录树缓存")
 	}
 }

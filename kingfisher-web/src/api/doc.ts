@@ -6,7 +6,8 @@ export interface DocDirNode {
   name: string;
   sort: number;
   status: number;
-  granted_roles?: number[];
+  /** 目录可见性 shared | private（private 仅 admin 可见，不公开） */
+  visibility?: 'shared' | 'private';
   /** 该目录下当前用户可见的文档（目录树叶子节点） */
   docs?: Pick<DocItem, 'id' | 'title' | 'status' | 'visibility'>[];
   children?: DocDirNode[];
@@ -40,20 +41,25 @@ export interface DocVersion {
 /** 目录操作 */
 export const docDirApi = {
   getTree: () => request.get('/docs/tree'),
-  create: (data: { parent_id: number; name: string; sort?: number }) => request.post('/docs/dirs', data),
+  create: (data: { parent_id: number; name: string; sort?: number; visibility?: string }) =>
+    request.post('/docs/dirs', data),
   update: (id: number, data: Record<string, unknown>) => request.put(`/docs/dirs/${id}`, data),
   delete: (id: number) => request.delete(`/docs/dirs/${id}`),
-  getRoles: (id: number) => request.get(`/docs/dirs/${id}/roles`),
-  setRoles: (id: number, role_ids: number[]) => request.put(`/docs/dirs/${id}/roles`, { role_ids }),
 };
 
 /** 公开文档（无需登录） */
 export const publicDocApi = {
   get: (id: number) => request.get(`/public/docs/${id}`),
+  getTree: () => request.get('/public/docs/tree'),
 };
 
 /** 文档操作 */
 export const docApi = {
+  upload: (file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    return request.post('/docs/upload', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
   list: (dir_id: number, params: Record<string, unknown>) => request.get('/docs', { params: { ...params, dir_id } }),
   getById: (id: number) => request.get(`/docs/${id}`),
   create: (data: { dir_id: number; title: string; content: string; visibility?: string; note?: string }) =>

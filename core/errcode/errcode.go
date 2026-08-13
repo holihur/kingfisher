@@ -65,6 +65,11 @@ const (
 	ErrDocForbidden       = 10806
 	ErrDocVersionNotFound = 10807
 	ErrDocVersionConflict = 10808
+	ErrDocContentInvalid  = 10809
+
+	// Department 10900-10999
+	ErrDeptNotFound    = 10901
+	ErrDeptHasChildren = 10902
 )
 
 //nolint:gosec // false positive — Chinese error messages
@@ -112,7 +117,10 @@ var errMsg = map[int]string{
 	ErrDocNotFound:          "文档不存在",
 	ErrDocForbidden:         "无权操作该文档",
 	ErrDocVersionNotFound:   "文档版本不存在",
+	ErrDeptNotFound:         "部门不存在",
+	ErrDeptHasChildren:      "部门下有子部门，不可删除",
 	ErrDocVersionConflict:   "文档已被他人修改，请刷新后重试",
+	ErrDocContentInvalid:    "文档内容格式不合法",
 }
 
 func Msg(code int) string {

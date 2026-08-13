@@ -36,9 +36,11 @@ func (m *MessageModule) Shutdown(ctx context.Context) error { return nil }
 func (m *MessageModule) RegisterPublic(r *gin.RouterGroup)  {}
 
 func (m *MessageModule) RegisterProtected(r *gin.RouterGroup) {
-	// 管理员发送
+	// 管理员：发送 + 已发送列表 + 撤回
 	msgs := r.Group("/messages")
 	msgs.POST("", rbacTransport.RequirePerm("message:create"), m.handler.Send)
+	msgs.GET("", rbacTransport.RequirePerm("message:list"), m.handler.ListSent)
+	msgs.PUT("/:id/revoke", rbacTransport.RequirePerm("message:update"), m.handler.Revoke)
 
 	// 个人收件箱
 	me := r.Group("/me/messages")

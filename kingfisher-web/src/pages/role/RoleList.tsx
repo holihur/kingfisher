@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Modal, Form, Input, Tree, Tabs, Checkbox, Row, Col, App, Popconfirm, Badge, AutoComplete, Tag, Dropdown } from 'antd';
+import { Button, Modal, Form, Input, Tree, Tabs, Checkbox, App, Popconfirm, Badge, AutoComplete, Tag, Dropdown } from 'antd';
 import { PlusOutlined, SafetyOutlined, AppstoreOutlined, EditOutlined, DeleteOutlined, DownOutlined } from '@ant-design/icons';
 import DataTable, { SearchField } from '../../components/DataTable';
 import { useAuthStore } from '../../stores/auth';
@@ -310,17 +310,33 @@ const RoleList: React.FC = () => {
       >
         <Checkbox.Group value={selectedPerms} onChange={(v) => setSelectedPerms(v as number[])} style={{ width: '100%' }}>
           <Tabs
+            tabPosition="left"
             items={Object.entries(grouped).map(([res, ps]) => ({
               key: res,
-              label: { user: '用户', menu: '菜单', role: '角色', config: '配置', audit: '审计', dict: '字典' }[res] || res,
+              label: {
+                user: '用户',
+                menu: '菜单',
+                role: '角色',
+                config: '配置',
+                audit: '审计',
+                dict: '字典',
+                department: '部门',
+                template: '模版',
+                task: '任务',
+                system: '系统',
+                message: '站内信',
+                doc: '文档',
+              }[res] || res,
               children: (
-                <Row gutter={[16, 8]}>
+                // flex wrap 替代 Row/Col 栅格：Vertical tab 下 content 区窄，
+                // span=12 会把每格压到 1-2 个字宽导致文字逐字竖排；flex 按内容自适应换行
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 24px' }}>
                   {ps.map((p) => (
-                    <Col span={12} key={p.id as number}>
-                      <Checkbox value={p.id}>{p.name as string}</Checkbox>
-                    </Col>
+                    <Checkbox key={p.id as number} value={p.id} style={{ whiteSpace: 'nowrap' }}>
+                      {p.name as string}
+                    </Checkbox>
                   ))}
-                </Row>
+                </div>
               ),
             }))}
           />

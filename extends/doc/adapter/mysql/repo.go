@@ -23,20 +23,11 @@ func (r *DocRepo) FindAllDirs(ctx context.Context) ([]domain.DocDirectory, error
 	if err := r.db.WithContext(ctx).Order("sort ASC").Find(&pos).Error; err != nil {
 		return nil, err
 	}
-	// 批量加载目录授权，避免 N+1
-	var grants []docDirRolePO
-	if err := r.db.WithContext(ctx).Find(&grants).Error; err != nil {
-		return nil, err
-	}
-	byDir := map[uint][]uint{}
-	for _, g := range grants {
-		byDir[g.DirID] = append(byDir[g.DirID], g.RoleID)
-	}
 	dirs := make([]domain.DocDirectory, len(pos))
 	for i, p := range pos {
 		dirs[i] = domain.DocDirectory{
 			ID: p.ID, ParentID: p.ParentID, Name: p.Name, Sort: p.Sort,
-			Status: p.Status, Version: p.Version, GrantedRoles: byDir[p.ID],
+			Status: p.Status, Version: p.Version, Visibility: p.Visibility,
 			CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt,
 		}
 	}
@@ -48,13 +39,9 @@ func (r *DocRepo) FindDirByID(ctx context.Context, id uint) (*domain.DocDirector
 	if err := r.db.WithContext(ctx).Where("id = ?", id).First(&po).Error; err != nil {
 		return nil, err
 	}
-	roleIDs, err := r.GetDirRoleIDs(ctx, id)
-	if err != nil {
-		return nil, err
-	}
 	return &domain.DocDirectory{
 		ID: po.ID, ParentID: po.ParentID, Name: po.Name, Sort: po.Sort,
-		Status: po.Status, Version: po.Version, GrantedRoles: roleIDs,
+		Status: po.Status, Version: po.Version, Visibility: po.Visibility,
 		CreatedAt: po.CreatedAt, UpdatedAt: po.UpdatedAt,
 	}, nil
 }
@@ -62,6 +49,7 @@ func (r *DocRepo) FindDirByID(ctx context.Context, id uint) (*domain.DocDirector
 func (r *DocRepo) CreateDir(ctx context.Context, d *domain.DocDirectory) error {
 	return r.db.WithContext(ctx).Create(&docDirectoryPO{
 		ParentID: d.ParentID, Name: d.Name, Sort: d.Sort, Status: d.Status, Version: d.Version,
+		Visibility: d.Visibility,
 	}).Error
 }
 
@@ -70,12 +58,7 @@ func (r *DocRepo) UpdateDir(ctx context.Context, id uint, updates map[string]any
 }
 
 func (r *DocRepo) DeleteDir(ctx context.Context, id uint) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("dir_id = ?", id).Delete(&docDirRolePO{}).Error; err != nil {
-			return err
-		}
-		return tx.Where("id = ?", id).Delete(&docDirectoryPO{}).Error
-	})
+	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&docDirectoryPO{}).Error
 }
 
 func (r *DocRepo) HasDirChildren(ctx context.Context, parentID uint) (bool, error) {
@@ -90,43 +73,38 @@ func (r *DocRepo) HasDirDocuments(ctx context.Context, dirID uint) (bool, error)
 	return count > 0, err
 }
 
-func (r *DocRepo) GetDirRoleIDs(ctx context.Context, dirID uint) ([]uint, error) {
-	var ids []uint
-	err := r.db.WithContext(ctx).Model(&docDirRolePO{}).Where("dir_id = ?", dirID).Pluck("role_id", &ids).Error
-	return ids, err
-}
-
-func (r *DocRepo) SetDirRoles(ctx context.Context, dirID uint, roleIDs []uint) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("dir_id = ?", dirID).Delete(&docDirRolePO{}).Error; err != nil {
-			return err
-		}
-		if len(roleIDs) == 0 {
-			return nil
-		}
-		rows := make([]docDirRolePO, 0, len(roleIDs))
-		for _, rid := range roleIDs {
-			rows = append(rows, docDirRolePO{DirID: dirID, RoleID: rid})
-		}
-		return tx.Create(&rows).Error
-	})
-}
-
 // —— 文档 ——
 
 // visibleScope 复合可见性 WHERE（列表与单条读取共用，避免两处实现漂移）。
-// 非管理员：作者直接可见；否则须 status=published AND visibility=shared 且目录可见（默认拒绝，EXISTS 授权）。
-func (r *DocRepo) visibleScope(userID uint, roleIDs []uint, isAdmin bool) func(*gorm.DB) *gorm.DB {
+// 非管理员：作者直接可见；否则须 status=published AND visibility=shared 且所在目录 visibility=shared。
+func (r *DocRepo) visibleScope(userID uint, _ []uint, isAdmin bool) func(*gorm.DB) *gorm.DB {
 	return func(db *gorm.DB) *gorm.DB {
 		if isAdmin {
 			return db
 		}
-		dirVisible := "EXISTS (SELECT 1 FROM doc_dir_roles dr WHERE dr.dir_id = documents.dir_id AND dr.role_id IN ?)"
+		dirShared := "EXISTS (SELECT 1 FROM doc_directories dd WHERE dd.id = documents.dir_id AND dd.visibility = 'shared')"
 		return db.Where(
-			"(documents.owner_id = ? OR (documents.status = ? AND documents.visibility = ? AND "+dirVisible+"))",
-			userID, domain.DocStatusPublished, domain.VisibilityShared, roleIDs,
+			"(documents.owner_id = ? OR (documents.status = ? AND documents.visibility = ? AND "+dirShared+"))",
+			userID, domain.DocStatusPublished, domain.VisibilityShared,
 		)
 	}
+}
+
+// ListAllPublicDocs 全部公开文档（published + shared，无目录条件；公开页目录树叶子用）。
+// 目录是否公开由 service 层过滤目录树决定（只把公开文档挂到 shared 目录下）。
+func (r *DocRepo) ListAllPublicDocs(ctx context.Context) ([]domain.Document, error) {
+	var pos []documentPO
+	if err := r.db.WithContext(ctx).Model(&documentPO{}).
+		Where("status = ? AND visibility = ?", domain.DocStatusPublished, domain.VisibilityShared).
+		Order("sort ASC").Order("id ASC").
+		Find(&pos).Error; err != nil {
+		return nil, err
+	}
+	docs := toDocumentList(pos)
+	if err := r.attachDocOwnerNames(ctx, docs); err != nil {
+		return nil, err
+	}
+	return docs, nil
 }
 
 func (r *DocRepo) ListDocs(ctx context.Context, dirID uint, q *query.Query, userID uint, roleIDs []uint, isAdmin bool) ([]domain.Document, int64, error) {

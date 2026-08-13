@@ -50,6 +50,16 @@ func (s *MessageService) MarkRead(ctx context.Context, id, recipientID uint) err
 	return s.repo.MarkRead(ctx, id, recipientID)
 }
 
+// ListSent 管理端：当前管理员已发送的站内信列表（含撤回状态）
+func (s *MessageService) ListSent(ctx context.Context, senderID uint, q *query.Query) ([]domain.Message, int64, error) {
+	return s.repo.ListBySender(ctx, senderID, q)
+}
+
+// Revoke 撤回：仅发送者本人可撤回自己的站内信
+func (s *MessageService) Revoke(ctx context.Context, id, senderID uint) error {
+	return s.repo.Revoke(ctx, id, senderID)
+}
+
 func (s *MessageService) DeleteBatch(ctx context.Context, ids []uint, recipientID uint) error {
 	return s.repo.DeleteBatch(ctx, ids, recipientID)
 }

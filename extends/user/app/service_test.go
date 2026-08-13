@@ -291,7 +291,7 @@ func TestSessionVersionProvider(t *testing.T) {
 func TestUserCreate(t *testing.T) {
 	repo := &mockUserRepo{users: map[string]*mockUserData{}}
 	svc := NewUserService(repo, nil)
-	u, err := svc.CreateUser(context.Background(), "newuser", "Abcd1234", "new@test.com", nil)
+	u, err := svc.CreateUser(context.Background(), "newuser", "Abcd1234", "new@test.com", nil, nil)
 	if err != nil {
 		t.Fatal("create:", err)
 	}
@@ -309,10 +309,10 @@ func TestUserCreate(t *testing.T) {
 func TestUserCreateDuplicate(t *testing.T) {
 	repo := &mockUserRepo{users: map[string]*mockUserData{}}
 	svc := NewUserService(repo, nil)
-	if _, err := svc.CreateUser(context.Background(), "dup", "Abcd1234", "a@b.com", nil); err != nil {
+	if _, err := svc.CreateUser(context.Background(), "dup", "Abcd1234", "a@b.com", nil, nil); err != nil {
 		t.Fatal("create:", err)
 	}
-	if _, err := svc.CreateUser(context.Background(), "dup", "Abcd1234", "a@b.com", nil); err == nil {
+	if _, err := svc.CreateUser(context.Background(), "dup", "Abcd1234", "a@b.com", nil, nil); err == nil {
 		t.Error("duplicate username should fail")
 	}
 }
@@ -320,7 +320,7 @@ func TestUserCreateDuplicate(t *testing.T) {
 func TestUserGetByIDAndList(t *testing.T) {
 	repo := &mockUserRepo{users: map[string]*mockUserData{}}
 	svc := NewUserService(repo, nil)
-	if _, err := svc.CreateUser(context.Background(), "u1", "Abcd1234", "a@b.com", nil); err != nil {
+	if _, err := svc.CreateUser(context.Background(), "u1", "Abcd1234", "a@b.com", nil, nil); err != nil {
 		t.Fatal(err)
 	}
 	// GetByID

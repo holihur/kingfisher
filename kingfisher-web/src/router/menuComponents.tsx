@@ -18,6 +18,7 @@ const componentMap: Record<string, React.LazyExoticComponent<React.ComponentType
   'pages/Task/TaskManage': lazy(() => import('../pages/task/TaskManage')),
   'pages/System/SystemInfo': lazy(() => import('../pages/system/SystemInfo')),
   'pages/Doc/DocManage': lazy(() => import('../pages/doc/DocManage')),
+  'pages/Department/DeptManage': lazy(() => import('../pages/department/DeptManage')),
   // 特殊：仪表盘2 这类测试菜单若 component 为 pages/Dashboard 也能复用
   'pages/Profile': lazy(() => import('../pages/profile')),
 };

@@ -25,23 +25,24 @@ func (m *DocModule) Name() string                       { return "doc" }
 func (m *DocModule) Init(ctx context.Context) error     { return nil }
 func (m *DocModule) Shutdown(ctx context.Context) error { return nil }
 func (m *DocModule) RegisterPublic(r *gin.RouterGroup) {
-	// 公开文档预览：已发布+共享，无需登录（与 config/dict 公开端点一致）
+	// 公开文档：已发布+共享，无需登录（与 config/dict 公开端点一致）。
+	// tree 提供公开目录树（shared 目录 + 公开文档），供公开文档页左侧导航。
 	pub := r.Group("/public/docs")
+	pub.GET("/tree", m.handler.GetPublicTree)
 	pub.GET("/:id", m.handler.GetPublicDoc)
 }
 
 func (m *DocModule) RegisterProtected(r *gin.RouterGroup) {
 	docs := r.Group("/docs")
-	// 目录
+	// 目录（可见性 shared/private，不再有角色白名单）
 	docs.GET("/tree", rbacTransport.RequirePerm("doc:list"), m.handler.GetTree)
 	docs.POST("/dirs", rbacTransport.RequirePerm("doc:create"), m.handler.CreateDir)
 	docs.PUT("/dirs/:id", rbacTransport.RequirePerm("doc:update"), m.handler.UpdateDir)
 	docs.DELETE("/dirs/:id", rbacTransport.RequirePerm("doc:delete"), m.handler.DeleteDir)
-	docs.GET("/dirs/:id/roles", rbacTransport.RequirePerm("doc:list"), m.handler.GetDirRoles)
-	docs.PUT("/dirs/:id/roles", rbacTransport.RequirePerm("doc:update"), m.handler.SetDirRoles)
 	// 文档
 	docs.GET("", rbacTransport.RequirePerm("doc:list"), m.handler.ListDocs)
 	docs.POST("", rbacTransport.RequirePerm("doc:create"), m.handler.CreateDoc)
+	docs.POST("/upload", rbacTransport.RequirePerm("doc:update"), m.handler.UploadImage)
 	docs.GET("/:id", rbacTransport.RequirePerm("doc:list"), m.handler.GetDoc)
 	docs.PUT("/:id", rbacTransport.RequirePerm("doc:update"), m.handler.UpdateDoc)
 	docs.PUT("/:id/publish", rbacTransport.RequirePerm("doc:update"), m.handler.Publish)

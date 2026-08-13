@@ -31,6 +31,12 @@ func (f *fakeMessageRepo) GetByID(ctx context.Context, id, recipientID uint) (*d
 func (f *fakeMessageRepo) MarkRead(ctx context.Context, id, recipientID uint) error {
 	return errors.New("not implemented")
 }
+func (f *fakeMessageRepo) ListBySender(ctx context.Context, senderID uint, q *query.Query) ([]domain.Message, int64, error) {
+	return nil, 0, errors.New("not implemented")
+}
+func (f *fakeMessageRepo) Revoke(ctx context.Context, id, senderID uint) error {
+	return errors.New("not implemented")
+}
 func (f *fakeMessageRepo) DeleteBatch(ctx context.Context, ids []uint, recipientID uint) error {
 	return errors.New("not implemented")
 }

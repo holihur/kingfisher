@@ -9,6 +9,46 @@
     "host": "localhost:8080",
     "basePath": "/api/v1",
     "paths": {
+        "/auth/forgot-password": {
+            "post": {
+                "description": "按邮箱发送密码重置邮件（含一次性 token 链接）。防枚举：邮箱不存在也返回成功",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "找回密码",
+                "parameters": [
+                    {
+                        "description": "找回密码请求",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/extends_user_transport.ForgotPasswordReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "邮件已发送",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/auth/login": {
             "post": {
                 "description": "使用用户名和密码登录，成功后返回 access/refresh token",
@@ -213,6 +253,46 @@
                 }
             }
         },
+        "/auth/reset-password": {
+            "post": {
+                "description": "用邮件中的一次性 token 设置新密码，并使旧 session 失效",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "重置密码",
+                "parameters": [
+                    {
+                        "description": "重置密码请求",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/extends_user_transport.ResetPasswordReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "密码已重置",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误或 token 无效",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/config-groups": {
             "get": {
                 "tags": [
@@ -298,6 +378,345 @@
                     },
                     "400": {
                         "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/departments": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "分页部门列表；filter 支持 subtree_id（某部门及其子孙）、parent_id、status、q=名称搜索",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Department"
+                ],
+                "summary": "部门列表（分页）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "页码",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "每页数量",
+                        "name": "page_size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "关键词（搜索名称）",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "筛选 JSON，如 {\\",
+                        "name": "filter",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "default": "-id",
+                        "description": "排序",
+                        "name": "sort",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "部门列表",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/kingfisher_core_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/kingfisher_core_response.PageData"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Department"
+                ],
+                "summary": "创建部门",
+                "parameters": [
+                    {
+                        "description": "创建请求",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/extends_department_transport.CreateDeptReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "创建成功",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/kingfisher_core_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/kingfisher_extends_department_domain.Department"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/departments/tree": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "返回全部部门树（含每个部门挂载的角色）",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Department"
+                ],
+                "summary": "部门树",
+                "responses": {
+                    "200": {
+                        "description": "部门树",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/kingfisher_core_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/kingfisher_extends_department_domain.Department"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/departments/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "返回单个部门（含挂载的角色）",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Department"
+                ],
+                "summary": "部门详情",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "部门ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "10901": {
+                        "description": "部门不存在",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    },
+                    "200": {
+                        "description": "部门详情",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/kingfisher_core_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/kingfisher_extends_department_domain.Department"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Department"
+                ],
+                "summary": "更新部门",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "部门ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "更新请求",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/extends_department_transport.UpdateDeptReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "更新成功",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "有子部门时拒绝删除（返回 10902）",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Department"
+                ],
+                "summary": "删除部门",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "部门ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "10902": {
+                        "description": "存在子部门，不可删除",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    },
+                    "200": {
+                        "description": "删除成功",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/departments/{id}/roles": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "全量替换部门的角色关联（部门角色会合并进成员用户的有效权限）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Department"
+                ],
+                "summary": "分配部门角色",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "部门ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "角色ID列表",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/extends_department_transport.AssignRolesReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "分配成功",
                         "schema": {
                             "$ref": "#/definitions/kingfisher_core_response.Response"
                         }
@@ -687,6 +1106,301 @@
                 "responses": {}
             }
         },
+        "/docs": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Doc"
+                ],
+                "summary": "目录内文档分页列表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "目录 ID",
+                        "name": "dir_id",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "文档列表",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/kingfisher_core_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/kingfisher_core_response.PageData"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Doc"
+                ],
+                "summary": "创建文档（初始 draft，版本 1）",
+                "responses": {}
+            }
+        },
+        "/docs/:id": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Doc"
+                ],
+                "summary": "文档详情",
+                "responses": {}
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Doc"
+                ],
+                "summary": "更新文档（追加新版本）",
+                "responses": {}
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Doc"
+                ],
+                "summary": "删除文档（级联删版本）",
+                "responses": {}
+            }
+        },
+        "/docs/:id/publish": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Doc"
+                ],
+                "summary": "发布文档 draft → published",
+                "responses": {}
+            }
+        },
+        "/docs/:id/restore": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Doc"
+                ],
+                "summary": "还原到指定版本（追加新版本）",
+                "responses": {}
+            }
+        },
+        "/docs/:id/unpublish": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Doc"
+                ],
+                "summary": "撤稿 published → draft",
+                "responses": {}
+            }
+        },
+        "/docs/:id/versions": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Doc"
+                ],
+                "summary": "文档版本历史列表",
+                "responses": {}
+            }
+        },
+        "/docs/:id/versions/:no": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Doc"
+                ],
+                "summary": "查看指定版本内容",
+                "responses": {}
+            }
+        },
+        "/docs/dirs": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Doc"
+                ],
+                "summary": "创建目录",
+                "responses": {}
+            }
+        },
+        "/docs/dirs/:id": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Doc"
+                ],
+                "summary": "更新目录（改名/移动/排序）",
+                "responses": {}
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Doc"
+                ],
+                "summary": "删除目录（有子目录/文档则拒绝）",
+                "responses": {}
+            }
+        },
+        "/docs/tree": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Doc"
+                ],
+                "summary": "当前用户可见目录树",
+                "responses": {
+                    "200": {
+                        "description": "目录树",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/kingfisher_core_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/kingfisher_extends_doc_domain.DocDirectory"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/docs/upload": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "tags": [
+                    "Doc"
+                ],
+                "summary": "上传文档图片",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "图片文件（png/jpg/jpeg/gif/webp，≤2MB）",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "url",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/kingfisher_core_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "additionalProperties": {
+                                                "type": "string"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/me/messages": {
             "get": {
                 "tags": [
@@ -924,6 +1638,27 @@
                         }
                     }
                 }
+            }
+        },
+        "/public/docs/:id": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Doc"
+                ],
+                "summary": "公开文档（无需登录）",
+                "responses": {}
+            }
+        },
+        "/public/docs/tree": {
+            "get": {
+                "tags": [
+                    "Doc"
+                ],
+                "summary": "公开目录树（匿名，shared 目录 + 公开文档）",
+                "responses": {}
             }
         },
         "/scheduled-tasks": {
@@ -1766,6 +2501,64 @@
         }
     },
     "definitions": {
+        "extends_department_transport.AssignRolesReq": {
+            "type": "object",
+            "required": [
+                "role_ids"
+            ],
+            "properties": {
+                "role_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
+        "extends_department_transport.CreateDeptReq": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "example": "技术部"
+                },
+                "parent_id": {
+                    "type": "integer"
+                },
+                "remark": {
+                    "type": "string"
+                },
+                "sort": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "integer"
+                }
+            }
+        },
+        "extends_department_transport.UpdateDeptReq": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "parent_id": {
+                    "type": "integer"
+                },
+                "remark": {
+                    "type": "string"
+                },
+                "sort": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "integer"
+                }
+            }
+        },
         "extends_dict_transport.DictEntryReq": {
             "type": "object",
             "required": [
@@ -1879,6 +2672,12 @@
                 "username"
             ],
             "properties": {
+                "dept_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
                 "email": {
                     "type": "string",
                     "example": "user@example.com"
@@ -1900,6 +2699,18 @@
                     "maxLength": 32,
                     "minLength": 3,
                     "example": "newuser"
+                }
+            }
+        },
+        "extends_user_transport.ForgotPasswordReq": {
+            "type": "object",
+            "required": [
+                "email"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "example": "user@example.com"
                 }
             }
         },
@@ -1973,6 +2784,25 @@
                 }
             }
         },
+        "extends_user_transport.ResetPasswordReq": {
+            "type": "object",
+            "required": [
+                "new_password",
+                "token"
+            ],
+            "properties": {
+                "new_password": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "minLength": 8,
+                    "example": "NewPass123"
+                },
+                "token": {
+                    "type": "string",
+                    "example": "abc123"
+                }
+            }
+        },
         "extends_user_transport.UpdateMeReq": {
             "type": "object",
             "properties": {
@@ -1992,6 +2822,12 @@
         "extends_user_transport.UpdateUserReq": {
             "type": "object",
             "properties": {
+                "dept_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
                 "email": {
                     "type": "string"
                 },
@@ -2033,6 +2869,145 @@
                 }
             }
         },
+        "kingfisher_extends_department_domain.Department": {
+            "type": "object",
+            "properties": {
+                "children": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/kingfisher_extends_department_domain.Department"
+                    }
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "parent_id": {
+                    "description": "0=根",
+                    "type": "integer"
+                },
+                "remark": {
+                    "type": "string"
+                },
+                "role_ids": {
+                    "description": "部门直接挂载的角色 ID",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "roles": {
+                    "description": "部门挂载的角色详情",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/kingfisher_extends_department_domain.Role"
+                    }
+                },
+                "sort": {
+                    "type": "integer"
+                },
+                "status": {
+                    "description": "1=启用 0=停用",
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "kingfisher_extends_department_domain.Role": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "kingfisher_extends_doc_domain.DocDirectory": {
+            "type": "object",
+            "properties": {
+                "children": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/kingfisher_extends_doc_domain.DocDirectory"
+                    }
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "docs": {
+                    "description": "该目录下当前用户可见的文档（叶子节点）",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/kingfisher_extends_doc_domain.DocTreeItem"
+                    }
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "parent_id": {
+                    "type": "integer"
+                },
+                "sort": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string"
+                },
+                "visibility": {
+                    "description": "shared | private",
+                    "type": "string"
+                }
+            }
+        },
+        "kingfisher_extends_doc_domain.DocTreeItem": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "visibility": {
+                    "type": "string"
+                }
+            }
+        },
+        "kingfisher_extends_user_domain.Department": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
         "kingfisher_extends_user_domain.Role": {
             "type": "object",
             "properties": {
@@ -2056,6 +3031,25 @@
                 "created_at": {
                     "type": "string"
                 },
+                "departments": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/kingfisher_extends_user_domain.Department"
+                    }
+                },
+                "dept_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "direct_role_ids": {
+                    "description": "DirectRoleIDs 直接分配的角色（user_roles），供编辑表单回填；部门继承角色不在其中",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
                 "email": {
                     "type": "string"
                 },
@@ -2066,6 +3060,7 @@
                     "type": "string"
                 },
                 "role_ids": {
+                    "description": "RoleIDs/Roles 为「有效角色」= 直接分配 ∪ 部门继承（查询时合并，去重）",
                     "type": "array",
                     "items": {
                         "type": "integer"

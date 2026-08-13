@@ -10,7 +10,7 @@ export const userApi = {
     request.put('/users/me/password', data),
   getMyLoginLogs: (params: Record<string, unknown>) =>
     request.get('/users/me/login-logs', { params }),
-  create: (data: { username: string; password: string; email?: string; role_ids?: number[] }) => request.post('/users', data),
+  create: (data: { username: string; password: string; email?: string; role_ids?: number[]; dept_ids?: number[] }) => request.post('/users', data),
   update: (id: number, data: Record<string, unknown>) => request.put(`/users/${id}`, data),
   delete: (id: number) => request.delete(`/users/${id}`),
   batchDelete: (ids: number[]) => request.post('/users/batch-delete', { ids }),
