@@ -55,6 +55,40 @@ func seedMessage(t *testing.T, repo *MessageRepo, recipientID uint, title string
 }
 
 // TestMessageRepoScopedByRecipient 验证查询均以 recipient_id 为界，防越权。
+// TestMessageRevokedExcludedFromUnread 撤回后：未读数排除、收件箱列表/详情不可见。
+func TestMessageRevokedExcludedFromUnread(t *testing.T) {
+	repo := NewMessageRepo(newMessageTestDB(t))
+	ctx := context.Background()
+
+	id1 := seedMessage(t, repo, 1, "待撤回")
+	seedMessage(t, repo, 1, "正常")
+
+	if n, _ := repo.CountUnread(ctx, 1); n != 2 {
+		t.Fatalf("初始未读应为 2，got %d", n)
+	}
+
+	// 撤回 id1（发送者本人）
+	if err := repo.Revoke(ctx, id1, 1); err != nil {
+		t.Fatalf("revoke: %v", err)
+	}
+
+	// 未读数排除撤回
+	if n, _ := repo.CountUnread(ctx, 1); n != 1 {
+		t.Fatalf("撤回后未读应为 1，got %d", n)
+	}
+	// 收件箱列表排除撤回
+	items, _, _ := repo.ListByRecipient(ctx, 1, parseMessageQuery(t, "page=1&page_size=10"))
+	for _, m := range items {
+		if m.ID == id1 {
+			t.Fatalf("收件箱不应含已撤回消息 id=%d", id1)
+		}
+	}
+	// 详情对收件人不可见
+	if _, err := repo.GetByID(ctx, id1, 1); err == nil {
+		t.Fatal("已撤回消息详情应对收件人不可见")
+	}
+}
+
 func TestMessageRepoScopedByRecipient(t *testing.T) {
 	repo := NewMessageRepo(newMessageTestDB(t))
 	ctx := context.Background()

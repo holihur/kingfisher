@@ -67,10 +67,12 @@ func (r *MessageRepo) attachRecipientNames(ctx context.Context, msgs []domain.Me
 	return nil
 }
 
-// GetByID 查询单条消息（带 recipient_id 防越权）
+// GetByID 查询单条消息（带 recipient_id 防越权；已撤回的对收件人不可见）
 func (r *MessageRepo) GetByID(ctx context.Context, id, recipientID uint) (*domain.Message, error) {
 	var po messagePO
-	if err := r.db.WithContext(ctx).Where("id = ? AND recipient_id = ?", id, recipientID).First(&po).Error; err != nil {
+	if err := r.db.WithContext(ctx).
+		Where("id = ? AND recipient_id = ? AND status <> ?", id, recipientID, "revoked").
+		First(&po).Error; err != nil {
 		return nil, err
 	}
 	return toMessage(&po), nil
@@ -113,7 +115,8 @@ func (r *MessageRepo) DeleteBatch(ctx context.Context, ids []uint, recipientID u
 func (r *MessageRepo) CountUnread(ctx context.Context, recipientID uint) (int64, error) {
 	var count int64
 	err := r.db.WithContext(ctx).Model(&messagePO{}).
-		Where("recipient_id = ? AND is_read = ?", recipientID, false).
+		// 已撤回的消息不计入未读数（与收件箱列表 ListByRecipient 过滤一致）
+		Where("recipient_id = ? AND is_read = ? AND status <> ?", recipientID, false, "revoked").
 		Count(&count).Error
 	return count, err
 }
