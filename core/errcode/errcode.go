@@ -70,6 +70,13 @@ const (
 	// Department 10900-10999
 	ErrDeptNotFound    = 10901
 	ErrDeptHasChildren = 10902
+
+	// Agent 11000-11099
+	ErrAgentDisabled       = 11001
+	ErrAgentConversationNF = 11002
+	ErrAgentLLMError       = 11003
+	ErrAgentToolForbidden  = 11004
+	ErrAgentNoAPIKey       = 11005
 )
 
 //nolint:gosec // false positive — Chinese error messages
@@ -121,6 +128,11 @@ var errMsg = map[int]string{
 	ErrDeptHasChildren:      "部门下有子部门，不可删除",
 	ErrDocVersionConflict:   "文档已被他人修改，请刷新后重试",
 	ErrDocContentInvalid:    "文档内容格式不合法",
+	ErrAgentDisabled:        "Agent 聊天未启用",
+	ErrAgentConversationNF:  "会话不存在",
+	ErrAgentLLMError:        "LLM 调用失败",
+	ErrAgentToolForbidden:   "无权调用该接口",
+	ErrAgentNoAPIKey:        "未配置 LLM API Key",
 }
 
 func Msg(code int) string {
@@ -146,7 +158,7 @@ func HTTPStatus(code int) int {
 		return 404
 	case code == 10008:
 		return 405
-	case code == 10001 || (code >= 10100 && code < 10900):
+	case code == 10001 || (code >= 10100 && code < 11100):
 		return 400
 	default:
 		return 500

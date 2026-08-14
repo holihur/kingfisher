@@ -5,6 +5,8 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/spf13/viper"
@@ -21,6 +23,18 @@ type Config struct {
 	Telemetry TelemetryConfig `mapstructure:"telemetry"`
 	CORS      CORSConfig      `mapstructure:"cors"`
 	SMTP      SMTPConfig      `mapstructure:"smtp"`
+	Agent     AgentConfig     `mapstructure:"agent"`
+}
+
+// AgentConfig Agent 聊天模块配置（LLM 走 anthropic 兼容格式，默认 DeepSeek 端点）
+type AgentConfig struct {
+	Enabled     bool   `mapstructure:"enabled"`  // 是否启用 agent 聊天
+	BaseURL     string `mapstructure:"base_url"` // anthropic 兼容 API 基础地址（如 https://api.deepseek.com/anthropic）
+	Model       string `mapstructure:"model"`    // LLM 模型名（如 deepseek-chat）
+	MaxTokens   int    `mapstructure:"max_tokens"`
+	APIKeyEnv   string `mapstructure:"api_key_env"`   // API key 环境变量名（fallback 到 system_configs.llm_api_key）
+	APIKey      string `mapstructure:"api_key"`       // 可选：直接配置 API key（优先级最低）
+	SelfBaseURL string `mapstructure:"self_base_url"` // 本服务自身地址（call_api 工具内部请求用，默认 http://127.0.0.1:port）
 }
 
 // SMTPConfig 邮件发送配置（找回密码等邮件通知）
@@ -135,6 +149,12 @@ type CORSConfig struct {
 }
 
 func Load(configPath string) (*Config, error) {
+	// 加载项目根 .env（自研解析，零依赖；已存在的环境变量不覆盖）。
+	loadDotEnv(".env")
+	if dir := filepath.Dir(configPath); dir != "." && dir != "" {
+		loadDotEnv(filepath.Join(dir, "..", ".env"))
+	}
+
 	v := viper.New()
 	v.SetConfigFile(configPath)
 	v.SetConfigType("yaml")
@@ -212,4 +232,32 @@ func (c *Config) Validate() error {
 		}
 	}
 	return nil
+}
+
+// loadDotEnv 解析并加载 .env 文件（每行 KEY=VALUE，# 开头为注释，支持引号）。
+// 已存在的环境变量优先，不覆盖。文件不存在时静默忽略。
+func loadDotEnv(path string) {
+	data, err := os.ReadFile(path) // #nosec G304 -- path 来自固定的 .env 配置路径（启动时由 Load 显式传入）
+	if err != nil {
+		return
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		key, val, ok := strings.Cut(line, "=")
+		if !ok {
+			continue
+		}
+		key = strings.TrimSpace(key)
+		val = strings.TrimSpace(strings.Trim(val, `"'`))
+		if key == "" {
+			continue
+		}
+		if os.Getenv(key) != "" {
+			continue // 环境变量优先
+		}
+		_ = os.Setenv(key, val)
+	}
 }

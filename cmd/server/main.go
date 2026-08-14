@@ -42,6 +42,7 @@ import (
 	"kingfisher/core/taskqueue"
 	_ "kingfisher/docs"
 
+	agentTransport "kingfisher/extends/agent/transport"
 	auditTransport "kingfisher/extends/audit/transport"
 	configAdapter "kingfisher/extends/config/adapter/mysql"
 	configApp "kingfisher/extends/config/app"
@@ -225,7 +226,22 @@ func main() {
 		}
 		return subject, body, nil
 	})
+	// Agent 聊天模块：LLM key 优先从 system_configs.llm_api_key 读（后台可改），
+	// 否则回退环境变量/配置。selfBaseURL 用于 call_api 内部请求。
+	agentSelfBaseURL := cfg.Agent.SelfBaseURL
+	if agentSelfBaseURL == "" {
+		agentSelfBaseURL = "http://127.0.0.1:" + fmt.Sprint(cfg.Server.Port)
+	}
+	agentMod := agentTransport.NewAgentModule(db, cfg, agentSelfBaseURL, func(ctx context.Context) (string, error) {
+		sc, err := configSvc.Get(ctx, "llm_api_key")
+		if err != nil {
+			return "", err
+		}
+		return sc.Value, nil
+	})
+
 	mods := []router.Module{
+		agentMod,
 		userMod,
 		departmentTransport.NewDepartmentModule(db, redisCache),
 		rbacTransport.NewRBACModule(db, redisCache),
@@ -304,9 +320,10 @@ func main() {
 
 	// 10. Start HTTP server
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)
+	// WriteTimeout 提到 300s：Agent 聊天 SSE 流式响应可能持续较久。
 	srv := &http.Server{
 		Addr: addr, Handler: r,
-		ReadTimeout: 10 * time.Second, WriteTimeout: 10 * time.Second, IdleTimeout: 120 * time.Second,
+		ReadTimeout: 10 * time.Second, WriteTimeout: 300 * time.Second, IdleTimeout: 120 * time.Second,
 	}
 
 	go func() {

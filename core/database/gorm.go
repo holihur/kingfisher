@@ -121,6 +121,8 @@ func autoMigrate(db *gorm.DB) error {
 		&DepartmentPO{},
 		&UserDepartmentPO{},
 		&DepartmentRolePO{},
+		&AgentConversationPO{},
+		&AgentMessagePO{},
 	)
 }
 
@@ -174,6 +176,7 @@ func SeedData(db *gorm.DB) error {
 			{ID: 38, Name: "创建部门", Code: "department:create", Resource: "department", Action: "create"},
 			{ID: 39, Name: "更新部门", Code: "department:update", Resource: "department", Action: "update"},
 			{ID: 40, Name: "删除部门", Code: "department:delete", Resource: "department", Action: "delete"},
+			{ID: 41, Name: "使用Agent", Code: "agent:list", Resource: "agent", Action: "read"},
 		}
 		if err := tx.Create(&perms).Error; err != nil {
 			return fmt.Errorf("seed permissions: %w", err)
@@ -200,12 +203,15 @@ func SeedData(db *gorm.DB) error {
 			{1, 28}, {1, 29}, {1, 30}, {1, 31}, {1, 32},
 			{1, 33}, {1, 34}, {1, 35}, {1, 36},
 			{1, 37}, {1, 38}, {1, 39}, {1, 40},
+			{1, 41},
 			{3, 1}, {3, 2}, {3, 3}, {3, 5}, {3, 6}, {3, 7}, {3, 9}, {3, 13}, {3, 16},
 			{3, 33}, {3, 34}, {3, 35},
 			{3, 37}, {3, 38}, {3, 39},
 			// viewer（访客）仅仪表盘 + 用户/角色/菜单/审计只读 + 文档只读；不授部门管理
 			{4, 1}, {4, 5}, {4, 9}, {4, 13}, {4, 16},
 			{4, 33},
+			// agent: 所有登录角色均可用（工具权限由 RBAC 兜底）
+			{3, 41}, {4, 41},
 		}
 		if err := tx.Table("role_permissions").Create(&rp).Error; err != nil {
 			return fmt.Errorf("seed role_permissions: %w", err)
@@ -227,6 +233,7 @@ func SeedData(db *gorm.DB) error {
 			{ID: 21, ParentID: 2, Name: "系统信息", Path: "/system/info", Component: "pages/System/SystemInfo", Icon: "MonitorOutlined", Sort: 10, Permission: "system:list", Version: "1.0.0"},
 			{ID: 22, ParentID: 2, Name: "文档管理", Path: "/system/docs", Component: "pages/Doc/DocManage", Icon: "FileTextOutlined", Sort: 11, Permission: "doc:list", Version: "1.0.0"},
 			{ID: 23, ParentID: 2, Name: "部门管理", Path: "/system/departments", Component: "pages/Department/DeptManage", Icon: "ApartmentOutlined", Sort: 12, Permission: "department:list", Version: "1.0.0"},
+			{ID: 24, ParentID: 0, Name: "Agent 助手", Path: "/agent", Component: "pages/Agent/AgentChat", Icon: "MessageOutlined", Sort: 2, Permission: "agent:list", Version: "1.0.0"},
 		}
 		if err := tx.Create(&menus).Error; err != nil {
 			return fmt.Errorf("seed menus: %w", err)
@@ -236,10 +243,13 @@ func SeedData(db *gorm.DB) error {
 		type RM struct{ RoleID, MenuID uint }
 		rm := []RM{
 			{1, 1}, {1, 2}, {1, 3}, {1, 7}, {1, 11}, {1, 15}, {1, 16}, {1, 17}, {1, 18}, {1, 19}, {1, 20}, {1, 21}, {1, 22}, {1, 23},
+			{1, 24},
 			// editor：含系统管理目录（id 2），否则其子菜单（用户/菜单/文档/部门）在 buildTree 时无父级被丢弃
 			{3, 1}, {3, 2}, {3, 3}, {3, 7}, {3, 22}, {3, 23},
 			// viewer（访客）：系统管理目录（id2）+ 用户管理 + 文档管理；部门管理不授予
 			{4, 1}, {4, 2}, {4, 3}, {4, 22},
+			// agent 顶级菜单：所有登录角色均可见
+			{3, 24}, {4, 24},
 		}
 		if err := tx.Table("role_menus").Create(&rm).Error; err != nil {
 			return fmt.Errorf("seed role_menus: %w", err)
@@ -267,6 +277,9 @@ func SeedData(db *gorm.DB) error {
 			{Key: "registration_enabled", Value: "true", Remark: "是否开放注册", IsPublic: true, Version: "1.0.0", Render: "switch", GroupID: 2},
 			{Key: "password_reset_enabled", Value: "true", Remark: "是否开启找回密码", IsPublic: true, Version: "1.0.0", Render: "switch", GroupID: 2},
 			{Key: "default_register_role_id", Value: "4", Remark: "默认注册用户的角色", Version: "1.0.0", Render: "select", RenderOptions: `[{"label":"访客","value":"4"},{"label":"编辑","value":"3"},{"label":"超级管理员","value":"1"}]`, GroupID: 2},
+			{Key: "watermark_enabled", Value: "false", Remark: "全局水印开关（登录后所有页面显示水印）", IsPublic: true, Version: "1.0.0", Render: "switch", GroupID: 2},
+			{Key: "watermark_text", Value: "Kingfisher 内部系统", Remark: "水印文字", IsPublic: true, Version: "1.0.0", Render: "text", GroupID: 2},
+			{Key: "watermark_extra", Value: "{username} {date}", Remark: "水印补充内容（支持 {username}/{date} 占位符，留空则仅水印文字）", IsPublic: true, Version: "1.0.0", Render: "text", GroupID: 2},
 		}
 		if err := tx.Create(&configs).Error; err != nil {
 			return fmt.Errorf("seed configs: %w", err)

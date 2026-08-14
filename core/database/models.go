@@ -313,3 +313,27 @@ type DepartmentRolePO struct {
 }
 
 func (DepartmentRolePO) TableName() string { return "department_roles" }
+
+// AgentConversationPO Agent 聊天会话（归属用户，一个用户可建多个会话）
+type AgentConversationPO struct {
+	ID        uint   `gorm:"primaryKey"`
+	UserID    uint   `gorm:"index;not null"`
+	Title     string `gorm:"size:128"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+func (AgentConversationPO) TableName() string { return "agent_conversations" }
+
+// AgentMessagePO Agent 会话消息（role: user/assistant/tool）
+type AgentMessagePO struct {
+	ID             uint   `gorm:"primaryKey"`
+	ConversationID uint   `gorm:"index;not null"`
+	Role           string `gorm:"size:16;not null"`
+	Content        string `gorm:"type:text"` // 文本内容（tool 消息存 tool 调用摘要）
+	ToolCalls      string `gorm:"type:text"` // JSON：assistant 的 tool_use 块数组（含 name+input+id）
+	ToolResult     string `gorm:"type:text"` // JSON：tool 执行结果
+	CreatedAt      time.Time
+}
+
+func (AgentMessagePO) TableName() string { return "agent_messages" }

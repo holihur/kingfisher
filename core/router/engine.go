@@ -45,7 +45,7 @@ func NewEngine(cfg *config.Config, logger *zap.Logger) *gin.Engine {
 	r.Use(middleware.RecoveryWithLimit(maxBody))
 	r.Use(middleware.Trace())
 	r.Use(middleware.Logger(logger))
-	r.Use(gzip.Gzip(gzip.DefaultCompression, gzip.WithExcludedPaths([]string{"/metrics", "/health", "/ready"})))
+	r.Use(gzip.Gzip(gzip.DefaultCompression, gzip.WithExcludedPaths([]string{"/metrics", "/health", "/ready", "/api/v1/agent"})))
 	r.Use(middleware.SecurityHeaders())
 	r.Use(middleware.CORS(cfg.CORS.AllowedOrigins))
 	if cfg.RateLimit.Enabled {

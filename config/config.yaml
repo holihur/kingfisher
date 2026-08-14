@@ -79,3 +79,13 @@ smtp:
   from: cafebabe_2019@qq.com
   from_name: Kingfisher
   enabled: true
+
+agent:
+  enabled: true
+  # anthropic 兼容 API 基础地址（DeepSeek 提供 /v1/messages 兼容端点）
+  base_url: "https://api.deepseek.com/anthropic"
+  model: "deepseek-v4-flash"
+  max_tokens: 4096
+  api_key_env: "DEEPSEEK_API_KEY"
+  # 本服务自身地址（call_api 工具内部请求用；留空自动取 http://127.0.0.1:{port}）
+  self_base_url: ""
