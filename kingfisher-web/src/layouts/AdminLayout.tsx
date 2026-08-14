@@ -176,8 +176,9 @@ const AdminLayout: React.FC = () => {
     theme: (theme === 'dark' ? 'dark' : 'light') as 'dark' | 'light',
     mode: 'inline' as const,
     selectedKeys: [location.pathname],
-    // 折叠时 openKeys 交给 antd 悬停弹层（否则持久化的展开项会在 80px 栏里渲染成弹层）
-    openKeys: collapsed ? [] : openKeys,
+    // 折叠时 openKeys 传 undefined 交给 rc-menu 内部悬停弹层接管：
+    // 受控 openKeys=[] 会压制 hover 展开，导致折叠后悬停看不到子菜单
+    openKeys: collapsed ? undefined : openKeys,
     onOpenChange: (keys: string[]) => setOpenKeys(keys),
     onClick: ({ key }: { key: string }) => {
       navigate(key);
