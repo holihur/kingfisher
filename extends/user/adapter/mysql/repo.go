@@ -240,9 +240,16 @@ func (r *UserRepo) setUserDepartments(tx *gorm.DB, userID uint, deptIDs []uint) 
 }
 
 func (r *UserRepo) Update(ctx context.Context, id uint, updates map[string]any) error {
-	// role_ids / dept_ids 变更单独处理：普通字段与关联表在同一事务内更新
+	// role_ids / dept_ids 变更单独处理：普通字段与关联表在同一事务内更新。
+	// dept_ids 不是 users 列，必须先移出 updates，否则会打进 UPDATE users 语句报 "no such column"
 	if roleIDs, ok := updates["role_ids"].([]uint); ok {
 		delete(updates, "role_ids")
+		var deptIDs []uint
+		hasDept := false
+		if v, ok := updates["dept_ids"].([]uint); ok {
+			deptIDs, hasDept = v, true
+			delete(updates, "dept_ids")
+		}
 		return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 			if err := tx.Model(&userPO{}).Where("id = ?", id).Updates(updates).Error; err != nil {
 				return err
@@ -251,8 +258,7 @@ func (r *UserRepo) Update(ctx context.Context, id uint, updates map[string]any) 
 				return err
 			}
 			// 部门也可能同时变更
-			if deptIDs, ok := updates["dept_ids"].([]uint); ok {
-				delete(updates, "dept_ids")
+			if hasDept {
 				return r.setUserDepartments(tx, id, deptIDs)
 			}
 			return nil
