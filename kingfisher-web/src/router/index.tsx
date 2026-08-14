@@ -17,6 +17,7 @@ const RegisterPage = lazy(() => import('../pages/register'));
 const ForgotPassword = lazy(() => import('../pages/forgot'));
 const ResetPassword = lazy(() => import('../pages/reset'));
 const PublicDocView = lazy(() => import('../pages/public/DocView'));
+const AgentChat = lazy(() => import('../pages/agent/AgentChat'));
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const userLoaded = useAuthStore((s) => s.userLoaded);
@@ -199,6 +200,18 @@ function AppRoutes() {
             <Lazy>
               <DashboardPage />
             </Lazy>
+          ),
+        },
+        // Agent 会话级子路由：/agent/:conversationId 直接打开指定会话。
+        // 菜单动态路由已生成 /agent，此路由补充带参数的深层链接。
+        {
+          path: 'agent/:conversationId',
+          element: (
+            <PermGuard perm="agent:list">
+              <Lazy>
+                <AgentChat />
+              </Lazy>
+            </PermGuard>
           ),
         },
         ...menuRoutes,

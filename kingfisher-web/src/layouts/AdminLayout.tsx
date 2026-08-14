@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { Layout, Menu, Breadcrumb, Avatar, Dropdown, Spin, Drawer, Badge, theme as antdTheme } from 'antd';
-import { findBreadcrumb } from '../utils/menu';
+import { Layout, Menu, Breadcrumb, Avatar, Dropdown, Spin, Drawer, Badge, Watermark, theme as antdTheme } from 'antd';
+import { findBreadcrumb, matchMenuPath, type MenuItem } from '../utils/menu';
 import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -16,6 +16,7 @@ import {
   QuestionOutlined,
   InboxOutlined,
   MailOutlined,
+  MessageOutlined,
   FileTextOutlined,
   ScheduleOutlined,
   MonitorOutlined,
@@ -40,6 +41,7 @@ const icons: Record<string, React.ReactNode> = {
   AuditOutlined: <AuditOutlined />,
   BookOutlined: <BookOutlined />,
   MailOutlined: <MailOutlined />,
+  MessageOutlined: <MessageOutlined />,
   FileTextOutlined: <FileTextOutlined />,
   ScheduleOutlined: <ScheduleOutlined />,
   MonitorOutlined: <MonitorOutlined />,
@@ -82,6 +84,10 @@ const AdminLayout: React.FC = () => {
   const [siteName, setSiteName] = useState('Kingfisher');
   const [siteLogo, setSiteLogo] = useState('');
   const [unreadCount, setUnreadCount] = useState(0);
+  // 全局水印配置
+  const [watermarkEnabled, setWatermarkEnabled] = useState(false);
+  const [watermarkText, setWatermarkText] = useState('');
+  const [watermarkExtra, setWatermarkExtra] = useState('');
   const { theme, toggle: toggleTheme } = useTheme();
   const { token: themeToken } = antdTheme.useToken();
   const { menuTree, loading } = useMenuStore();
@@ -96,6 +102,9 @@ const AdminLayout: React.FC = () => {
       document.title = name;
     }).catch(() => {});
     configApi.getPublic('site_logo').then(r => setSiteLogo((r.data as any)?.value || '')).catch(() => {});
+    configApi.getPublic('watermark_enabled').then(r => setWatermarkEnabled((r.data as any)?.value === 'true')).catch(() => {});
+    configApi.getPublic('watermark_text').then(r => setWatermarkText((r.data as any)?.value || '')).catch(() => {});
+    configApi.getPublic('watermark_extra').then(r => setWatermarkExtra((r.data as any)?.value || '')).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -175,7 +184,8 @@ const AdminLayout: React.FC = () => {
   const menuProps = {
     theme: (theme === 'dark' ? 'dark' : 'light') as 'dark' | 'light',
     mode: 'inline' as const,
-    selectedKeys: [location.pathname],
+    // 会话级子路由（如 /agent/123）高亮父菜单：前缀匹配
+    selectedKeys: [matchMenuPath(menuTree as MenuItem[], location.pathname) || location.pathname],
     // 折叠时 openKeys 传 undefined 交给 rc-menu 内部悬停弹层接管：
     // 受控 openKeys=[] 会压制 hover 展开，导致折叠后悬停看不到子菜单
     openKeys: collapsed ? undefined : openKeys,
@@ -194,7 +204,17 @@ const AdminLayout: React.FC = () => {
   const sidebarBorderColor = isSidebarDark ? 'rgba(255,255,255,0.1)' : themeToken.colorSplit;
   const siderContent = loading ? <Spin style={{ display: 'block', marginTop: 40 }} /> : <Menu {...menuProps} />;
 
-  return (
+  // 水印内容：替换占位符 {username}/{date}
+  const watermarkContent = (() => {
+    const base = watermarkText || 'Kingfisher 内部系统';
+    const extra = watermarkExtra
+      .replace('{username}', (userInfo as Record<string, unknown> | null)?.username as string || '')
+      .replace('{date}', new Date().toLocaleDateString('zh-CN'));
+    return extra ? `${base} | ${extra}` : base;
+  })();
+
+  // 布局内容（含水印包裹）。禁用水印时不渲染 Watermark，避免 antd canvas 0 尺寸报错。
+  const layout = (
     <Layout style={{ minHeight: '100vh' }}>
       {isMobile ? (
         <Drawer
@@ -348,6 +368,13 @@ const AdminLayout: React.FC = () => {
         </Layout.Content>
       </Layout>
     </Layout>
+  );
+
+  // 禁用水印时直接渲染布局；启用时外包 Watermark。
+  return watermarkEnabled ? (
+    <Watermark content={watermarkContent}>{layout}</Watermark>
+  ) : (
+    layout
   );
 };
 

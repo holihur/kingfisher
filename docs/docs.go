@@ -15,6 +15,189 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/agent/chat/stream": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "发送一条消息并流式接收回复（text/event-stream）。事件：start/text_delta/tool_use/tool_result/done/error",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "Agent"
+                ],
+                "summary": "流式对话",
+                "parameters": [
+                    {
+                        "description": "对话请求",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/extends_agent_transport.ChatStreamReq"
+                        }
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/agent/conversations": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "当前登录用户的 Agent 会话列表（按最近活跃倒序）",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Agent"
+                ],
+                "summary": "会话列表",
+                "responses": {
+                    "11001": {
+                        "description": "未启用",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    },
+                    "200": {
+                        "description": "会话列表",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "新建一个 Agent 会话（title 可选，留空用首条消息自动命名）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Agent"
+                ],
+                "summary": "创建会话",
+                "parameters": [
+                    {
+                        "description": "创建请求",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/extends_agent_transport.CreateConversationReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "11001": {
+                        "description": "未启用",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    },
+                    "200": {
+                        "description": "会话",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/agent/conversations/{id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "删除会话及其全部消息",
+                "tags": [
+                    "Agent"
+                ],
+                "summary": "删除会话",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "会话ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "11002": {
+                        "description": "会话不存在",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    },
+                    "200": {
+                        "description": "删除成功",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/agent/conversations/{id}/messages": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "某会话的消息记录（按时间正序）",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Agent"
+                ],
+                "summary": "消息历史",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "会话ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "11002": {
+                        "description": "会话不存在",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    },
+                    "200": {
+                        "description": "消息列表",
+                        "schema": {
+                            "$ref": "#/definitions/kingfisher_core_response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/auth/forgot-password": {
             "post": {
                 "description": "按邮箱发送密码重置邮件（含一次性 token 链接）。防枚举：邮箱不存在也返回成功",
@@ -1521,11 +1704,65 @@ const docTemplate = `{
             }
         },
         "/messages": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Message"
+                ],
+                "summary": "已发送站内信（管理端）",
+                "responses": {}
+            },
             "post": {
                 "tags": [
                     "Message"
                 ],
                 "summary": "发送站内信",
+                "responses": {}
+            }
+        },
+        "/messages/:id/revoke": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Message"
+                ],
+                "summary": "撤回单条站内信",
+                "responses": {}
+            }
+        },
+        "/messages/batch/:batchId": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Message"
+                ],
+                "summary": "批次详情",
+                "responses": {}
+            }
+        },
+        "/messages/batch/:batchId/revoke": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "Message"
+                ],
+                "summary": "撤回整批站内信",
                 "responses": {}
             }
         },
@@ -2507,6 +2744,25 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "extends_agent_transport.ChatStreamReq": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string"
+                },
+                "conversation_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "extends_agent_transport.CreateConversationReq": {
+            "type": "object",
+            "properties": {
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
         "extends_department_transport.AssignRolesReq": {
             "type": "object",
             "required": [

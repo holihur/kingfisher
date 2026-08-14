@@ -823,3 +823,73 @@ code {
 .notion-toggle.notion-toggle-collapsed > :first-child::before {
   content: '▸';
 }
+
+/* ===== Agent 聊天的 Markdown 渲染样式 =====
+   颜色全部走 CSS 变量，随 antd 主题联动（浅色默认值 + 暗色覆盖），
+   避免硬编码 rgba(0,0,0,...) 在暗色下不可见。 */
+:root {
+  --agent-md-border: rgba(0, 0, 0, 0.12);
+  --agent-md-text-secondary: rgba(0, 0, 0, 0.55);
+  --agent-md-bg-secondary: rgba(0, 0, 0, 0.06);
+  --agent-md-bg-table-header: rgba(0, 0, 0, 0.04);
+  --agent-md-bg-blockquote: rgba(0, 0, 0, 0.04);
+}
+html[data-theme='dark'] {
+  --agent-md-border: rgba(255, 255, 255, 0.22);
+  --agent-md-text-secondary: rgba(255, 255, 255, 0.55);
+  --agent-md-bg-secondary: rgba(255, 255, 255, 0.1);
+  --agent-md-bg-table-header: rgba(255, 255, 255, 0.1);
+  --agent-md-bg-blockquote: rgba(255, 255, 255, 0.05);
+}
+.agent-markdown > *:first-child { margin-top: 0; }
+.agent-markdown > *:last-child { margin-bottom: 0; }
+.agent-markdown p { margin: 0.5em 0; }
+.agent-markdown h1, .agent-markdown h2, .agent-markdown h3,
+.agent-markdown h4, .agent-markdown h5, .agent-markdown h6 {
+  margin: 0.8em 0 0.4em;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.agent-markdown h1 { font-size: 1.4em; }
+.agent-markdown h2 { font-size: 1.25em; }
+.agent-markdown h3 { font-size: 1.1em; }
+.agent-markdown ul, .agent-markdown ol { padding-left: 1.4em; margin: 0.5em 0; }
+.agent-markdown li { margin: 0.25em 0; }
+.agent-markdown blockquote {
+  margin: 0.5em 0;
+  padding: 0.1em 1em;
+  border-left: 3px solid var(--agent-md-border);
+  background: var(--agent-md-bg-blockquote);
+  color: var(--agent-md-text-secondary);
+}
+.agent-markdown code {
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9em;
+  background: var(--agent-md-bg-secondary);
+}
+.agent-markdown pre {
+  margin: 0.6em 0;
+  padding: 0.8em 1em;
+  border-radius: 8px;
+  overflow-x: auto;
+  background: var(--agent-md-bg-secondary);
+}
+.agent-markdown pre code { padding: 0; background: transparent; }
+.agent-markdown table {
+  border-collapse: collapse;
+  margin: 0.6em 0;
+  width: 100%;
+  font-size: 0.95em;
+}
+.agent-markdown th, .agent-markdown td {
+  border: 1px solid var(--agent-md-border);
+  padding: 6px 10px;
+  text-align: left;
+}
+.agent-markdown th { background: var(--agent-md-bg-table-header); font-weight: 600; }
+.agent-markdown a { color: #1677ff; text-decoration: none; }
+.agent-markdown a:hover { text-decoration: underline; }
+.agent-markdown img { max-width: 100%; border-radius: 6px; }
+.agent-markdown hr { border: none; border-top: 1px solid var(--agent-md-border); margin: 1em 0; }

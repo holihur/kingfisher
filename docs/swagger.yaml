@@ -1,5 +1,17 @@
 basePath: /api/v1
 definitions:
+  extends_agent_transport.ChatStreamReq:
+    properties:
+      content:
+        type: string
+      conversation_id:
+        type: integer
+    type: object
+  extends_agent_transport.CreateConversationReq:
+    properties:
+      title:
+        type: string
+    type: object
   extends_department_transport.AssignRolesReq:
     properties:
       role_ids:
@@ -403,6 +415,120 @@ info:
   title: Kingfisher Admin API
   version: "1.0"
 paths:
+  /agent/chat/stream:
+    post:
+      consumes:
+      - application/json
+      description: 发送一条消息并流式接收回复（text/event-stream）。事件：start/text_delta/tool_use/tool_result/done/error
+      parameters:
+      - description: 对话请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/extends_agent_transport.ChatStreamReq'
+      produces:
+      - text/event-stream
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: 流式对话
+      tags:
+      - Agent
+  /agent/conversations:
+    get:
+      description: 当前登录用户的 Agent 会话列表（按最近活跃倒序）
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 会话列表
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+        "11001":
+          description: 未启用
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+      security:
+      - BearerAuth: []
+      summary: 会话列表
+      tags:
+      - Agent
+    post:
+      consumes:
+      - application/json
+      description: 新建一个 Agent 会话（title 可选，留空用首条消息自动命名）
+      parameters:
+      - description: 创建请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/extends_agent_transport.CreateConversationReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 会话
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+        "11001":
+          description: 未启用
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+      security:
+      - BearerAuth: []
+      summary: 创建会话
+      tags:
+      - Agent
+  /agent/conversations/{id}:
+    delete:
+      description: 删除会话及其全部消息
+      parameters:
+      - description: 会话ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+        "11002":
+          description: 会话不存在
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+      security:
+      - BearerAuth: []
+      summary: 删除会话
+      tags:
+      - Agent
+  /agent/conversations/{id}/messages:
+    get:
+      description: 某会话的消息记录（按时间正序）
+      parameters:
+      - description: 会话ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 消息列表
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+        "11002":
+          description: 会话不存在
+          schema:
+            $ref: '#/definitions/kingfisher_core_response.Response'
+      security:
+      - BearerAuth: []
+      summary: 消息历史
+      tags:
+      - Agent
   /auth/forgot-password:
     post:
       consumes:
@@ -1316,9 +1442,40 @@ paths:
       tags:
       - Menu
   /messages:
+    get:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: 已发送站内信（管理端）
+      tags:
+      - Message
     post:
       responses: {}
       summary: 发送站内信
+      tags:
+      - Message
+  /messages/:id/revoke:
+    put:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: 撤回单条站内信
+      tags:
+      - Message
+  /messages/batch/:batchId:
+    get:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: 批次详情
+      tags:
+      - Message
+  /messages/batch/:batchId/revoke:
+    put:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: 撤回整批站内信
       tags:
       - Message
   /permissions:
