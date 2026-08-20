@@ -61,6 +61,7 @@ import (
 	templateTransport "kingfisher/extends/template/transport"
 	userAdapter "kingfisher/extends/user/adapter/mysql"
 	userTransport "kingfisher/extends/user/transport"
+	worktaskTransport "kingfisher/extends/worktask/transport"
 )
 
 var (
@@ -268,6 +269,7 @@ func main() {
 		messageTransport.NewMessageModule(db, producer),
 		templateTransport.NewTemplateModule(db, redisCache),
 		taskTransport.NewTaskModule(db, producer),
+		worktaskTransport.NewModule(db, worktaskTransport.ScopeResolver(rbacSvc.ResolveDataScope)),
 		systemTransport.NewSystemModule(db, rdb, systemApp.VersionInfo{
 			Version: version, Commit: commit, BuildTime: buildTime,
 		}),

@@ -103,6 +103,7 @@ func autoMigrate(db *gorm.DB) error {
 		&RolePO{},
 		&PermissionPO{},
 		&RolePermissionPO{},
+		&RoleDataScopePO{},
 		&MenuPO{},
 		&RoleMenuPO{},
 		&UserRolePO{},
@@ -114,6 +115,7 @@ func autoMigrate(db *gorm.DB) error {
 		&MessagePO{},
 		&TemplatePO{},
 		&ScheduledTaskPO{},
+		&WorkTaskPO{},
 		&DocDirectoryPO{},
 		&DocDirRolePO{},
 		&DocumentPO{},
@@ -131,7 +133,7 @@ func SeedData(db *gorm.DB) error {
 	// Skip if already seeded
 	var count int64
 	if err := db.Model(&UserPO{}).Count(&count).Error; err == nil && count > 0 {
-		return nil
+		return ensureWorkTaskSeed(db)
 	}
 	return db.Transaction(func(tx *gorm.DB) error {
 		// Permissions
@@ -177,6 +179,10 @@ func SeedData(db *gorm.DB) error {
 			{ID: 39, Name: "更新部门", Code: "department:update", Resource: "department", Action: "update"},
 			{ID: 40, Name: "删除部门", Code: "department:delete", Resource: "department", Action: "delete"},
 			{ID: 41, Name: "使用Agent", Code: "agent:list", Resource: "agent", Action: "read"},
+			{ID: 42, Name: "查看业务任务", Code: "worktask:list", Resource: "worktask", Action: "read"},
+			{ID: 43, Name: "创建业务任务", Code: "worktask:create", Resource: "worktask", Action: "create"},
+			{ID: 44, Name: "更新业务任务", Code: "worktask:update", Resource: "worktask", Action: "update"},
+			{ID: 45, Name: "删除业务任务", Code: "worktask:delete", Resource: "worktask", Action: "delete"},
 		}
 		if err := tx.Create(&perms).Error; err != nil {
 			return fmt.Errorf("seed permissions: %w", err)
@@ -207,6 +213,9 @@ func SeedData(db *gorm.DB) error {
 			{3, 1}, {3, 2}, {3, 3}, {3, 5}, {3, 6}, {3, 7}, {3, 9}, {3, 13}, {3, 16},
 			{3, 33}, {3, 34}, {3, 35},
 			{3, 37}, {3, 38}, {3, 39},
+			{1, 42}, {1, 43}, {1, 44}, {1, 45},
+			{3, 42}, {3, 43}, {3, 44},
+			{4, 42},
 			// viewer（访客）仅仪表盘 + 用户/角色/菜单/审计只读 + 文档只读；不授部门管理
 			{4, 1}, {4, 5}, {4, 9}, {4, 13}, {4, 16},
 			{4, 33},
@@ -234,6 +243,7 @@ func SeedData(db *gorm.DB) error {
 			{ID: 22, ParentID: 2, Name: "文档管理", Path: "/system/docs", Component: "pages/Doc/DocManage", Icon: "FileTextOutlined", Sort: 11, Permission: "doc:list", Version: "1.0.0"},
 			{ID: 23, ParentID: 2, Name: "部门管理", Path: "/system/departments", Component: "pages/Department/DeptManage", Icon: "ApartmentOutlined", Sort: 12, Permission: "department:list", Version: "1.0.0"},
 			{ID: 24, ParentID: 0, Name: "Agent 助手", Path: "/agent", Component: "pages/Agent/AgentChat", Icon: "MessageOutlined", Sort: 2, Permission: "agent:list", Version: "1.0.0"},
+			{ID: 25, ParentID: 2, Name: "演示任务", Path: "/system/worktasks", Component: "pages/WorkTask/WorkTaskManage", Icon: "CheckSquareOutlined", Sort: 13, Permission: "worktask:list", Version: "1.0.0"},
 		}
 		if err := tx.Create(&menus).Error; err != nil {
 			return fmt.Errorf("seed menus: %w", err)
@@ -243,13 +253,13 @@ func SeedData(db *gorm.DB) error {
 		type RM struct{ RoleID, MenuID uint }
 		rm := []RM{
 			{1, 1}, {1, 2}, {1, 3}, {1, 7}, {1, 11}, {1, 15}, {1, 16}, {1, 17}, {1, 18}, {1, 19}, {1, 20}, {1, 21}, {1, 22}, {1, 23},
-			{1, 24},
+			{1, 24}, {1, 25},
 			// editor：含系统管理目录（id 2），否则其子菜单（用户/菜单/文档/部门）在 buildTree 时无父级被丢弃
 			{3, 1}, {3, 2}, {3, 3}, {3, 7}, {3, 22}, {3, 23},
 			// viewer（访客）：系统管理目录（id2）+ 用户管理 + 文档管理；部门管理不授予
 			{4, 1}, {4, 2}, {4, 3}, {4, 22},
 			// agent 顶级菜单：所有登录角色均可见
-			{3, 24}, {4, 24},
+			{3, 24}, {4, 24}, {3, 25},
 		}
 		if err := tx.Table("role_menus").Create(&rm).Error; err != nil {
 			return fmt.Errorf("seed role_menus: %w", err)
@@ -415,6 +425,44 @@ func SeedData(db *gorm.DB) error {
 			{UserID: 4, DepartmentID: 2},
 		}
 		return tx.Create(&userDepts).Error
+	})
+}
+
+func ensureWorkTaskSeed(db *gorm.DB) error {
+	return db.Transaction(func(tx *gorm.DB) error {
+		perms := []PermissionPO{
+			{ID: 42, Name: "查看业务任务", Code: "worktask:list", Resource: "worktask", Action: "read"},
+			{ID: 43, Name: "创建业务任务", Code: "worktask:create", Resource: "worktask", Action: "create"},
+			{ID: 44, Name: "更新业务任务", Code: "worktask:update", Resource: "worktask", Action: "update"},
+			{ID: 45, Name: "删除业务任务", Code: "worktask:delete", Resource: "worktask", Action: "delete"},
+		}
+		for _, perm := range perms {
+			if err := tx.Where("code = ?", perm.Code).FirstOrCreate(&perm).Error; err != nil {
+				return fmt.Errorf("ensure worktask permission %s: %w", perm.Code, err)
+			}
+		}
+		menu := MenuPO{ID: 25, ParentID: 2, Name: "演示任务", Path: "/system/worktasks", Component: "pages/WorkTask/WorkTaskManage", Icon: "CheckSquareOutlined", Sort: 13, Permission: "worktask:list", Status: 1, Version: "1.0.0"}
+		if err := tx.Where("path = ?", menu.Path).FirstOrCreate(&menu).Error; err != nil {
+			return fmt.Errorf("ensure worktask menu: %w", err)
+		}
+		rolePerms := map[uint][]string{1: {"worktask:list", "worktask:create", "worktask:update", "worktask:delete"}, 3: {"worktask:list", "worktask:create", "worktask:update"}, 4: {"worktask:list"}}
+		for roleID, codes := range rolePerms {
+			for _, code := range codes {
+				var perm PermissionPO
+				if err := tx.Where("code = ?", code).First(&perm).Error; err != nil {
+					return err
+				}
+				if err := tx.FirstOrCreate(&RolePermissionPO{RoleID: roleID, PermissionID: perm.ID}).Error; err != nil {
+					return fmt.Errorf("ensure worktask role permission: %w", err)
+				}
+			}
+		}
+		for _, roleID := range []uint{1, 3, 4} {
+			if err := tx.FirstOrCreate(&RoleMenuPO{RoleID: roleID, MenuID: menu.ID}).Error; err != nil {
+				return fmt.Errorf("ensure worktask role menu: %w", err)
+			}
+		}
+		return nil
 	})
 }
 
