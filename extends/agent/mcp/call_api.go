@@ -15,40 +15,54 @@ import (
 // callAPIName 唯一的工具名：类似 curl 的通用 API 调用工具。
 const callAPIName = "call_api"
 
-// 允许的 HTTP 方法白名单。
-var allowedMethods = []string{"GET", "POST", "PUT", "PATCH", "DELETE"}
-
 // maxResponseSize 限制内部请求响应体大小，防止超大返回撑爆上下文。
 const maxResponseSize = 1 << 20 // 1MB
+
+// defaultAllowedMethods 默认允许的 HTTP 方法白名单（可在构造时通过 SetAllowedMethods 覆盖）。
+var defaultAllowedMethods = []string{"GET", "POST", "PUT", "PATCH", "DELETE"}
 
 // CallAPIClient call_api 工具的执行器：构造内部 HTTP 请求打到本服务自身端点，
 // 透传当前登录用户的 token，走 Auth+RBAC 中间件完成鉴权。
 type CallAPIClient struct {
-	selfBaseURL string
-	httpClient  *http.Client
+	selfBaseURL    string
+	httpClient     *http.Client
+	allowedMethods []string // HTTP 方法白名单（可配置，控制 agent 可用哪些写方法）
 }
 
 // NewCallAPIClient 创建 call_api 执行器。selfBaseURL 为本服务自身地址
 // （如 http://127.0.0.1:8080），不能由 LLM 输入控制。
 func NewCallAPIClient(selfBaseURL string) *CallAPIClient {
 	return &CallAPIClient{
-		selfBaseURL: strings.TrimRight(selfBaseURL, "/"),
-		httpClient:  &http.Client{Timeout: 30 * time.Second},
+		selfBaseURL:    strings.TrimRight(selfBaseURL, "/"),
+		httpClient:     &http.Client{Timeout: 30 * time.Second},
+		allowedMethods: defaultAllowedMethods,
 	}
 }
 
-// Tool 返回 call_api 工具定义（MCP 格式）。
+// SetAllowedMethods 覆盖 HTTP 方法白名单（空切片则全部禁止）。
+func (c *CallAPIClient) SetAllowedMethods(methods []string) {
+	c.allowedMethods = methods
+}
+
+// AllowedMethods 返回当前白名单。
+func (c *CallAPIClient) AllowedMethods() []string { return c.allowedMethods }
+
+// Tool 返回 call_api 工具定义（MCP 格式）。method 枚举随白名单动态生成。
 func (c *CallAPIClient) Tool() Tool {
+	methods := c.allowedMethods
+	if len(methods) == 0 {
+		methods = defaultAllowedMethods
+	}
 	return Tool{
 		Name: callAPIName,
-		Description: "调用本系统的 OpenAPI 接口。method 为 HTTP 方法（GET/POST/PUT/PATCH/DELETE）；" +
+		Description: "调用本系统的 OpenAPI 接口。method 为 HTTP 方法（" + strings.Join(methods, "/") + "）；" +
 			"path 必须是系统接口路径（以 /api/v1 开头，如 /api/v1/users，路径参数直接填入如 /api/v1/users/3）；" +
-			"query 为查询参数对象（可选）；body 为请求体对象（可选，仅 POST/PUT/PATCH 使用）。" +
+			"query 为查询参数对象（可选）；body 为请求体对象（可选，写操作使用）。" +
 			"返回 {status_code, body}。注意：你只能调用 system prompt 中列出的接口，无权限的接口会返回 403。",
 		InputSchema: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
-				"method": map[string]any{"type": "string", "enum": allowedMethods, "description": "HTTP 方法"},
+				"method": map[string]any{"type": "string", "enum": methods, "description": "HTTP 方法"},
 				"path":   map[string]any{"type": "string", "description": "系统接口路径，以 /api/v1 开头"},
 				"query":  map[string]any{"type": "object", "description": "查询参数（可选）"},
 				"body":   map[string]any{"type": "object", "description": "请求体（可选，写操作使用）"},
@@ -64,7 +78,7 @@ func (c *CallAPIClient) Call(ctx context.Context, args map[string]any, userToken
 	path, _ := args["path"].(string)
 	method = strings.ToUpper(method)
 
-	if !containsStr(allowedMethods, method) {
+	if !containsStr(c.allowedMethods, method) {
 		return errResult(fmt.Sprintf("非法 method: %s", method)), nil
 	}
 	if !strings.HasPrefix(path, "/api/v1/") {

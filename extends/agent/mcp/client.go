@@ -17,6 +17,9 @@ func NewClient(selfBaseURL string) *Client {
 	}
 }
 
+// SetAllowedMethods 覆盖 call_api 的 HTTP 方法白名单（控制 agent 可用写方法）。
+func (c *Client) SetAllowedMethods(methods []string) { c.caller.SetAllowedMethods(methods) }
+
 // ListTools 返回可用工具（当前只有 call_api）。
 func (c *Client) ListTools() ([]Tool, error) {
 	return []Tool{c.caller.Tool()}, nil
