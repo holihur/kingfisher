@@ -23,6 +23,7 @@ import {
   BulbOutlined,
   BulbFilled,
   ApartmentOutlined,
+  CheckSquareOutlined,
 } from '@ant-design/icons';
 import { useAuthStore } from '../stores/auth';
 import { useTheme } from '../hooks/useTheme';
@@ -46,6 +47,7 @@ const icons: Record<string, React.ReactNode> = {
   ScheduleOutlined: <ScheduleOutlined />,
   MonitorOutlined: <MonitorOutlined />,
   ApartmentOutlined: <ApartmentOutlined />,
+  CheckSquareOutlined: <CheckSquareOutlined />,
 };
 
 const MOBILE_BREAKPOINT = 768;

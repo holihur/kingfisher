@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Modal, Form, Input, Tree, Tabs, Checkbox, App, Popconfirm, Badge, AutoComplete, Tag, Dropdown } from 'antd';
+import { Button, Modal, Form, Input, Tree, Tabs, Checkbox, App, Popconfirm, Badge, AutoComplete, Tag, Dropdown, Select } from 'antd';
 import { PlusOutlined, SafetyOutlined, AppstoreOutlined, EditOutlined, DeleteOutlined, DownOutlined } from '@ant-design/icons';
 import DataTable, { SearchField } from '../../components/DataTable';
 import { useAuthStore } from '../../stores/auth';
@@ -31,6 +31,8 @@ const RoleList: React.FC = () => {
     open: false,
     role: null,
   });
+  const [scopeModal, setScopeModal] = useState<{ open: boolean; role: RoleRow | null }>({ open: false, role: null });
+  const [scopeType, setScopeType] = useState('self');
   const [allPerms, setAllPerms] = useState<Record<string, unknown>[]>([]);
   const [selectedPerms, setSelectedPerms] = useState<number[]>([]);
   const [allMenus, setAllMenus] = useState<Record<string, unknown>[]>([]);
@@ -89,6 +91,13 @@ const RoleList: React.FC = () => {
       title: '操作',
       key: 'action',
       render: (_: unknown, r: RoleRow) => [
+        perms.includes('role:update') ? (
+          <a key="scope" onClick={async () => {
+            const response = await roleApi.getDataScope(r.id, 'worktask');
+            setScopeType(((response.data as Record<string, unknown>)?.scope_type as string) || 'self');
+            setScopeModal({ open: true, role: r });
+          }}>数据范围</a>
+        ) : null,
         perms.includes('role:update') ? (
           <a
             key="perm"
@@ -294,6 +303,28 @@ const RoleList: React.FC = () => {
                 (option?.value as string)?.toLowerCase().includes(inputValue.toLowerCase()) ?? true
               }
             />
+          </Form.Item>
+        </Form>
+      </Modal>
+      <Modal
+        title={`配置业务任务数据范围 — ${scopeModal.role?.name || ''}`}
+        open={scopeModal.open}
+        onOk={async () => {
+          if (!scopeModal.role) return;
+          await roleApi.setDataScope(scopeModal.role.id, 'worktask', scopeType);
+          message.success('数据范围已更新');
+          setScopeModal({ open: false, role: null });
+        }}
+        onCancel={() => setScopeModal({ open: false, role: null })}
+      >
+        <Form layout="vertical">
+          <Form.Item label="业务任务范围">
+            <Select value={scopeType} onChange={setScopeType} options={[
+              { label: '全部数据', value: 'all' },
+              { label: '本人数据', value: 'self' },
+              { label: '本部门数据', value: 'department' },
+              { label: '本部门及下级', value: 'department_subtree' },
+            ]} />
           </Form.Item>
         </Form>
       </Modal>

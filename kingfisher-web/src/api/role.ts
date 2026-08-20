@@ -13,4 +13,6 @@ export const roleApi = {
   getAllPermissions: () => request.get('/permissions'),
   batchDelete: (ids: number[]) => request.post('/roles/batch-delete', { ids }),
   batchUpdateStatus: (ids: number[], status: number) => request.post('/roles/batch-status', { ids, status }),
+  getDataScope: (id: number, resource: string) => request.get(`/roles/${id}/data-scope`, { params: { resource } }),
+  setDataScope: (id: number, resource: string, scope_type: string) => request.put(`/roles/${id}/data-scope`, { resource, scope_type }),
 };

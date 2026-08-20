@@ -39,7 +39,7 @@ function parseRenderOptions(raw: string | undefined): { options: { label: string
     if (Array.isArray(parsed)) {
       return { options: parsed.map(toOpt).filter((o) => o.value !== ''), multiple: false };
     }
-    if (parsed && typeof parsed === 'object') {
+    if (isRenderOptionsObject(parsed)) {
       const opts = Array.isArray(parsed.options) ? parsed.options.map(toOpt).filter((o) => o.value !== '') : [];
       return { options: opts, multiple: Boolean(parsed.multiple) };
     }
@@ -47,6 +47,10 @@ function parseRenderOptions(raw: string | undefined): { options: { label: string
   } catch {
     return empty;
   }
+}
+
+function isRenderOptionsObject(value: unknown): value is { options?: unknown; multiple?: unknown } {
+  return typeof value === 'object' && value !== null;
 }
 
 function toOpt(o: unknown): { label: string; value: string } {

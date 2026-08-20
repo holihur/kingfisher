@@ -16,6 +16,7 @@ const componentMap: Record<string, React.LazyExoticComponent<React.ComponentType
   'pages/Message/MessageManage': lazy(() => import('../pages/message/MessageManage')),
   'pages/Template/TemplateManage': lazy(() => import('../pages/template/TemplateManage')),
   'pages/Task/TaskManage': lazy(() => import('../pages/task/TaskManage')),
+  'pages/WorkTask/WorkTaskManage': lazy(() => import('../pages/worktask/WorkTaskManage')),
   'pages/System/SystemInfo': lazy(() => import('../pages/system/SystemInfo')),
   'pages/Doc/DocManage': lazy(() => import('../pages/doc/DocManage')),
   'pages/Department/DeptManage': lazy(() => import('../pages/department/DeptManage')),
