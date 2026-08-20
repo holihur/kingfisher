@@ -232,13 +232,29 @@ func main() {
 	if agentSelfBaseURL == "" {
 		agentSelfBaseURL = "http://127.0.0.1:" + fmt.Sprint(cfg.Server.Port)
 	}
-	agentMod := agentTransport.NewAgentModule(db, cfg, agentSelfBaseURL, func(ctx context.Context) (string, error) {
-		sc, err := configSvc.Get(ctx, "llm_api_key")
-		if err != nil {
-			return "", err
-		}
-		return sc.Value, nil
-	})
+	agentMod := agentTransport.NewAgentModule(db, cfg, agentSelfBaseURL,
+		func(ctx context.Context) (string, error) {
+			sc, err := configSvc.Get(ctx, "llm_api_key")
+			if err != nil {
+				return "", err
+			}
+			return sc.Value, nil
+		},
+		func(ctx context.Context) (string, error) {
+			sc, err := configSvc.Get(ctx, "agent_system_prompt")
+			if err != nil {
+				return "", err
+			}
+			return sc.Value, nil
+		},
+		func(ctx context.Context) (string, error) {
+			sc, err := configSvc.Get(ctx, "agent_allowed_methods")
+			if err != nil {
+				return "", err
+			}
+			return sc.Value, nil
+		},
+	)
 
 	mods := []router.Module{
 		agentMod,

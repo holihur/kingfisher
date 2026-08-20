@@ -3,6 +3,7 @@ package transport
 import (
 	"context"
 	"os"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -24,12 +25,29 @@ type AgentModule struct {
 
 // NewAgentModule 组装 Agent 模块。
 //
-// cfg 提供 base_url/model/api_key 环境名等；configSvc 用于运行时读取
-// system_configs.llm_api_key（后台可改）。selfBaseURL 为 call_api 内部请求目标。
-func NewAgentModule(db *gorm.DB, cfg *config.Config, selfBaseURL string, getLLMKey func(ctx context.Context) (string, error)) *AgentModule {
+// cfg 提供 base_url/model/api_key 环境名等；getLLMKey 用于运行时读取
+// system_configs.llm_api_key（后台可改）；getSystemPrompt 返回可覆盖的
+// 系统提示词（后台 agent_system_prompt，为空回退默认）；getAllowedMethods 返回
+// call_api 的 HTTP 方法白名单（逗号分隔，如 "GET,POST,PUT"，空用默认）。
+// selfBaseURL 为 call_api 内部请求目标。
+func NewAgentModule(db *gorm.DB, cfg *config.Config, selfBaseURL string, getLLMKey, getSystemPrompt, getAllowedMethods func(ctx context.Context) (string, error)) *AgentModule {
 	repo := adapter.NewAgentRepo(db)
 	llmClient := llm.NewClient(cfg.Agent.BaseURL, "", cfg.Agent.Model, cfg.Agent.MaxTokens)
 	mcpClient := mcp.NewClient(selfBaseURL)
+	// 应用 method 白名单（配置非空时覆盖默认；启动时读一次，静态生效）。
+	if getAllowedMethods != nil {
+		if raw, err := getAllowedMethods(context.Background()); err == nil && raw != "" {
+			var methods []string
+			for _, m := range strings.Split(raw, ",") {
+				if m = strings.TrimSpace(strings.ToUpper(m)); m != "" {
+					methods = append(methods, m)
+				}
+			}
+			if len(methods) > 0 {
+				mcpClient.SetAllowedMethods(methods)
+			}
+		}
+	}
 
 	enabled := func() bool { return cfg.Agent.Enabled }
 	apiKey := func(ctx context.Context) (string, error) {
@@ -48,8 +66,17 @@ func NewAgentModule(db *gorm.DB, cfg *config.Config, selfBaseURL string, getLLMK
 		}
 		return "", nil
 	}
+	// 运行时读取系统提示词：配置有值用配置，为空回退默认常量。
+	readSystemPrompt := func(ctx context.Context) (string, error) {
+		if getSystemPrompt != nil {
+			if p, err := getSystemPrompt(ctx); err == nil && p != "" {
+				return p, nil
+			}
+		}
+		return app.SystemPromptFallback, nil
+	}
 
-	svc := app.NewAgentService(repo, llmClient, mcpClient, systemPrompt, apiKey, enabled, selfBaseURL)
+	svc := app.NewAgentService(repo, llmClient, mcpClient, readSystemPrompt, apiKey, enabled, selfBaseURL)
 	return &AgentModule{
 		handler: NewAgentHandler(svc),
 		svc:     svc,
@@ -57,11 +84,6 @@ func NewAgentModule(db *gorm.DB, cfg *config.Config, selfBaseURL string, getLLMK
 }
 
 // systemPrompt Agent 的系统提示词前缀（端点清单由 service 动态拼接）。
-const systemPrompt = `你是 Kingfisher 后台管理系统的 AI 助手，可以通过调用系统接口帮助用户查询和操作系统。
-请始终用中文回答，简洁、准确。当需要查询系统数据（如用户、配置、审计、字典等）时，
-使用 call_api 工具调用系统接口；接口返回后根据真实数据回答，不要编造。
-如果接口返回 403 说明当前用户无权限，请如实告知。`
-
 func (m *AgentModule) Name() string                       { return "agent" }
 func (m *AgentModule) Init(ctx context.Context) error     { return nil }
 func (m *AgentModule) Shutdown(ctx context.Context) error { return nil }
