@@ -259,6 +259,7 @@ func SeedData(db *gorm.DB) error {
 		groups := []ConfigGroupPO{
 			{ID: 1, Name: "站点", Sort: 1},
 			{ID: 2, Name: "安全", Sort: 2},
+			{ID: 3, Name: "Agent", Sort: 3},
 		}
 		if err := tx.Create(&groups).Error; err != nil {
 			return fmt.Errorf("seed config groups: %w", err)
@@ -280,6 +281,8 @@ func SeedData(db *gorm.DB) error {
 			{Key: "watermark_enabled", Value: "false", Remark: "全局水印开关（登录后所有页面显示水印）", IsPublic: true, Version: "1.0.0", Render: "switch", GroupID: 2},
 			{Key: "watermark_text", Value: "Kingfisher 内部系统", Remark: "水印文字", IsPublic: true, Version: "1.0.0", Render: "text", GroupID: 2},
 			{Key: "watermark_extra", Value: "{username} {date}", Remark: "水印补充内容（支持 {username}/{date} 占位符，留空则仅水印文字）", IsPublic: true, Version: "1.0.0", Render: "text", GroupID: 2},
+			{Key: "agent_system_prompt", Value: "", Remark: "Agent 系统提示词（留空用默认；可覆盖以定制 agent 行为）", IsPublic: true, Version: "1.0.0", Render: "textarea", GroupID: 3},
+			{Key: "agent_allowed_methods", Value: "GET,POST,PUT,PATCH,DELETE", Remark: "Agent call_api 允许的 HTTP 方法白名单（多选；重启后生效）", IsPublic: true, Version: "1.0.0", Render: "select", RenderOptions: `{"multiple":true,"options":[{"label":"GET","value":"GET"},{"label":"POST","value":"POST"},{"label":"PUT","value":"PUT"},{"label":"PATCH","value":"PATCH"},{"label":"DELETE","value":"DELETE"}]}`, GroupID: 3},
 		}
 		if err := tx.Create(&configs).Error; err != nil {
 			return fmt.Errorf("seed configs: %w", err)
