@@ -137,6 +137,14 @@ type RolePermissionPO struct {
 
 func (RolePermissionPO) TableName() string { return "role_permissions" }
 
+type RoleDataScopePO struct {
+	RoleID    uint   `gorm:"primaryKey"`
+	Resource  string `gorm:"primaryKey;size:64"`
+	ScopeType string `gorm:"size:32;not null"`
+}
+
+func (RoleDataScopePO) TableName() string { return "role_data_scopes" }
+
 // UserRolePO 用户-角色关联（多对多，多角色支持）
 type UserRolePO struct {
 	UserID uint `gorm:"primaryKey"`
@@ -227,6 +235,19 @@ type ScheduledTaskPO struct {
 }
 
 func (ScheduledTaskPO) TableName() string { return "scheduled_tasks" }
+
+type WorkTaskPO struct {
+	ID           uint   `gorm:"primaryKey"`
+	Title        string `gorm:"size:128;not null"`
+	Description  string `gorm:"type:text"`
+	OwnerID      uint   `gorm:"index;not null"`
+	DepartmentID uint   `gorm:"index;not null"`
+	Status       string `gorm:"size:32;index;not null"`
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+}
+
+func (WorkTaskPO) TableName() string { return "tasks" }
 
 // DocDirectoryPO 文档目录（树形）。可见性 shared/private（shared 公开，private 仅 admin）
 type DocDirectoryPO struct {

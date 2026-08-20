@@ -42,6 +42,8 @@ func (m *RBACModule) RegisterProtected(r *gin.RouterGroup) {
 	roles.PUT("/:id/permissions", RequirePerm("role:update"), m.roleHandler.AssignPerms)
 	roles.GET("/:id/menus", RequirePerm("role:list"), m.roleHandler.GetMenus)
 	roles.PUT("/:id/menus", RequirePerm("role:update"), m.roleHandler.AssignMenus)
+	roles.GET("/:id/data-scope", RequirePerm("role:list"), m.roleHandler.GetDataScope)
+	roles.PUT("/:id/data-scope", RequirePerm("role:update"), m.roleHandler.SetDataScope)
 	perms := r.Group("/permissions")
 	perms.GET("", RequirePerm("role:list"), m.permHandler.List)
 }

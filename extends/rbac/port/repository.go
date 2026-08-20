@@ -25,3 +25,10 @@ type RoleRepository interface {
 type PermissionRepository interface {
 	FindAll(ctx context.Context) ([]domain.Permission, error)
 }
+
+type DataScopeRepository interface {
+	GetDataScopes(ctx context.Context, roleIDs []uint, resource string) (map[uint]string, error)
+	SetDataScope(ctx context.Context, roleID uint, resource, scopeType string) error
+	GetUserDepartmentIDs(ctx context.Context, userID uint) ([]uint, error)
+	GetDepartmentSubtreeIDs(ctx context.Context, roots []uint) ([]uint, error)
+}

@@ -43,6 +43,14 @@ type rolePermissionPO struct {
 
 func (rolePermissionPO) TableName() string { return "role_permissions" }
 
+type roleDataScopePO struct {
+	RoleID    uint
+	Resource  string
+	ScopeType string
+}
+
+func (roleDataScopePO) TableName() string { return "role_data_scopes" }
+
 type roleMenuPO struct {
 	RoleID uint
 	MenuID uint

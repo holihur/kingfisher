@@ -145,3 +145,57 @@ func (r *PermRepo) FindAll(ctx context.Context) ([]domain.Permission, error) {
 	}
 	return perms, nil
 }
+
+func (r *RoleRepo) GetDataScopes(ctx context.Context, roleIDs []uint, resource string) (map[uint]string, error) {
+	var rows []roleDataScopePO
+	if err := r.db.WithContext(ctx).Where("role_id IN ? AND resource = ?", roleIDs, resource).Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	result := make(map[uint]string, len(rows))
+	for _, row := range rows {
+		result[row.RoleID] = row.ScopeType
+	}
+	return result, nil
+}
+
+func (r *RoleRepo) SetDataScope(ctx context.Context, roleID uint, resource, scopeType string) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("role_id = ? AND resource = ?", roleID, resource).Delete(&roleDataScopePO{}).Error; err != nil {
+			return err
+		}
+		return tx.Create(&roleDataScopePO{RoleID: roleID, Resource: resource, ScopeType: scopeType}).Error
+	})
+}
+
+func (r *RoleRepo) GetUserDepartmentIDs(ctx context.Context, userID uint) ([]uint, error) {
+	var ids []uint
+	err := r.db.WithContext(ctx).Table("user_departments").Where("user_id = ?", userID).Pluck("department_id", &ids).Error
+	return ids, err
+}
+
+func (r *RoleRepo) GetDepartmentSubtreeIDs(ctx context.Context, roots []uint) ([]uint, error) {
+	type row struct{ ID, ParentID uint }
+	var rows []row
+	if err := r.db.WithContext(ctx).Table("departments").Select("id, parent_id").Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	seen := make(map[uint]bool, len(roots))
+	for _, id := range roots {
+		seen[id] = true
+	}
+	changed := true
+	for changed {
+		changed = false
+		for _, item := range rows {
+			if seen[item.ParentID] && !seen[item.ID] {
+				seen[item.ID] = true
+				changed = true
+			}
+		}
+	}
+	ids := make([]uint, 0, len(seen))
+	for id := range seen {
+		ids = append(ids, id)
+	}
+	return ids, nil
+}

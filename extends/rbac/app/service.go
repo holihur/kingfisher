@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"kingfisher/core/cache"
+	"kingfisher/core/dataaccess"
 	"kingfisher/core/query"
 	"kingfisher/extends/rbac/domain"
 	"kingfisher/extends/rbac/port"
@@ -131,6 +132,67 @@ func (s *RoleService) GetRoleMenus(ctx context.Context, roleID uint) ([]domain.M
 		return nil, err
 	}
 	return rm, nil
+}
+
+func (s *RoleService) GetDataScope(ctx context.Context, roleID uint, resource string) (string, error) {
+	repo, ok := s.repo.(port.DataScopeRepository)
+	if !ok {
+		return "", nil
+	}
+	scopes, err := repo.GetDataScopes(ctx, []uint{roleID}, resource)
+	return scopes[roleID], err
+}
+
+func (s *RoleService) SetDataScope(ctx context.Context, roleID uint, resource, scopeType string) error {
+	repo, ok := s.repo.(port.DataScopeRepository)
+	if !ok {
+		return fmt.Errorf("data scope repository unavailable")
+	}
+	return repo.SetDataScope(ctx, roleID, resource, scopeType)
+}
+
+func (s *RoleService) ResolveDataScope(ctx context.Context, userID uint, roleIDs []uint, roleCodes []string) (dataaccess.Scope, error) {
+	for _, code := range roleCodes {
+		if code == "admin" {
+			return dataaccess.All(), nil
+		}
+	}
+	repo, ok := s.repo.(port.DataScopeRepository)
+	if !ok {
+		return dataaccess.Self("owner_id", userID), nil
+	}
+	scopes, err := repo.GetDataScopes(ctx, roleIDs, "worktask")
+	if err != nil {
+		return dataaccess.Self("owner_id", userID), err
+	}
+	selected := "self"
+	for _, roleID := range roleIDs {
+		switch scopes[roleID] {
+		case "all":
+			return dataaccess.All(), nil
+		case "department_subtree":
+			selected = "department_subtree"
+		case "department":
+			if selected == "self" {
+				selected = "department"
+			}
+		}
+	}
+	if selected == "self" {
+		return dataaccess.Self("owner_id", userID), nil
+	}
+	departmentIDs, err := repo.GetUserDepartmentIDs(ctx, userID)
+	if err != nil {
+		return dataaccess.Self("owner_id", userID), err
+	}
+	if selected == "department_subtree" {
+		departmentIDs, err = repo.GetDepartmentSubtreeIDs(ctx, departmentIDs)
+		if err != nil {
+			return dataaccess.Self("owner_id", userID), err
+		}
+		return dataaccess.Subtree("department_id", departmentIDs), nil
+	}
+	return dataaccess.Department("department_id", departmentIDs), nil
 }
 func strSlice(s string) []string {
 	if s == "" {

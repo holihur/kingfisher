@@ -19,6 +19,10 @@ type AssignPermReq struct {
 type AssignMenuReq struct {
 	MenuIDs []uint `json:"menu_ids"`
 }
+type DataScopeReq struct {
+	Resource  string `json:"resource" binding:"required"`
+	ScopeType string `json:"scope_type" binding:"required"`
+}
 type batchIDsReq struct {
 	IDs []uint `json:"ids" binding:"required,min=1"`
 }
@@ -190,6 +194,36 @@ func (h *RoleHandler) AssignMenus(c *gin.Context) {
 	}
 	if err := h.svc.AssignMenus(c.Request.Context(), uint(id), req.MenuIDs); err != nil {
 		response.BadRequest(c, err.Error())
+		return
+	}
+	response.OKJSON(c, nil)
+}
+
+func (h *RoleHandler) GetDataScope(c *gin.Context) {
+	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
+	resource := c.Query("resource")
+	scopeType, err := h.svc.GetDataScope(c.Request.Context(), uint(id), resource)
+	if err != nil {
+		response.InternalError(c)
+		return
+	}
+	response.OKJSON(c, gin.H{"resource": resource, "scope_type": scopeType})
+}
+
+func (h *RoleHandler) SetDataScope(c *gin.Context) {
+	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
+	var req DataScopeReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	valid := map[string]bool{"all": true, "self": true, "department": true, "department_subtree": true}
+	if !valid[req.ScopeType] {
+		response.BadRequest(c, "invalid scope_type")
+		return
+	}
+	if err := h.svc.SetDataScope(c.Request.Context(), uint(id), req.Resource, req.ScopeType); err != nil {
+		response.InternalError(c)
 		return
 	}
 	response.OKJSON(c, nil)
