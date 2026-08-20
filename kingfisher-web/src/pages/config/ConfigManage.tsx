@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Modal, Form, Input, InputNumber, Switch, Select, App, Tag, Popconfirm, Button, Empty, Dropdown, Upload } from 'antd';
+import { Modal, Form, Input, InputNumber, Switch, Select, App, Tag, Popconfirm, Button, Empty, Dropdown, Upload, Flex } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, DownOutlined, UploadOutlined } from '@ant-design/icons';
 import DataTable, { SearchField } from '../../components/DataTable';
 import { useAuthStore } from '../../stores/auth';
@@ -28,33 +28,47 @@ function inferRenderType(key: string): RenderType {
   return 'text';
 }
 
-/** 解析 select 的 options（render_options 为 JSON 字符串）。 */
-function parseRenderOptions(raw: string | undefined): { label: string; value: string }[] {
-  if (!raw) return [];
+/** 解析 select 的 options（render_options 为 JSON 字符串）。
+ *  支持两种结构：纯数组 [{"label","value"},...]（单选），
+ *  或 {multiple:true, options:[...]}（多选）。 */
+function parseRenderOptions(raw: string | undefined): { options: { label: string; value: string }[]; multiple: boolean } {
+  const empty = { options: [], multiple: false };
+  if (!raw) return empty;
   try {
-    const arr = JSON.parse(raw);
-    if (!Array.isArray(arr)) return [];
-    return arr
-      .map((o) => ({ label: String(o?.label ?? ''), value: String(o?.value ?? '') }))
-      .filter((o) => o.value !== '');
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return { options: parsed.map(toOpt).filter((o) => o.value !== ''), multiple: false };
+    }
+    if (parsed && typeof parsed === 'object') {
+      const opts = Array.isArray(parsed.options) ? parsed.options.map(toOpt).filter((o) => o.value !== '') : [];
+      return { options: opts, multiple: Boolean(parsed.multiple) };
+    }
+    return empty;
   } catch {
-    return [];
+    return empty;
   }
 }
 
-/** 表单值 → 存储字符串（switch 存 "true"/"false"）。 */
+function toOpt(o: unknown): { label: string; value: string } {
+  const obj = (o ?? {}) as Record<string, unknown>;
+  return { label: String(obj?.label ?? ''), value: String(obj?.value ?? '') };
+}
+
+/** 表单值 → 存储字符串（switch 存 "true"/"false"；数组如多选存逗号串）。 */
 function valueToString(v: unknown, render: RenderType): string {
   if (render === 'switch') return String(Boolean(v));
+  if (Array.isArray(v)) return v.join(',');
   return v === null || v === undefined ? '' : String(v);
 }
 
-/** 存储字符串 → 表单值（switch 变 boolean）。 */
-function stringToFormValue(v: string | undefined, render: RenderType): unknown {
+/** 存储字符串 → 表单值（switch 变 boolean；number 转数字；多选逗号串转数组）。 */
+function stringToFormValue(v: string | undefined, render: RenderType, multiple = false): unknown {
   if (render === 'switch') return v === 'true';
   if (render === 'number') {
     const n = Number(v);
     return Number.isFinite(n) ? n : v;
   }
+  if (multiple && v) return v.split(',').map((s) => s.trim()).filter(Boolean);
   return v;
 }
 
@@ -177,7 +191,23 @@ const ConfigManage: React.FC = () => {
           return v === 'true' ? <Tag color="green">开</Tag> : <Tag color="red">关</Tag>;
         }
         if (render === 'select') {
-          const opt = parseRenderOptions(r.render_options).find(o => o.value === v);
+          const parsed = parseRenderOptions(r.render_options);
+          // 多选：值存逗号串，拆开逐个匹配 label
+          if (parsed.multiple && typeof v === 'string') {
+            const parts = (v as string).split(',').map((s) => s.trim()).filter(Boolean);
+            if (parts.length) {
+              return (
+                <Flex gap={4} wrap="wrap">
+                  {parts.map((p) => {
+                    const opt = parsed.options.find((o) => o.value === p);
+                    return opt ? <Tag key={p} color="blue">{opt.label}</Tag> : <Tag key={p}>{p}</Tag>;
+                  })}
+                </Flex>
+              );
+            }
+            return <span style={{ wordBreak: 'break-all' }}>{v as string}</span>;
+          }
+          const opt = parsed.options.find((o) => o.value === v);
           return opt ? <Tag color="blue">{opt.label}</Tag> : <span style={{ wordBreak: 'break-all' }}>{v as string}</span>;
         }
         return <span style={{ wordBreak: 'break-all' }}>{v as string}</span>;
@@ -211,7 +241,7 @@ const ConfigManage: React.FC = () => {
               form.setFieldsValue({
                 ...r,
                 is_public: !!r.is_public,
-                value: stringToFormValue(r.value, render),
+                value: stringToFormValue(r.value, render, parseRenderOptions(r.render_options).multiple),
               });
               setEditModal({ open: true, config: r as unknown as Record<string, unknown>, isNew: false });
             }}
@@ -262,7 +292,7 @@ const ConfigManage: React.FC = () => {
   };
 
   /** 根据 render 渲染 Value 编辑控件。 */
-  const renderValueInput = (render: RenderType, options: { label: string; value: string }[]) => {
+  const renderValueInput = (render: RenderType, parsed: { options: { label: string; value: string }[]; multiple: boolean }) => {
     switch (render) {
       case 'number':
         return <InputNumber style={{ width: '100%' }} />;
@@ -272,8 +302,9 @@ const ConfigManage: React.FC = () => {
         return (
           <Select
             style={{ width: '100%' }}
-            options={options.length ? options : undefined}
-            placeholder="请选择（需先配置选项）"
+            mode={parsed.multiple ? 'multiple' : undefined}
+            options={parsed.options.length ? parsed.options : undefined}
+            placeholder={parsed.multiple ? '请选择（可多选）' : '请选择（需先配置选项）'}
             allowClear
           />
         );
