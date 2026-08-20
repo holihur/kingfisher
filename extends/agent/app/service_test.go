@@ -85,7 +85,7 @@ func (m *mockAgentRepo) AddMessage(ctx context.Context, msg *domain.Message) err
 func newTestService(repo port.AgentRepository) *AgentService {
 	llmClient := llm.NewClient("http://127.0.0.1:1", "test-key", "test-model", 100)
 	mcpClient := mcp.NewClient("http://127.0.0.1:1")
-	return NewAgentService(repo, llmClient, mcpClient, "test-system",
+	return NewAgentService(repo, llmClient, mcpClient, func(ctx context.Context) (string, error) { return "test-system", nil },
 		func(ctx context.Context) (string, error) { return "test-key", nil },
 		func() bool { return true },
 		"http://127.0.0.1:8080")
@@ -216,5 +216,72 @@ func TestRebuildMessages(t *testing.T) {
 	// tool_result 必须带 tool_use_id（DeepSeek 校验缺失会 400）
 	if id, _ := blocks[0]["tool_use_id"].(string); id != "tu_1" {
 		t.Fatalf("tool_result.tool_use_id 应为 tu_1，得到 %q", id)
+	}
+}
+
+// TestRebuildMessagesDropsOrphanToolUse 悬空 tool_use（无对应 tool_result）必须被丢弃，
+// 否则 DeepSeek 报 "tool_use ids were found without tool_result blocks" 400。
+func TestRebuildMessagesDropsOrphanToolUse(t *testing.T) {
+	repo := newMockRepo()
+	svc := newTestService(repo)
+
+	c, _ := svc.CreateConversation(context.Background(), 1, "")
+	_ = repo.AddMessage(context.Background(), &domain.Message{ConversationID: c.ID, Role: "user", Content: "删用户"})
+	// assistant 带 2 个 tool_use，但只有 1 个 tool_result（另一个悬空/中断）
+	_ = repo.AddMessage(context.Background(), &domain.Message{
+		ConversationID: c.ID, Role: "assistant", Content: "我来",
+		ToolCalls: `[{"id":"tu_1","name":"call_api","input":{"method":"DELETE","path":"/api/v1/users/3"}},
+		             {"id":"tu_2","name":"call_api","input":{"method":"DELETE","path":"/api/v1/users/4"}}]`,
+	})
+	_ = repo.AddMessage(context.Background(), &domain.Message{
+		ConversationID: c.ID, Role: "tool",
+		ToolResult: `{"content":[{"type":"text","text":"ok"}],"is_error":false}`,
+	})
+
+	msgs, err := svc.rebuildMessages(context.Background(), c.ID)
+	if err != nil {
+		t.Fatalf("rebuildMessages 失败: %v", err)
+	}
+	// 期望：[user, assistant(仅 1 个 tool_use), user(tool_result)]
+	if len(msgs) != 3 {
+		t.Fatalf("期望 3 条消息，得到 %d", len(msgs))
+	}
+	asst := msgs[1].Content.([]map[string]any)
+	toolUses := 0
+	for _, b := range asst {
+		if b["type"] == "tool_use" {
+			toolUses++
+		}
+	}
+	if toolUses != 1 {
+		t.Fatalf("悬空 tool_use 应被丢弃，实际保留 %d 个 tool_use", toolUses)
+	}
+	// 配对的 tool_result 带正确 tool_use_id
+	blocks := msgs[2].Content.([]map[string]any)
+	if id, _ := blocks[0]["tool_use_id"].(string); id != "tu_1" {
+		t.Fatalf("tool_result.tool_use_id 应为 tu_1（配对第一个），得到 %q", id)
+	}
+}
+
+// TestRebuildMessagesAssistantNoToolResult 仅 text、无 tool_use 的 assistant 正常保留。
+func TestRebuildMessagesAssistantNoToolResult(t *testing.T) {
+	repo := newMockRepo()
+	svc := newTestService(repo)
+
+	c, _ := svc.CreateConversation(context.Background(), 1, "")
+	_ = repo.AddMessage(context.Background(), &domain.Message{ConversationID: c.ID, Role: "user", Content: "你好"})
+	_ = repo.AddMessage(context.Background(), &domain.Message{ConversationID: c.ID, Role: "assistant", Content: "你好，有什么可以帮你？"})
+
+	msgs, err := svc.rebuildMessages(context.Background(), c.ID)
+	if err != nil {
+		t.Fatalf("rebuildMessages 失败: %v", err)
+	}
+	if len(msgs) != 2 {
+		t.Fatalf("普通 assistant 应保留为 2 条消息，得到 %d 条", len(msgs))
+	}
+	// assistant 内容应为 text 块（数组形式）
+	asst, ok := msgs[1].Content.([]map[string]any)
+	if !ok || len(asst) != 1 || asst[0]["text"] != "你好，有什么可以帮你？" {
+		t.Fatalf("普通 assistant 应含 text 块，得到 %v", msgs[1].Content)
 	}
 }

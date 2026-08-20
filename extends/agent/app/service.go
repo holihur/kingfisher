@@ -13,6 +13,13 @@ import (
 	"kingfisher/extends/agent/port"
 )
 
+// SystemPromptFallback Agent 的默认系统提示词（后台配置 agent_system_prompt 留空时使用）。
+// 端点清单由 service 动态拼接。
+const SystemPromptFallback = `你是 Kingfisher 后台管理系统的 AI 助手，可以通过调用系统接口帮助用户查询和操作系统。
+请始终用中文回答，简洁、准确。当需要查询系统数据（如用户、配置、审计、字典等）时，
+使用 call_api 工具调用系统接口；接口返回后根据真实数据回答，不要编造。
+如果接口返回 403 说明当前用户无权限，请如实告知。`
+
 // Error 携带 errcode 的错误类型，handler 层据此映射 HTTP 错误码。
 // Detail 为底层错误信息（可选），随 SSE error 事件透出便于排查。
 type Error struct {
@@ -32,7 +39,7 @@ type AgentService struct {
 	repo     port.AgentRepository
 	llm      *llm.Client
 	mcp      *mcp.Client
-	system   string // system prompt 前缀（不含端点清单）
+	system   func(ctx context.Context) (string, error) // system prompt 前缀（不含端点清单；运行时读取可覆盖）
 	apiKey   func(ctx context.Context) (string, error)
 	enabled  func() bool
 	selfHost string
@@ -40,12 +47,13 @@ type AgentService struct {
 
 // NewAgentService 创建 AgentService。
 //
-// apiKey 返回 LLM API key（从系统配置/环境变量解析）；enabled 返回模块是否启用。
+// apiKey 返回 LLM API key（从系统配置/环境变量解析）；enabled 返回模块是否启用；
+// system 返回系统提示词（可为空，ChatStream 时回退默认）。
 func NewAgentService(
 	repo port.AgentRepository,
 	llmClient *llm.Client,
 	mcpClient *mcp.Client,
-	system string,
+	system func(ctx context.Context) (string, error),
 	apiKey func(ctx context.Context) (string, error),
 	enabled func() bool,
 	selfHost string,
@@ -156,12 +164,18 @@ func (s *AgentService) ChatStream(ctx context.Context, conversationID, userID ui
 	}
 	messages = append(messages, llm.Message{Role: "user", Content: content})
 
-	// system prompt：固定前缀 + 端点清单。
+	// system prompt：运行时读取（可被后台配置覆盖）→ 前缀 + 端点清单。
+	baseSystem := SystemPromptFallback
+	if s.system != nil {
+		if p, err := s.system(ctx); err == nil && p != "" {
+			baseSystem = p
+		}
+	}
 	system, _ := s.mcp.EndpointList()
 	if system != "" {
-		system = s.system + "\n\n可调用以下系统接口（通过 call_api 工具）：\n" + system
+		system = baseSystem + "\n\n可调用以下系统接口（通过 call_api 工具）：\n" + system
 	} else {
-		system = s.system
+		system = baseSystem
 	}
 
 	// 工具定义。
@@ -267,31 +281,21 @@ func (s *AgentService) rebuildMessages(ctx context.Context, conversationID uint)
 			msgs = append(msgs, llm.Message{Role: "user", Content: m.Content})
 			i++
 		case "assistant":
-			blocks := make([]map[string]any, 0, 2)
-			var toolUseIDs []string
+			var blocks []map[string]any
+			var toolUses []struct {
+				ID    string         `json:"id"`
+				Name  string         `json:"name"`
+				Input map[string]any `json:"input"`
+			}
 			if m.Content != "" {
 				blocks = append(blocks, map[string]any{"type": "text", "text": m.Content})
 			}
 			if m.ToolCalls != "" {
-				var calls []struct {
-					ID    string         `json:"id"`
-					Name  string         `json:"name"`
-					Input map[string]any `json:"input"`
-				}
-				if json.Unmarshal([]byte(m.ToolCalls), &calls) == nil {
-					for _, tc := range calls {
-						toolUseIDs = append(toolUseIDs, tc.ID)
-						blocks = append(blocks, map[string]any{
-							"type": "tool_use", "id": tc.ID, "name": tc.Name, "input": tc.Input,
-						})
-					}
-				}
+				_ = json.Unmarshal([]byte(m.ToolCalls), &toolUses)
 			}
-			msgs = append(msgs, llm.Message{Role: "assistant", Content: blocks})
 			i++
-			// 收集其后的 tool 结果，并按序配对 tool_use_id。
+			// 收集其后的 tool 结果。
 			var toolResults []map[string]any
-			toolIdx := 0
 			for i < len(hist) && hist[i].Role == "tool" {
 				var tr struct {
 					Content []struct {
@@ -305,17 +309,33 @@ func (s *AgentService) rebuildMessages(ctx context.Context, conversationID uint)
 					for _, b := range tr.Content {
 						text += b.Text
 					}
-					tuID := ""
-					if toolIdx < len(toolUseIDs) {
-						tuID = toolUseIDs[toolIdx]
-					}
-					toolIdx++
 					toolResults = append(toolResults, map[string]any{
-						"type": "tool_result", "tool_use_id": tuID, "content": text, "is_error": tr.IsError,
+						"type": "tool_result", "content": text, "is_error": tr.IsError,
 					})
 				}
 				i++
 			}
+			// 关键：tool_use 与 tool_result 必须一一配对（DeepSeek 校验）。
+			// 仅保留前 min(len(toolUses), len(toolResults)) 对；悬空的 tool_use 丢弃，
+			// 否则报 "tool_use ids were found without tool_result blocks"。
+			pairs := len(toolUses)
+			if len(toolResults) < pairs {
+				pairs = len(toolResults)
+			}
+			for j := 0; j < pairs; j++ {
+				blocks = append(blocks, map[string]any{
+					"type": "tool_use", "id": toolUses[j].ID, "name": toolUses[j].Name, "input": toolUses[j].Input,
+				})
+			}
+			// 给每个 tool_result 配对对应的 tool_use_id（按序）。
+			for j := 0; j < pairs; j++ {
+				toolResults[j]["tool_use_id"] = toolUses[j].ID
+			}
+			// 兜底：assistant 消息不能为空 content（anthropic 格式要求非空）。
+			if len(blocks) == 0 {
+				blocks = append(blocks, map[string]any{"type": "text", "text": ""})
+			}
+			msgs = append(msgs, llm.Message{Role: "assistant", Content: blocks})
 			if len(toolResults) > 0 {
 				msgs = append(msgs, llm.Message{Role: "user", Content: toolResults})
 			}
