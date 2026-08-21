@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kingfisher.modules.config.mapper.ConfigMapper">
+
+    <resultMap id="ConfigMap" type="com.kingfisher.modules.config.domain.SystemConfig">
+        <id property="id" column="id"/>
+        <result property="key" column="key"/>
+        <result property="value" column="value"/>
+        <result property="remark" column="remark"/>
+        <result property="isPublic" column="is_public"/>
+        <result property="version" column="version"/>
+        <result property="render" column="render"/>
+        <result property="renderOptions" column="render_options"/>
+        <result property="groupId" column="group_id"/>
+        <result property="groupName" column="group_name"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <sql id="whereClause">
+        <where>
+            <if test="keyword != null and keyword != '' and searchable != null">
+                <foreach collection="searchable" item="col" open="(" separator=" OR " close=")">
+                    ${col} LIKE '%' || #{keyword} || '%'
+                </foreach>
+            </if>
+            <if test="filters != null">
+                <foreach collection="filters" item="f">
+                    <choose>
+                        <when test="f.op == 'eq'">
+                            AND ${f.field} = #{f.value}
+                        </when>
+                        <when test="f.op == 'ne'">
+                            AND ${f.field} != #{f.value}
+                        </when>
+                        <when test="f.op == 'contains'">
+                            AND ${f.field} LIKE '%' || #{f.value} || '%'
+                        </when>
+                        <when test="f.op == 'in'">
+                            AND ${f.field} IN
+                            <foreach collection="f.value" item="v" open="(" separator="," close=")">
+                                #{v}
+                            </foreach>
+                        </when>
+                        <when test="f.op == 'gt'">
+                            AND ${f.field} &gt; #{f.value}
+                        </when>
+                        <when test="f.op == 'gte'">
+                            AND ${f.field} &gt;= #{f.value}
+                        </when>
+                        <when test="f.op == 'lt'">
+                            AND ${f.field} &lt; #{f.value}
+                        </when>
+                        <when test="f.op == 'lte'">
+                            AND ${f.field} &lt;= #{f.value}
+                        </when>
+                    </choose>
+                </foreach>
+            </if>
+        </where>
+    </sql>
+
+    <select id="list" resultMap="ConfigMap">
+        SELECT sc.*, cg.name AS group_name
+        FROM system_configs sc
+        LEFT JOIN config_groups cg ON cg.id = sc.group_id
+        <include refid="whereClause"/>
+        ORDER BY ${sort}
+        LIMIT #{pageSize} OFFSET #{offset}
+    </select>
+
+    <select id="count" resultType="long">
+        SELECT COUNT(*)
+        FROM system_configs sc
+        <include refid="whereClause"/>
+    </select>
+
+    <select id="findAllPublic" resultMap="ConfigMap">
+        SELECT sc.*, cg.name AS group_name
+        FROM system_configs sc
+        LEFT JOIN config_groups cg ON cg.id = sc.group_id
+        WHERE sc.is_public = 1
+    </select>
+
+    <select id="findByKey" resultMap="ConfigMap">
+        SELECT sc.*, cg.name AS group_name
+        FROM system_configs sc
+        LEFT JOIN config_groups cg ON cg.id = sc.group_id
+        WHERE sc.key = #{key}
+    </select>
+
+    <select id="findPublicByKey" resultMap="ConfigMap">
+        SELECT sc.*, cg.name AS group_name
+        FROM system_configs sc
+        LEFT JOIN config_groups cg ON cg.id = sc.group_id
+        WHERE sc.key = #{key} AND sc.is_public = 1
+    </select>
+
+    <update id="upsert">
+        INSERT INTO system_configs (key, value, is_public, version, render, render_options, group_id, created_at, updated_at)
+        VALUES (#{key}, #{value}, #{isPublic}, #{version}, #{render}, #{renderOptions}, #{groupId}, datetime('now'), datetime('now'))
+        ON CONFLICT(key) DO UPDATE SET
+            value = excluded.value,
+            is_public = excluded.is_public,
+            version = excluded.version,
+            render = excluded.render,
+            render_options = excluded.render_options,
+            group_id = excluded.group_id,
+            updated_at = datetime('now')
+    </update>
+
+    <delete id="deleteByKey">
+        DELETE FROM system_configs WHERE key = #{key}
+    </delete>
+
+    <delete id="deleteBatch">
+        DELETE FROM system_configs WHERE key IN
+        <foreach collection="keys" item="k" open="(" separator="," close=")">
+            #{k}
+        </foreach>
+    </delete>
+
+</mapper>

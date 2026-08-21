@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kingfisher.modules.task.mapper.ScheduledTaskMapper">
+    <resultMap id="TaskMap" type="com.kingfisher.modules.task.domain.ScheduledTask">
+        <id property="id" column="id"/>
+        <result property="name" column="name"/>
+        <result property="taskType" column="task_type"/>
+        <result property="cronSpec" column="cron_spec"/>
+        <result property="payload" column="payload"/>
+        <result property="enabled" column="enabled"/>
+        <result property="remark" column="remark"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <sql id="whereClause">
+        <where>
+            <if test="keyword != null and keyword != '' and searchableColumns != null">
+                <foreach collection="searchableColumns" item="col" open=" AND (" separator=" OR " close=")">
+                    ${col} LIKE '%' || #{keyword} || '%'
+                </foreach>
+            </if>
+            <if test="filters != null">
+                <foreach collection="filters" item="f">
+                    <choose>
+                        <when test="f.op.name() == 'EQ'"> AND ${f.field} = #{f.value}</when>
+                        <when test="f.op.name() == 'NE'"> AND ${f.field} != #{f.value}</when>
+                        <when test="f.op.name() == 'CONTAINS'"> AND ${f.field} LIKE '%' || #{f.value} || '%'</when>
+                    </choose>
+                </foreach>
+            </if>
+        </where>
+    </sql>
+
+    <select id="findAll" resultMap="TaskMap">
+        SELECT id, name, task_type, cron_spec, payload, enabled, remark, created_at, updated_at
+        FROM scheduled_tasks
+        <include refid="whereClause"/>
+        ORDER BY
+        <choose><when test="sort != null and sort != ''">${sort}</when><otherwise>id DESC</otherwise></choose>
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countAll" resultType="long">
+        SELECT COUNT(*) FROM scheduled_tasks <include refid="whereClause"/>
+    </select>
+
+    <select id="findById" resultMap="TaskMap">
+        SELECT id, name, task_type, cron_spec, payload, enabled, remark, created_at, updated_at FROM scheduled_tasks WHERE id = #{id}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO scheduled_tasks (name, task_type, cron_spec, payload, enabled, remark, created_at, updated_at)
+        VALUES (#{name}, #{taskType}, #{cronSpec}, #{payload}, #{enabled}, #{remark}, datetime('now'), datetime('now'))
+    </insert>
+
+    <update id="update">
+        UPDATE scheduled_tasks SET name=#{updates.name}, task_type=#{updates.task_type}, cron_spec=#{updates.cron_spec}, payload=#{updates.payload}, enabled=#{updates.enabled}, remark=#{updates.remark}, updated_at=datetime('now') WHERE id=#{id}
+    </update>
+
+    <delete id="deleteById">DELETE FROM scheduled_tasks WHERE id=#{id}</delete>
+
+    <delete id="deleteBatch">
+        DELETE FROM scheduled_tasks WHERE id IN <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+    </delete>
+
+    <update id="updateEnabledBatch">
+        UPDATE scheduled_tasks SET enabled=#{enabled}, updated_at=datetime('now') WHERE id IN <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+    </update>
+</mapper>

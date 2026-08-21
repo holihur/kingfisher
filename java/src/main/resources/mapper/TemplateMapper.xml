@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kingfisher.modules.template.mapper.TemplateMapper">
+
+    <resultMap id="TemplateMap" type="com.kingfisher.modules.template.domain.Template">
+        <id property="id" column="id"/>
+        <result property="name" column="name"/>
+        <result property="code" column="code"/>
+        <result property="templateType" column="template_type"/>
+        <result property="title" column="title"/>
+        <result property="content" column="content"/>
+        <result property="status" column="status"/>
+        <result property="remark" column="remark"/>
+        <result property="version" column="version"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <sql id="whereClause">
+        <where>
+            <if test="keyword != null and keyword != '' and searchableColumns != null">
+                <foreach collection="searchableColumns" item="col" open="(" separator=" OR " close=")">
+                    ${col} LIKE '%' || #{keyword} || '%'
+                </foreach>
+            </if>
+            <if test="filters != null">
+                <foreach collection="filters" item="f">
+                    <choose>
+                        <when test="f.op.name() == 'EQ'">
+                            AND ${f.field} = #{f.value}
+                        </when>
+                        <when test="f.op.name() == 'NE'">
+                            AND ${f.field} != #{f.value}
+                        </when>
+                        <when test="f.op.name() == 'CONTAINS'">
+                            AND ${f.field} LIKE '%' || #{f.value} || '%'
+                        </when>
+                        <when test="f.op.name() == 'GT'">
+                            AND ${f.field} &gt; #{f.value}
+                        </when>
+                        <when test="f.op.name() == 'GTE'">
+                            AND ${f.field} &gt;= #{f.value}
+                        </when>
+                        <when test="f.op.name() == 'LT'">
+                            AND ${f.field} &lt; #{f.value}
+                        </when>
+                        <when test="f.op.name() == 'LTE'">
+                            AND ${f.field} &lt;= #{f.value}
+                        </when>
+                        <when test="f.op.name() == 'IN'">
+                            AND ${f.field} IN
+                            <foreach collection="f.value" item="v" open="(" separator="," close=")">#{v}</foreach>
+                        </when>
+                    </choose>
+                </foreach>
+            </if>
+        </where>
+    </sql>
+
+    <select id="findAll" resultMap="TemplateMap">
+        SELECT id, name, code, template_type, title, content, status, remark, version, created_at, updated_at
+        FROM templates
+        <include refid="whereClause"/>
+        <if test="sort != null and sort != ''">ORDER BY ${sort}</if>
+        <if test="sort == null or sort == ''">ORDER BY id DESC</if>
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countAll" resultType="long">
+        SELECT COUNT(*) FROM templates
+        <include refid="whereClause"/>
+    </select>
+
+    <select id="findById" resultMap="TemplateMap">
+        SELECT id, name, code, template_type, title, content, status, remark, version, created_at, updated_at
+        FROM templates WHERE id = #{id}
+    </select>
+
+    <select id="findByCode" resultMap="TemplateMap">
+        SELECT id, name, code, template_type, title, content, status, remark, version, created_at, updated_at
+        FROM templates WHERE code = #{code}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO templates (name, code, template_type, title, content, status, remark, version, created_at, updated_at)
+        VALUES (#{name}, #{code}, #{templateType}, #{title}, #{content}, #{status}, #{remark}, #{version}, datetime('now'), datetime('now'))
+    </insert>
+
+    <update id="update">
+        UPDATE templates
+        <set>
+            <if test="updates.name != null">name = #{updates.name},</if>
+            <if test="updates.code != null">code = #{updates.code},</if>
+            <if test="updates.template_type != null">template_type = #{updates.template_type},</if>
+            <if test="updates.title != null">title = #{updates.title},</if>
+            <if test="updates.content != null">content = #{updates.content},</if>
+            <if test="updates.status != null">status = #{updates.status},</if>
+            <if test="updates.remark != null">remark = #{updates.remark},</if>
+            <if test="updates.version != null">version = #{updates.version},</if>
+            updated_at = datetime('now')
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM templates WHERE id = #{id}
+    </delete>
+
+    <delete id="deleteBatch">
+        DELETE FROM templates WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+    </delete>
+
+    <update id="updateStatusBatch">
+        UPDATE templates SET status = #{status}, updated_at = datetime('now')
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+    </update>
+
+</mapper>

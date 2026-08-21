@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kingfisher.modules.rbac.mapper.RoleMapper">
+
+    <resultMap id="RoleMap" type="com.kingfisher.modules.rbac.domain.Role">
+        <id property="id" column="id"/>
+        <result property="name" column="name"/>
+        <result property="code" column="code"/>
+        <result property="description" column="description"/>
+        <result property="status" column="status"/>
+        <result property="level" column="level"/>
+        <result property="landingPage" column="landing_page"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <resultMap id="PermissionMap" type="com.kingfisher.modules.rbac.domain.Permission">
+        <id property="id" column="id"/>
+        <result property="name" column="name"/>
+        <result property="code" column="code"/>
+        <result property="resource" column="resource"/>
+        <result property="action" column="action"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <sql id="roleWhere">
+        <where>
+            <if test="keyword != null and keyword != ''">
+                AND (name LIKE '%' || #{keyword} || '%' OR code LIKE '%' || #{keyword} || '%' OR description LIKE '%' || #{keyword} || '%')
+            </if>
+            <if test="filters != null">
+                <foreach collection="filters" item="f">
+                    <choose>
+                        <when test="f.op.name() == 'EQ'">AND ${f.field} = #{f.value}</when>
+                        <when test="f.op.name() == 'NE'">AND ${f.field} != #{f.value}</when>
+                        <when test="f.op.name() == 'CONTAINS'">AND ${f.field} LIKE '%' || #{f.value} || '%'</when>
+                        <when test="f.op.name() == 'GT'">AND ${f.field} > #{f.value}</when>
+                        <when test="f.op.name() == 'GTE'">AND ${f.field} >= #{f.value}</when>
+                        <when test="f.op.name() == 'LT'">AND ${f.field} &lt; #{f.value}</when>
+                        <when test="f.op.name() == 'LTE'">AND ${f.field} &lt;= #{f.value}</when>
+                    </choose>
+                </foreach>
+            </if>
+        </where>
+    </sql>
+
+    <select id="findAll" resultMap="RoleMap">
+        SELECT id, name, code, description, status, level, landing_page, created_at, updated_at
+        FROM roles
+        <include refid="roleWhere"/>
+        ORDER BY
+        <choose>
+            <when test="sort != null and sort != ''">${sort}</when>
+            <otherwise>id DESC</otherwise>
+        </choose>
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countAll" resultType="long">
+        SELECT COUNT(*) FROM roles
+        <include refid="roleWhere"/>
+    </select>
+
+    <select id="findById" resultMap="RoleMap">
+        SELECT id, name, code, description, status, level, landing_page, created_at, updated_at FROM roles WHERE id = #{id}
+    </select>
+
+    <select id="findByCode" resultMap="RoleMap">
+        SELECT id, name, code, description, status, level, landing_page, created_at, updated_at FROM roles WHERE code = #{code}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO roles (name, code, description, status, level, landing_page, created_at, updated_at)
+        VALUES (#{name}, #{code}, #{description}, #{status}, #{level}, #{landingPage}, datetime('now'), datetime('now'))
+    </insert>
+
+    <update id="update">
+        UPDATE roles
+        <set>
+            <if test="name != null">name = #{name},</if>
+            <if test="description != null">description = #{description},</if>
+            <if test="status != null">status = #{status},</if>
+            updated_at = datetime('now')
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">DELETE FROM roles WHERE id = #{id}</delete>
+
+    <delete id="deleteBatch">
+        DELETE FROM roles WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+    </delete>
+
+    <update id="updateStatusBatch">
+        UPDATE roles SET status = #{status}, updated_at = datetime('now')
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+    </update>
+
+    <delete id="deleteRolePermissions">DELETE FROM role_permissions WHERE role_id = #{roleId}</delete>
+    <insert id="insertRolePermission">INSERT INTO role_permissions (role_id, permission_id) VALUES (#{roleId}, #{permId})</insert>
+
+    <select id="findPermissionsByRoleId" resultMap="PermissionMap">
+        SELECT p.id, p.name, p.code, p.resource, p.action, p.created_at, p.updated_at
+        FROM permissions p JOIN role_permissions rp ON rp.permission_id = p.id
+        WHERE rp.role_id = #{roleId}
+    </select>
+
+    <select id="findMenuIdsByRoleId" resultType="long">
+        SELECT menu_id FROM role_menus WHERE role_id = #{roleId}
+    </select>
+
+    <delete id="deleteRoleMenus">DELETE FROM role_menus WHERE role_id = #{roleId}</delete>
+    <insert id="insertRoleMenu">INSERT INTO role_menus (role_id, menu_id) VALUES (#{roleId}, #{menuId})</insert>
+
+    <select id="findPermissionCodesByUserId" resultType="string">
+        SELECT DISTINCT p.code FROM permissions p
+        JOIN role_permissions rp ON p.id = rp.permission_id
+        JOIN (
+            SELECT ur.role_id FROM user_roles ur WHERE ur.user_id = #{userId}
+            UNION
+            SELECT dr.role_id FROM department_roles dr JOIN user_departments ud ON ud.department_id = dr.department_id WHERE ud.user_id = #{userId}
+        ) r ON r.role_id = rp.role_id
+    </select>
+
+    <select id="findDataScopes" resultType="map">
+        SELECT role_id, scope_type FROM role_data_scopes
+        WHERE role_id IN
+        <foreach collection="roleIds" item="id" open="(" separator="," close=")">#{id}</foreach>
+        AND resource = #{resource}
+    </select>
+
+    <delete id="deleteDataScope">DELETE FROM role_data_scopes WHERE role_id = #{roleId} AND resource = #{resource}</delete>
+    <insert id="insertDataScope">INSERT INTO role_data_scopes (role_id, resource, scope_type) VALUES (#{roleId}, #{resource}, #{scopeType})</insert>
+
+    <select id="findDepartmentIdsByUserId" resultType="long">
+        SELECT department_id FROM user_departments WHERE user_id = #{userId}
+    </select>
+
+    <select id="findAllDepartments" resultType="map">
+        SELECT id, parent_id FROM departments
+    </select>
+
+</mapper>

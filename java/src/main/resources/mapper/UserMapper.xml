@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kingfisher.modules.user.mapper.UserMapper">
+
+    <!-- ==================== ResultMaps ==================== -->
+
+    <resultMap id="RoleMap" type="com.kingfisher.modules.user.domain.Role">
+        <id property="id" column="r_id"/>
+        <result property="name" column="r_name"/>
+        <result property="code" column="r_code"/>
+        <result property="description" column="r_description"/>
+        <result property="status" column="r_status"/>
+        <result property="level" column="r_level"/>
+        <result property="landingPage" column="r_landing_page"/>
+        <result property="createdAt" column="r_created_at"/>
+        <result property="updatedAt" column="r_updated_at"/>
+    </resultMap>
+
+    <resultMap id="UserMap" type="com.kingfisher.modules.user.domain.User">
+        <id property="id" column="u_id"/>
+        <result property="username" column="u_username"/>
+        <result property="nickname" column="u_nickname"/>
+        <result property="password" column="u_password"/>
+        <result property="email" column="u_email"/>
+        <result property="avatar" column="u_avatar"/>
+        <result property="status" column="u_status"/>
+        <result property="sessionVersion" column="u_session_version"/>
+        <result property="createdAt" column="u_created_at"/>
+        <result property="updatedAt" column="u_updated_at"/>
+        <collection property="roles" ofType="com.kingfisher.modules.user.domain.Role" resultMap="RoleMap"/>
+    </resultMap>
+
+    <!-- ==================== 公共 SQL 片段 ==================== -->
+
+    <sql id="userWithRoles">
+        SELECT
+            u.id as u_id, u.username as u_username, u.nickname as u_nickname,
+            u.password as u_password, u.email as u_email, u.avatar as u_avatar,
+            u.status as u_status, u.session_version as u_session_version,
+            u.created_at as u_created_at, u.updated_at as u_updated_at,
+            r.id as r_id, r.name as r_name, r.code as r_code,
+            r.description as r_description, r.status as r_status, r.level as r_level,
+            r.landing_page as r_landing_page, r.created_at as r_created_at, r.updated_at as r_updated_at
+        FROM users u
+        LEFT JOIN user_roles ur ON ur.user_id = u.id
+        LEFT JOIN roles r ON r.id = ur.role_id
+    </sql>
+
+    <sql id="listBaseQuery">
+        FROM users u
+        WHERE u.deleted_at IS NULL
+        <if test="params.keyword != null and params.keyword != ''">
+            AND (u.username LIKE '%' || #{params.keyword} || '%'
+                 OR u.email LIKE '%' || #{params.keyword} || '%'
+                 OR u.nickname LIKE '%' || #{params.keyword} || '%')
+        </if>
+        <if test="params.status != null">
+            AND u.status = #{params.status}
+        </if>
+        <if test="params.roleId != null">
+            AND (EXISTS (SELECT 1 FROM user_roles ur WHERE ur.user_id = u.id AND ur.role_id = #{params.roleId})
+                 OR EXISTS (SELECT 1 FROM department_roles dr JOIN user_departments ud ON ud.department_id = dr.department_id WHERE ud.user_id = u.id AND dr.role_id = #{params.roleId}))
+        </if>
+        <if test="params.departmentId != null">
+            AND EXISTS (SELECT 1 FROM user_departments ud WHERE ud.user_id = u.id AND ud.department_id = #{params.departmentId})
+        </if>
+        <if test="params.createdAtStart != null">
+            AND u.created_at &gt;= #{params.createdAtStart}
+        </if>
+        <if test="params.createdAtEnd != null">
+            AND u.created_at &lt;= #{params.createdAtEnd}
+        </if>
+    </sql>
+
+    <!-- ==================== 查询 ==================== -->
+
+    <select id="findByUsername" resultMap="UserMap">
+        <include refid="userWithRoles"/>
+        WHERE u.username = #{username} AND u.deleted_at IS NULL
+    </select>
+
+    <select id="findById" resultMap="UserMap">
+        <include refid="userWithRoles"/>
+        WHERE u.id = #{id} AND u.deleted_at IS NULL
+    </select>
+
+    <select id="findByEmail" resultMap="UserMap">
+        <include refid="userWithRoles"/>
+        WHERE u.email = #{email} AND u.deleted_at IS NULL
+    </select>
+
+    <select id="findRoleById" resultType="com.kingfisher.modules.user.domain.Role">
+        SELECT id, name, code, description, status, level,
+               landing_page as landingPage, created_at as createdAt, updated_at as updatedAt
+        FROM roles WHERE id = #{id}
+    </select>
+
+    <!-- 分页列表：先查基础用户（不含 roles），再批量加载 roles -->
+    <select id="findAll" resultType="com.kingfisher.modules.user.domain.User">
+        SELECT u.id, u.username, u.nickname, u.email, u.avatar, u.status,
+               u.created_at as createdAt, u.updated_at as updatedAt
+        <include refid="listBaseQuery"/>
+        <if test="params.sort != null and params.sort != ''">
+            ORDER BY ${params.sort}
+        </if>
+        <if test="params.sort == null or params.sort == ''">
+            ORDER BY u.id DESC
+        </if>
+        LIMIT #{params.limit} OFFSET #{params.offset}
+    </select>
+
+    <select id="countAll" resultType="long">
+        SELECT COUNT(*)
+        <include refid="listBaseQuery"/>
+    </select>
+
+    <select id="findDirectRoleIds" resultType="java.lang.Long">
+        SELECT role_id FROM user_roles WHERE user_id = #{userId}
+    </select>
+
+    <select id="findDeptIds" resultType="java.lang.Long">
+        SELECT department_id FROM user_departments WHERE user_id = #{userId}
+    </select>
+
+    <select id="findDepartments" resultType="com.kingfisher.modules.user.domain.Department">
+        SELECT d.id, d.name
+        FROM departments d
+        JOIN user_departments ud ON ud.department_id = d.id
+        WHERE ud.user_id = #{userId}
+    </select>
+
+    <select id="findDeptInheritedRoleIds" resultType="java.lang.Long">
+        SELECT DISTINCT dr.role_id
+        FROM department_roles dr
+        JOIN user_departments ud ON ud.department_id = dr.department_id
+        WHERE ud.user_id = #{userId}
+    </select>
+
+    <!-- 批量查询用户（含 roles），用于列表回填 -->
+    <select id="findByIds" resultMap="UserMap">
+        <include refid="userWithRoles"/>
+        WHERE u.id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        AND u.deleted_at IS NULL
+    </select>
+
+    <!-- ==================== 写入 ==================== -->
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="user.id">
+        INSERT INTO users (username, nickname, password, email, avatar, status, created_at, updated_at)
+        VALUES (#{user.username}, #{user.nickname}, #{user.password}, #{user.email},
+                #{user.avatar}, #{user.status}, datetime('now'), datetime('now'))
+    </insert>
+
+    <update id="update">
+        UPDATE users SET
+        <foreach collection="fields" item="val" index="col" separator=",">
+            ${col} = #{val}
+        </foreach>
+        , updated_at = datetime('now')
+        WHERE id = #{id} AND deleted_at IS NULL
+    </update>
+
+    <update id="delete">
+        UPDATE users SET deleted_at = datetime('now') WHERE id = #{id}
+    </update>
+
+    <update id="deleteBatch">
+        UPDATE users SET deleted_at = datetime('now') WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </update>
+
+    <update id="updateStatusBatch">
+        UPDATE users SET status = #{status}, updated_at = datetime('now') WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </update>
+
+    <update id="incrementSessionVersion">
+        UPDATE users SET session_version = session_version + 1 WHERE id = #{id}
+    </update>
+
+    <update id="updatePassword">
+        UPDATE users SET password = #{password}, updated_at = datetime('now') WHERE id = #{id} AND deleted_at IS NULL
+    </update>
+
+    <!-- ==================== 关联表 ==================== -->
+
+    <delete id="deleteUserRoles">
+        DELETE FROM user_roles WHERE user_id = #{userId}
+    </delete>
+
+    <insert id="insertUserRole">
+        INSERT INTO user_roles (user_id, role_id) VALUES (#{userId}, #{roleId})
+    </insert>
+
+    <delete id="deleteUserDepartments">
+        DELETE FROM user_departments WHERE user_id = #{userId}
+    </delete>
+
+    <insert id="insertUserDepartment">
+        INSERT INTO user_departments (user_id, department_id) VALUES (#{userId}, #{departmentId})
+    </insert>
+
+</mapper>

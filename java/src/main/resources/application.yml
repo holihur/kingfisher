@@ -1,0 +1,65 @@
+server:
+  port: 8080
+
+spring:
+  datasource:
+    url: jdbc:sqlite:${KINGFISHER_DB:../kingfisher.db}
+    driver-class-name: org.sqlite.JDBC
+  # Redis 可选：已切为 Jedis（与 Go go-redis 对齐），不可用时自动回退内存
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+      password: ""
+      database: 0
+      timeout: 2000ms
+      client-type: jedis
+      jedis:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.kingfisher.modules.user.domain
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+
+# Kingfisher 业务配置（与 Go config.yaml 对齐）
+kingfisher:
+  jwt:
+    secret: change-me-in-production
+    issuer: kingfisher
+    access-ttl: 2h
+    refresh-ttl: 168h
+  smtp:
+    enabled: false
+    host: smtp.example.com
+    port: 587
+    username: ""
+    password: ""
+    from: ""
+    from-name: Kingfisher
+  queue:
+    type: memory # memory | rocketmq
+    rocketmq:
+      name-server: 127.0.0.1:9876
+      topic: kingfisher-tasks
+      producer-group: kingfisher-producer
+      consumer-group: kingfisher-consumer
+      retry-times: 3
+      send-timeout: 3000
+  cors:
+    allowed-origins: http://localhost:5173
+    allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+    allowed-headers: Authorization,Content-Type,X-Request-ID
+    allow-credentials: true
+
+logging:
+  level:
+    com.kingfisher: DEBUG
+    org.springframework.data.redis: WARN
+    org.apache.ibatis: WARN
+    com.zaxxer.hikari: WARN

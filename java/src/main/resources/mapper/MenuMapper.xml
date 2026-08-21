@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kingfisher.modules.menu.mapper.MenuMapper">
+
+    <resultMap id="MenuMap" type="com.kingfisher.modules.menu.domain.Menu">
+        <id property="id" column="id"/>
+        <result property="parentId" column="parent_id"/>
+        <result property="name" column="name"/>
+        <result property="path" column="path"/>
+        <result property="component" column="component"/>
+        <result property="icon" column="icon"/>
+        <result property="sort" column="sort"/>
+        <result property="type" column="type"/>
+        <result property="permission" column="permission"/>
+        <result property="status" column="status"/>
+        <result property="version" column="version"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <select id="findAll" resultMap="MenuMap">
+        SELECT id, parent_id, name, path, component, icon, sort, type,
+               permission, status, version, created_at, updated_at
+        FROM menus
+        ORDER BY sort ASC
+    </select>
+
+    <select id="findById" resultMap="MenuMap">
+        SELECT id, parent_id, name, path, component, icon, sort, type,
+               permission, status, version, created_at, updated_at
+        FROM menus
+        WHERE id = #{id}
+    </select>
+
+    <select id="findByParentId" resultMap="MenuMap">
+        SELECT id, parent_id, name, path, component, icon, sort, type,
+               permission, status, version, created_at, updated_at
+        FROM menus
+        WHERE parent_id = #{parentId}
+        ORDER BY sort ASC
+    </select>
+
+    <select id="findByRoleIds" resultMap="MenuMap">
+        SELECT DISTINCT m.id, m.parent_id, m.name, m.path, m.component, m.icon,
+               m.sort, m.type, m.permission, m.status, m.version,
+               m.created_at, m.updated_at
+        FROM menus m
+        JOIN role_menus rm ON rm.menu_id = m.id
+        WHERE rm.role_id IN
+        <foreach collection="roleIds" item="roleId" open="(" separator="," close=")">
+            #{roleId}
+        </foreach>
+        ORDER BY m.sort ASC
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO menus (parent_id, name, path, component, icon, sort, type, permission, status, version, created_at, updated_at)
+        VALUES (#{parentId}, #{name}, #{path}, #{component}, #{icon}, #{sort}, #{type}, #{permission}, #{status}, #{version}, datetime('now'), datetime('now'))
+    </insert>
+
+    <update id="update">
+        UPDATE menus
+        <set>
+            <if test="updates.name != null">name = #{updates.name},</if>
+            <if test="updates.icon != null">icon = #{updates.icon},</if>
+            <if test="updates.path != null">path = #{updates.path},</if>
+            <if test="updates.component != null">component = #{updates.component},</if>
+            <if test="updates.sort != null">sort = #{updates.sort},</if>
+            <if test="updates.parent_id != null">parent_id = #{updates.parent_id},</if>
+            <if test="updates.status != null">status = #{updates.status},</if>
+            <if test="updates.version != null">version = #{updates.version},</if>
+            updated_at = datetime('now')
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM menus WHERE id = #{id}
+    </delete>
+
+    <delete id="deleteBatch">
+        DELETE FROM menus WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <update id="updateStatusBatch">
+        UPDATE menus SET status = #{status}, updated_at = datetime('now')
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </update>
+
+    <select id="countChildren" resultType="int">
+        SELECT COUNT(*) FROM menus WHERE parent_id = #{parentId}
+    </select>
+
+</mapper>

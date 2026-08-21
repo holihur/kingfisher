@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kingfisher.modules.dict.mapper.DictTypeMapper">
+    <resultMap id="DictTypeMap" type="com.kingfisher.modules.dict.domain.DictType">
+        <id property="id" column="id"/>
+        <result property="code" column="code"/>
+        <result property="name" column="name"/>
+        <result property="isPublic" column="is_public"/>
+        <result property="status" column="status"/>
+        <result property="remark" column="remark"/>
+        <result property="version" column="version"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <sql id="whereClause">
+        <where>
+            <if test="keyword != null and keyword != ''">
+                AND (code LIKE '%' || #{keyword} || '%' OR name LIKE '%' || #{keyword} || '%' OR remark LIKE '%' || #{keyword} || '%')
+            </if>
+            <if test="filters != null">
+                <foreach collection="filters" item="f">
+                    <choose>
+                        <when test="f.op.name() == 'EQ'">AND ${f.field} = #{f.value}</when>
+                        <when test="f.op.name() == 'NE'">AND ${f.field} != #{f.value}</when>
+                        <when test="f.op.name() == 'CONTAINS'">AND ${f.field} LIKE '%' || #{f.value} || '%'</when>
+                    </choose>
+                </foreach>
+            </if>
+        </where>
+    </sql>
+
+    <select id="findAll" resultMap="DictTypeMap">
+        SELECT id, code, name, is_public, status, remark, version, created_at, updated_at FROM dict_types
+        <include refid="whereClause"/>
+        ORDER BY
+        <choose><when test="sort != null and sort != ''">${sort}</when><otherwise>id DESC</otherwise></choose>
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countAll" resultType="long">
+        SELECT COUNT(*) FROM dict_types <include refid="whereClause"/>
+    </select>
+
+    <select id="findById" resultMap="DictTypeMap">
+        SELECT id, code, name, is_public, status, remark, version, created_at, updated_at FROM dict_types WHERE id = #{id}
+    </select>
+
+    <select id="findByCode" resultMap="DictTypeMap">
+        SELECT id, code, name, is_public, status, remark, version, created_at, updated_at FROM dict_types WHERE code = #{code}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO dict_types (code, name, is_public, status, remark, version, created_at, updated_at)
+        VALUES (#{code}, #{name}, #{isPublic}, #{status}, #{remark}, #{version}, datetime('now'), datetime('now'))
+    </insert>
+
+    <update id="update">
+        UPDATE dict_types SET code=#{code}, name=#{name}, is_public=#{isPublic}, status=#{status}, remark=#{remark}, version=#{version}, updated_at=datetime('now') WHERE id=#{id}
+    </update>
+
+    <delete id="deleteById">DELETE FROM dict_types WHERE id=#{id}</delete>
+
+    <delete id="deleteBatch">
+        DELETE FROM dict_types WHERE id IN <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+    </delete>
+
+    <update id="updateStatusBatch">
+        UPDATE dict_types SET status=#{status}, updated_at=datetime('now') WHERE id IN <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+    </update>
+
+    <select id="countEntriesByTypeId" resultType="long">
+        SELECT COUNT(*) FROM dict_entries WHERE type_id = #{typeId}
+    </select>
+</mapper>

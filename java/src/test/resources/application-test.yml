@@ -1,0 +1,36 @@
+spring:
+  datasource:
+    url: jdbc:sqlite:file::memory:?cache=shared
+    driver-class-name: org.sqlite.JDBC
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+      data-locations: classpath:data.sql
+      continue-on-error: true
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+
+logging:
+  level:
+    org.apache.ibatis: WARN
+    com.zaxxer.hikari: WARN
+
+kingfisher:
+  jwt:
+    secret: test-secret-abc123-for-unit-test-only-32chars
+    issuer: kingfisher
+    access-ttl: 2h
+    refresh-ttl: 168h
+  smtp:
+    enabled: false
+  queue:
+    type: memory

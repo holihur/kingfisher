@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kingfisher.modules.message.mapper.MessageMapper">
+    <resultMap id="MessageMap" type="com.kingfisher.modules.message.domain.Message">
+        <id property="id" column="id"/>
+        <result property="senderId" column="sender_id"/>
+        <result property="senderType" column="sender_type"/>
+        <result property="recipientId" column="recipient_id"/>
+        <result property="batchId" column="batch_id"/>
+        <result property="title" column="title"/>
+        <result property="content" column="content"/>
+        <result property="status" column="status"/>
+        <result property="isRead" column="is_read"/>
+        <result property="readAt" column="read_at"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <sql id="whereRecipient">
+        <where>
+            recipient_id = #{recipientId} AND status != 'revoked'
+            <if test="keyword != null and keyword != '' and searchableColumns != null">
+                <foreach collection="searchableColumns" item="col" open=" AND (" separator=" OR " close=")">
+                    ${col} LIKE '%' || #{keyword} || '%'
+                </foreach>
+            </if>
+            <if test="filters != null">
+                <foreach collection="filters" item="f">
+                    <choose>
+                        <when test="f.op.name() == 'EQ'"> AND ${f.field} = #{f.value}</when>
+                        <when test="f.op.name() == 'NE'"> AND ${f.field} != #{f.value}</when>
+                        <when test="f.op.name() == 'CONTAINS'"> AND ${f.field} LIKE '%' || #{f.value} || '%'</when>
+                    </choose>
+                </foreach>
+            </if>
+        </where>
+    </sql>
+
+    <sql id="whereSender">
+        <where>
+            sender_id = #{senderId} AND sender_type = 'admin'
+            <if test="keyword != null and keyword != '' and searchableColumns != null">
+                <foreach collection="searchableColumns" item="col" open=" AND (" separator=" OR " close=")">
+                    ${col} LIKE '%' || #{keyword} || '%'
+                </foreach>
+            </if>
+            <if test="filters != null">
+                <foreach collection="filters" item="f">
+                    <choose>
+                        <when test="f.op.name() == 'EQ'"> AND ${f.field} = #{f.value}</when>
+                        <when test="f.op.name() == 'NE'"> AND ${f.field} != #{f.value}</when>
+                    </choose>
+                </foreach>
+            </if>
+        </where>
+    </sql>
+
+    <select id="listByRecipient" resultMap="MessageMap">
+        SELECT id, sender_id, sender_type, recipient_id, batch_id, title, content, status, is_read, read_at, created_at, updated_at
+        FROM messages
+        <include refid="whereRecipient"/>
+        ORDER BY
+        <choose><when test="sort != null and sort != ''">${sort}</when><otherwise>id DESC</otherwise></choose>
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countByRecipient" resultType="long">
+        SELECT COUNT(*) FROM messages <include refid="whereRecipient"/>
+    </select>
+
+    <select id="listBySender" resultMap="MessageMap">
+        SELECT id, sender_id, sender_type, recipient_id, batch_id, title, content, status, is_read, read_at, created_at, updated_at
+        FROM messages
+        <include refid="whereSender"/>
+        ORDER BY
+        <choose><when test="sort != null and sort != ''">${sort}</when><otherwise>id DESC</otherwise></choose>
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countBySender" resultType="long">
+        SELECT COUNT(*) FROM messages <include refid="whereSender"/>
+    </select>
+
+    <select id="findByIdAndRecipient" resultMap="MessageMap">
+        SELECT id, sender_id, sender_type, recipient_id, batch_id, title, content, status, is_read, read_at, created_at, updated_at
+        FROM messages WHERE id = #{id} AND recipient_id = #{recipientId}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO messages (sender_id, sender_type, recipient_id, batch_id, title, content, status, is_read, created_at, updated_at)
+        VALUES (#{senderId}, #{senderType}, #{recipientId}, #{batchId}, #{title}, #{content}, #{status}, #{isRead}, datetime('now'), datetime('now'))
+    </insert>
+
+    <update id="markRead">
+        UPDATE messages SET is_read = 1, read_at = #{readAt}, updated_at = datetime('now') WHERE id = #{id} AND recipient_id = #{recipientId}
+    </update>
+
+    <delete id="deleteBatch">
+        DELETE FROM messages WHERE id IN <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach> AND recipient_id = #{recipientId}
+    </delete>
+
+    <select id="countUnread" resultType="long">
+        SELECT COUNT(*) FROM messages WHERE recipient_id = #{recipientId} AND is_read = 0 AND status != 'revoked'
+    </select>
+
+    <update id="revoke">
+        UPDATE messages SET status = 'revoked', updated_at = datetime('now') WHERE id = #{id} AND sender_id = #{senderId}
+    </update>
+
+    <update id="revokeBatch">
+        UPDATE messages SET status = 'revoked', updated_at = datetime('now') WHERE batch_id = #{batchId} AND sender_id = #{senderId}
+    </update>
+
+    <select id="listBatchMessages" resultMap="MessageMap">
+        SELECT id, sender_id, sender_type, recipient_id, batch_id, title, content, status, is_read, read_at, created_at, updated_at
+        FROM messages WHERE batch_id = #{batchId} AND sender_id = #{senderId}
+    </select>
+</mapper>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kingfisher.modules.rbac.mapper.PermissionMapper">
+    <resultMap id="PermissionMap" type="com.kingfisher.modules.rbac.domain.Permission">
+        <id property="id" column="id"/>
+        <result property="name" column="name"/>
+        <result property="code" column="code"/>
+        <result property="resource" column="resource"/>
+        <result property="action" column="action"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+    <select id="findAll" resultMap="PermissionMap">
+        SELECT id, name, code, resource, action, created_at, updated_at FROM permissions ORDER BY id ASC
+    </select>
+</mapper>

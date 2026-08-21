@@ -1,0 +1,223 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kingfisher.modules.doc.mapper.DocMapper">
+
+    <resultMap id="DirMap" type="com.kingfisher.modules.doc.domain.DocDirectory">
+        <id property="id" column="id"/>
+        <result property="parentId" column="parent_id"/>
+        <result property="name" column="name"/>
+        <result property="sort" column="sort"/>
+        <result property="status" column="status"/>
+        <result property="version" column="version"/>
+        <result property="visibility" column="visibility"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <resultMap id="DocMap" type="com.kingfisher.modules.doc.domain.Document">
+        <id property="id" column="id"/>
+        <result property="dirId" column="dir_id"/>
+        <result property="title" column="title"/>
+        <result property="content" column="content"/>
+        <result property="ownerId" column="owner_id"/>
+        <result property="ownerName" column="owner_name"/>
+        <result property="visibility" column="visibility"/>
+        <result property="status" column="status"/>
+        <result property="currentVersion" column="current_version"/>
+        <result property="sort" column="sort"/>
+        <result property="publishedAt" column="published_at"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <resultMap id="VersionMap" type="com.kingfisher.modules.doc.domain.DocVersion">
+        <id property="id" column="id"/>
+        <result property="docId" column="doc_id"/>
+        <result property="versionNo" column="version_no"/>
+        <result property="title" column="title"/>
+        <result property="content" column="content"/>
+        <result property="ownerId" column="owner_id"/>
+        <result property="ownerName" column="owner_name"/>
+        <result property="note" column="note"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <!-- 目录 -->
+    <select id="findAllDirs" resultMap="DirMap">
+        SELECT id, parent_id, name, sort, status, version, visibility, created_at, updated_at
+        FROM doc_directories ORDER BY sort ASC
+    </select>
+
+    <select id="findDirById" resultMap="DirMap">
+        SELECT id, parent_id, name, sort, status, version, visibility, created_at, updated_at
+        FROM doc_directories WHERE id = #{id}
+    </select>
+
+    <insert id="insertDir" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO doc_directories (parent_id, name, sort, status, version, visibility, created_at, updated_at)
+        VALUES (#{parentId}, #{name}, #{sort}, #{status}, #{version}, #{visibility}, datetime('now'), datetime('now'))
+    </insert>
+
+    <update id="updateDir">
+        UPDATE doc_directories
+        <set>
+            <if test="updates.name != null">name = #{updates.name},</if>
+            <if test="updates.parent_id != null">parent_id = #{updates.parent_id},</if>
+            <if test="updates.sort != null">sort = #{updates.sort},</if>
+            <if test="updates.status != null">status = #{updates.status},</if>
+            <if test="updates.visibility != null">visibility = #{updates.visibility},</if>
+            updated_at = datetime('now')
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteDir">
+        DELETE FROM doc_directories WHERE id = #{id}
+    </delete>
+
+    <select id="countDirChildren" resultType="int">
+        SELECT COUNT(*) FROM doc_directories WHERE parent_id = #{parentId}
+    </select>
+
+    <select id="countDirDocuments" resultType="int">
+        SELECT COUNT(*) FROM documents WHERE dir_id = #{dirId}
+    </select>
+
+    <!-- 文档 -->
+    <sql id="docWhereClause">
+        <where>
+            dir_id = #{dirId}
+            <if test="!isAdmin">
+                AND (owner_id = #{userId} OR (status = 'published' AND visibility = 'shared'
+                    AND EXISTS (SELECT 1 FROM doc_directories dd WHERE dd.id = documents.dir_id AND dd.visibility = 'shared')))
+            </if>
+            <if test="keyword != null and keyword != '' and searchableColumns != null">
+                <foreach collection="searchableColumns" item="col" open=" AND (" separator=" OR " close=")">
+                    ${col} LIKE '%' || #{keyword} || '%'
+                </foreach>
+            </if>
+            <if test="filters != null">
+                <foreach collection="filters" item="f">
+                    <choose>
+                        <when test="f.op.name() == 'EQ'"> AND ${f.field} = #{f.value}</when>
+                        <when test="f.op.name() == 'NE'"> AND ${f.field} != #{f.value}</when>
+                        <when test="f.op.name() == 'CONTAINS'"> AND ${f.field} LIKE '%' || #{f.value} || '%'</when>
+                        <when test="f.op.name() == 'GT'"> AND ${f.field} &gt; #{f.value}</when>
+                        <when test="f.op.name() == 'GTE'"> AND ${f.field} &gt;= #{f.value}</when>
+                        <when test="f.op.name() == 'LT'"> AND ${f.field} &lt; #{f.value}</when>
+                        <when test="f.op.name() == 'LTE'"> AND ${f.field} &lt;= #{f.value}</when>
+                        <when test="f.op.name() == 'IN'">
+                            AND ${f.field} IN
+                            <foreach collection="f.value" item="v" open="(" separator="," close=")">#{v}</foreach>
+                        </when>
+                    </choose>
+                </foreach>
+            </if>
+        </where>
+    </sql>
+
+    <select id="listDocs" resultMap="DocMap">
+        SELECT d.id, d.dir_id, d.title, d.content, d.owner_id, u.username as owner_name,
+               d.visibility, d.status, d.current_version, d.sort, d.published_at, d.created_at, d.updated_at
+        FROM documents d LEFT JOIN users u ON u.id = d.owner_id
+        <include refid="docWhereClause"/>
+        <if test="sort != null and sort != ''">ORDER BY ${sort}</if>
+        <if test="sort == null or sort == ''">ORDER BY d.sort ASC, d.id DESC</if>
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countDocs" resultType="long">
+        SELECT COUNT(*) FROM documents
+        <include refid="docWhereClause"/>
+    </select>
+
+    <select id="listAllVisibleDocs" resultMap="DocMap">
+        SELECT d.id, d.dir_id, d.title, d.content, d.owner_id, u.username as owner_name,
+               d.visibility, d.status, d.current_version, d.sort, d.published_at, d.created_at, d.updated_at
+        FROM documents d LEFT JOIN users u ON u.id = d.owner_id
+        <where>
+            <if test="!isAdmin">
+                (d.owner_id = #{userId} OR (d.status = 'published' AND d.visibility = 'shared'
+                    AND EXISTS (SELECT 1 FROM doc_directories dd WHERE dd.id = d.dir_id AND dd.visibility = 'shared')))
+            </if>
+        </where>
+        ORDER BY d.sort ASC, d.id ASC
+    </select>
+
+    <select id="listAllPublicDocs" resultMap="DocMap">
+        SELECT d.id, d.dir_id, d.title, d.content, d.owner_id, u.username as owner_name,
+               d.visibility, d.status, d.current_version, d.sort, d.published_at, d.created_at, d.updated_at
+        FROM documents d LEFT JOIN users u ON u.id = d.owner_id
+        WHERE d.status = 'published' AND d.visibility = 'shared'
+        ORDER BY d.sort ASC, d.id ASC
+    </select>
+
+    <select id="getDocById" resultMap="DocMap">
+        SELECT d.id, d.dir_id, d.title, d.content, d.owner_id, u.username as owner_name,
+               d.visibility, d.status, d.current_version, d.sort, d.published_at, d.created_at, d.updated_at
+        FROM documents d LEFT JOIN users u ON u.id = d.owner_id
+        WHERE d.id = #{id}
+        <if test="!isAdmin">
+            AND (d.owner_id = #{userId} OR (d.status = 'published' AND d.visibility = 'shared'
+                AND EXISTS (SELECT 1 FROM doc_directories dd WHERE dd.id = d.dir_id AND dd.visibility = 'shared')))
+        </if>
+    </select>
+
+    <select id="getPublicDoc" resultMap="DocMap">
+        SELECT d.id, d.dir_id, d.title, d.content, d.owner_id, u.username as owner_name,
+               d.visibility, d.status, d.current_version, d.sort, d.published_at, d.created_at, d.updated_at
+        FROM documents d LEFT JOIN users u ON u.id = d.owner_id
+        WHERE d.id = #{id} AND d.status = 'published' AND d.visibility = 'shared'
+    </select>
+
+    <insert id="insertDoc" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO documents (dir_id, title, content, owner_id, visibility, status, current_version, sort, created_at, updated_at)
+        VALUES (#{dirId}, #{title}, #{content}, #{ownerId}, #{visibility}, #{status}, #{currentVersion}, #{sort}, datetime('now'), datetime('now'))
+    </insert>
+
+    <update id="updateDoc">
+        UPDATE documents
+        <set>
+            <if test="updates.title != null">title = #{updates.title},</if>
+            <if test="updates.content != null">content = #{updates.content},</if>
+            <if test="updates.current_version != null">current_version = #{updates.current_version},</if>
+            <if test="updates.visibility != null">visibility = #{updates.visibility},</if>
+            updated_at = datetime('now')
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <update id="setDocStatus">
+        UPDATE documents SET status = #{status}, published_at = #{publishedAt}, updated_at = datetime('now')
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteDoc">
+        DELETE FROM documents WHERE id = #{id}
+    </delete>
+
+    <delete id="deleteDocVersions">
+        DELETE FROM doc_versions WHERE doc_id = #{docId}
+    </delete>
+
+    <!-- 版本 -->
+    <select id="listVersions" resultMap="VersionMap">
+        SELECT v.id, v.doc_id, v.version_no, v.title, v.content, v.owner_id, u.username as owner_name, v.note, v.created_at
+        FROM doc_versions v LEFT JOIN users u ON u.id = v.owner_id
+        WHERE v.doc_id = #{docId}
+        ORDER BY v.version_no DESC
+    </select>
+
+    <select id="getVersion" resultMap="VersionMap">
+        SELECT v.id, v.doc_id, v.version_no, v.title, v.content, v.owner_id, u.username as owner_name, v.note, v.created_at
+        FROM doc_versions v LEFT JOIN users u ON u.id = v.owner_id
+        WHERE v.doc_id = #{docId} AND v.version_no = #{versionNo}
+    </select>
+
+    <insert id="insertVersion" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO doc_versions (doc_id, version_no, title, content, owner_id, note, created_at)
+        VALUES (#{docId}, #{versionNo}, #{title}, #{content}, #{ownerId}, #{note}, datetime('now'))
+    </insert>
+
+</mapper>

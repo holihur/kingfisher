@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kingfisher.modules.audit.mapper.AuditLogMapper">
+
+    <resultMap id="AuditLogMap" type="com.kingfisher.modules.audit.domain.AuditLog">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="username" column="username"/>
+        <result property="action" column="action"/>
+        <result property="resource" column="resource"/>
+        <result property="resourceId" column="resource_id"/>
+        <result property="detail" column="detail"/>
+        <result property="result" column="result"/>
+        <result property="latency" column="latency"/>
+        <result property="message" column="message"/>
+        <result property="ip" column="ip"/>
+        <result property="userAgent" column="user_agent"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <sql id="whereClause">
+        <where>
+            <if test="keyword != null and keyword != '' and searchableColumns != null">
+                <foreach collection="searchableColumns" item="col" open="(" separator=" OR " close=")">
+                    ${col} LIKE '%' || #{keyword} || '%'
+                </foreach>
+            </if>
+            <if test="filters != null">
+                <foreach collection="filters" item="f">
+                    <choose>
+                        <when test="f.op.name() == 'EQ'">
+                            AND ${f.field} = #{f.value}
+                        </when>
+                        <when test="f.op.name() == 'NE'">
+                            AND ${f.field} != #{f.value}
+                        </when>
+                        <when test="f.op.name() == 'CONTAINS'">
+                            AND ${f.field} LIKE '%' || #{f.value} || '%'
+                        </when>
+                        <when test="f.op.name() == 'GT'">
+                            AND ${f.field} &gt; #{f.value}
+                        </when>
+                        <when test="f.op.name() == 'GTE'">
+                            AND ${f.field} &gt;= #{f.value}
+                        </when>
+                        <when test="f.op.name() == 'LT'">
+                            AND ${f.field} &lt; #{f.value}
+                        </when>
+                        <when test="f.op.name() == 'LTE'">
+                            AND ${f.field} &lt;= #{f.value}
+                        </when>
+                        <when test="f.op.name() == 'IN'">
+                            AND ${f.field} IN
+                            <foreach collection="f.value" item="v" open="(" separator="," close=")">
+                                #{v}
+                            </foreach>
+                        </when>
+                    </choose>
+                </foreach>
+            </if>
+        </where>
+    </sql>
+
+    <select id="findAll" resultMap="AuditLogMap">
+        SELECT id, user_id, username, action, resource, resource_id, detail,
+               result, latency, message, ip, user_agent, created_at
+        FROM audit_logs
+        <include refid="whereClause"/>
+        <if test="sort != null and sort != ''">ORDER BY ${sort}</if>
+        <if test="sort == null or sort == ''">ORDER BY id DESC</if>
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countAll" resultType="long">
+        SELECT COUNT(*) FROM audit_logs
+        <include refid="whereClause"/>
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO audit_logs (user_id, username, action, resource, resource_id,
+                                detail, result, latency, message, ip, user_agent, created_at)
+        VALUES (#{userId}, #{username}, #{action}, #{resource}, #{resourceId},
+                #{detail}, #{result}, #{latency}, #{message}, #{ip}, #{userAgent}, datetime('now'))
+    </insert>
+
+    <insert id="insertBatch">
+        INSERT INTO audit_logs (user_id, username, action, resource, resource_id,
+                                detail, result, latency, message, ip, user_agent, created_at)
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.userId}, #{item.username}, #{item.action}, #{item.resource}, #{item.resourceId},
+             #{item.detail}, #{item.result}, #{item.latency}, #{item.message}, #{item.ip}, #{item.userAgent}, datetime('now'))
+        </foreach>
+    </insert>
+
+</mapper>

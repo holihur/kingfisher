@@ -56,10 +56,98 @@ tasks:
         (cd kingfisher-web && pnpm dev) &
         wait
 
+  java:dev:
+    desc: 启动 Java 后端 + 前端（自动 kill 占用端口，不重置数据库 - Java 无 AutoMigrate，自动加载 .env）
+    silent: true
+    cmds:
+      - |
+        set -a; [ -f .env ] && . ./.env; set +a
+        set +e
+        kill_port() {
+          pids=$(lsof -ti :$1 2>/dev/null || true)
+          if [ -n "$pids" ]; then
+            echo "  kill $pids (port $1 被占用)"
+            kill $pids 2>/dev/null || true
+          fi
+          return 0
+        }
+        kill_port {{.SERVER_PORT}} || true
+        kill_port {{.WEB_PORT}} || true
+        # Java 版不自动建表，保留 kingfisher.db；如需重置请先执行 `task dev` 一次以重建并播种
+        if [ ! -f kingfisher.db ]; then
+          echo "⚠ kingfisher.db 不存在，先用 Go 版播种..."
+          go run -ldflags="{{.LDFLAGS}}" ./cmd/server &
+          GO_PID=$!
+          sleep 5
+          kill $GO_PID 2>/dev/null || true
+          echo "✓ 数据库已播种"
+        fi
+        redis-cli FLUSHDB 2>/dev/null && echo "✓ Redis 缓存已清除" || true
+        trap 'kill 0' INT TERM EXIT 2>/dev/null || true
+        (cd java && mvn spring-boot:run) &
+        (cd kingfisher-web && pnpm dev) &
+        wait
+
+  java:dev:reset:
+    desc: 重置数据库并启动 Java 后端 + 前端（先用 Go 播种再切 Java，自动加载 .env）
+    silent: true
+    cmds:
+      - |
+        set -a; [ -f .env ] && . ./.env; set +a
+        set +e
+        kill_port() {
+          pids=$(lsof -ti :$1 2>/dev/null || true)
+          if [ -n "$pids" ]; then
+            echo "  kill $pids (port $1 被占用)"
+            kill $pids 2>/dev/null || true
+          fi
+          return 0
+        }
+        kill_port {{.SERVER_PORT}} || true
+        kill_port {{.WEB_PORT}} || true
+        rm -f kingfisher.db kingfisher.db-shm kingfisher.db-wal
+        echo "✓ SQLite 数据库已重置，正在用 Go 版播种..."
+        go run -ldflags="{{.LDFLAGS}}" ./cmd/server &
+        GO_PID=$!
+        sleep 6
+        kill $GO_PID 2>/dev/null || true
+        redis-cli FLUSHDB 2>/dev/null && echo "✓ Redis 缓存已清除" || true
+        trap 'kill 0' INT TERM EXIT 2>/dev/null || true
+        (cd java && mvn spring-boot:run) &
+        (cd kingfisher-web && pnpm dev) &
+        wait
+
   build:
     desc: 编译
     cmds:
       - go build -ldflags="-s -w {{.LDFLAGS}}" -o bin/{{.APP}} ./cmd/server
+
+  java:build:
+    desc: 编译 Java 后端
+    dir: java
+    cmds:
+      - mvn package -DskipTests
+
+  java:run:
+    desc: 仅启动 Java 后端（默认 8080，不重置数据库，自动加载 .env）
+    dir: java
+    cmds:
+      - |
+        set -a; [ -f ../.env ] && . ../.env; [ -f .env ] && . ./.env; set +a
+        mvn spring-boot:run
+
+  java:test:
+    desc: Java 测试
+    dir: java
+    cmds:
+      - mvn test
+
+  java:clean:
+    desc: 清理 Java 构建产物
+    dir: java
+    cmds:
+      - mvn clean
+      - rm -rf target/
 
   test:
     desc: 运行测试
@@ -100,17 +188,37 @@ tasks:
       - pnpm exec prettier --write src/
 
   test-e2e:
-    desc: 运行 E2E 测试（需要 Redis 在 localhost:6379）
+    desc: 运行 E2E 测试（需要 Redis 在 localhost:6379，默认 Go 后端）
     dir: kingfisher-web
     cmds:
-      - echo "Starting E2E tests..."
+      - echo "Starting E2E tests (Go backend)..."
       - pnpm test:e2e
+
+  test-e2e:go:
+    desc: 运行 E2E 测试 - Go 后端（显式）
+    dir: kingfisher-web
+    cmds:
+      - echo "Starting E2E tests (Go backend)..."
+      - E2E_BACKEND=go pnpm test:e2e
+
+  test-e2e:java:
+    desc: 运行 E2E 测试 - Java 后端（需先 java:build）
+    dir: kingfisher-web
+    cmds:
+      - echo "Starting E2E tests (Java backend)..."
+      - E2E_BACKEND=java pnpm test:e2e
 
   test-e2e-ui:
     desc: Playwright UI 调试模式
     dir: kingfisher-web
     cmds:
       - pnpm test:e2e:ui
+
+  test-e2e-ui:java:
+    desc: Playwright UI 调试模式 - Java 后端
+    dir: kingfisher-web
+    cmds:
+      - E2E_BACKEND=java pnpm test:e2e:ui
 
   test-e2e-report:
     desc: 查看 E2E 报告

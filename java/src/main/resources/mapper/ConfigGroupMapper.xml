@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kingfisher.modules.config.mapper.ConfigGroupMapper">
+
+    <resultMap id="GroupMap" type="com.kingfisher.modules.config.domain.ConfigGroup">
+        <id property="id" column="id"/>
+        <result property="name" column="name"/>
+        <result property="sort" column="sort"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <select id="findAll" resultMap="GroupMap">
+        SELECT id, name, sort, created_at, updated_at
+        FROM config_groups
+        ORDER BY sort ASC, id ASC
+    </select>
+
+    <select id="findById" resultMap="GroupMap">
+        SELECT id, name, sort, created_at, updated_at
+        FROM config_groups
+        WHERE id = #{id}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO config_groups (name, sort, created_at, updated_at)
+        VALUES (#{name}, #{sort}, datetime('now'), datetime('now'))
+    </insert>
+
+    <update id="update">
+        UPDATE config_groups
+        SET name = #{name}, sort = #{sort}, updated_at = datetime('now')
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM config_groups WHERE id = #{id}
+    </delete>
+
+    <update id="resetGroupConfigs">
+        UPDATE system_configs SET group_id = 0, updated_at = datetime('now')
+        WHERE group_id = #{groupId}
+    </update>
+
+</mapper>

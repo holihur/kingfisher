@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kingfisher.modules.agent.mapper.AgentMapper">
+    <resultMap id="ConversationMap" type="com.kingfisher.modules.agent.domain.Conversation">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="title" column="title"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <resultMap id="MessageMap" type="com.kingfisher.modules.agent.domain.AgentMessage">
+        <id property="id" column="id"/>
+        <result property="conversationId" column="conversation_id"/>
+        <result property="role" column="role"/>
+        <result property="content" column="content"/>
+        <result property="toolCalls" column="tool_calls"/>
+        <result property="toolResult" column="tool_result"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <select id="listConversations" resultMap="ConversationMap">
+        SELECT id, user_id, title, created_at, updated_at FROM agent_conversations WHERE user_id = #{userId} ORDER BY updated_at DESC
+    </select>
+
+    <select id="findConversationById" resultMap="ConversationMap">
+        SELECT id, user_id, title, created_at, updated_at FROM agent_conversations WHERE id = #{id} AND user_id = #{userId}
+    </select>
+
+    <insert id="insertConversation" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO agent_conversations (user_id, title, created_at, updated_at) VALUES (#{userId}, #{title}, datetime('now'), datetime('now'))
+    </insert>
+
+    <delete id="deleteConversation">
+        DELETE FROM agent_conversations WHERE id = #{id} AND user_id = #{userId}
+    </delete>
+
+    <delete id="deleteMessagesByConversation">
+        DELETE FROM agent_messages WHERE conversation_id = #{conversationId}
+    </delete>
+
+    <select id="listMessages" resultMap="MessageMap">
+        SELECT id, conversation_id, role, content, tool_calls, tool_result, created_at FROM agent_messages WHERE conversation_id = #{conversationId} ORDER BY id ASC
+    </select>
+
+    <insert id="insertMessage" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO agent_messages (conversation_id, role, content, tool_calls, tool_result, created_at) VALUES (#{conversationId}, #{role}, #{content}, #{toolCalls}, #{toolResult}, datetime('now'))
+    </insert>
+
+    <update id="updateConversationTitle">
+        UPDATE agent_conversations SET title = #{title}, updated_at = datetime('now') WHERE id = #{id}
+    </update>
+</mapper>
