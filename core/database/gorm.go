@@ -3,6 +3,8 @@ package database
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/glebarez/sqlite" // 纯 Go SQLite 驱动（无 cgo），支持静态编译
@@ -75,25 +77,49 @@ func NewDatabase(cfg config.DatabaseConfig, logger *zap.Logger) (*gorm.DB, error
 	}
 }
 
-// InitDatabase creates connection, runs AutoMigrate + Seed for SQLite mode.
-// RunMigrations executes SQL migration files (MySQL/PG production)
-func RunMigrations(db *gorm.DB, path string) error { return nil }
-
-// InitDatabase creates connection, runs AutoMigrate + Seed for SQLite mode.
+// InitDatabase 创建数据库连接并根据驱动选择初始化策略：
+//   - sqlite：执行 AutoMigrate（开发模式，自动建表）
+//   - mysql/postgres：执行 RunMigrations（生产模式，版本化 SQL 迁移）
 func InitDatabase(cfg config.DatabaseConfig, logger *zap.Logger) (*gorm.DB, error) {
 	db, err := NewDatabase(cfg, logger)
 	if err != nil {
 		return nil, err
 	}
-	if cfg.Driver == "sqlite" {
+	switch cfg.Driver {
+	case "sqlite":
 		db.Exec("PRAGMA journal_mode=WAL")
 		db.Exec("PRAGMA foreign_keys=ON")
 		if err := autoMigrate(db); err != nil {
 			return nil, fmt.Errorf("automigrate: %w", err)
 		}
-		// Seed is called after InitDatabase in main.go to avoid circular deps
+		// Seed 由 main.go 在 InitDatabase 之后调用，避免循环依赖
+	case "mysql", "postgres":
+		if err := RunMigrations(db, "migrations"); err != nil {
+			// 尝试从可执行文件所在目录解析 migrations（兼容 Docker / 不同 cwd）
+			if alt := resolveMigrationsDir(); alt != "" && alt != "migrations" {
+				if altErr := RunMigrations(db, alt); altErr == nil {
+					break
+				}
+			}
+			return nil, fmt.Errorf("migrations: %w", err)
+		}
 	}
 	return db, nil
+}
+
+// resolveMigrationsDir 尝试定位 migrations 目录，兼容不同 cwd / Docker 布局。
+func resolveMigrationsDir() string {
+	candidates := []string{
+		"migrations",
+		filepath.Join(filepath.Dir(os.Args[0]), "migrations"),
+		filepath.Join(filepath.Dir(os.Args[0]), "../migrations"),
+	}
+	for _, p := range candidates {
+		if fi, err := os.Stat(p); err == nil && fi.IsDir() {
+			return p
+		}
+	}
+	return ""
 }
 
 // autoMigrate creates tables for SQLite dev mode.
@@ -243,7 +269,7 @@ func SeedData(db *gorm.DB) error {
 			{ID: 22, ParentID: 2, Name: "文档管理", Path: "/system/docs", Component: "pages/Doc/DocManage", Icon: "FileTextOutlined", Sort: 11, Permission: "doc:list", Version: "1.0.0"},
 			{ID: 23, ParentID: 2, Name: "部门管理", Path: "/system/departments", Component: "pages/Department/DeptManage", Icon: "ApartmentOutlined", Sort: 12, Permission: "department:list", Version: "1.0.0"},
 			{ID: 24, ParentID: 0, Name: "Agent 助手", Path: "/agent", Component: "pages/Agent/AgentChat", Icon: "MessageOutlined", Sort: 2, Permission: "agent:list", Version: "1.0.0"},
-			{ID: 25, ParentID: 2, Name: "演示任务", Path: "/system/worktasks", Component: "pages/WorkTask/WorkTaskManage", Icon: "CheckSquareOutlined", Sort: 13, Permission: "worktask:list", Version: "1.0.0"},
+			{ID: 25, ParentID: 0, Name: "演示任务", Path: "/worktasks", Component: "pages/WorkTask/WorkTaskManage", Icon: "CheckSquareOutlined", Sort: 3, Permission: "worktask:list", Version: "1.0.0"},
 		}
 		if err := tx.Create(&menus).Error; err != nil {
 			return fmt.Errorf("seed menus: %w", err)
@@ -441,9 +467,30 @@ func ensureWorkTaskSeed(db *gorm.DB) error {
 				return fmt.Errorf("ensure worktask permission %s: %w", perm.Code, err)
 			}
 		}
-		menu := MenuPO{ID: 25, ParentID: 2, Name: "演示任务", Path: "/system/worktasks", Component: "pages/WorkTask/WorkTaskManage", Icon: "CheckSquareOutlined", Sort: 13, Permission: "worktask:list", Status: 1, Version: "1.0.0"}
-		if err := tx.Where("path = ?", menu.Path).FirstOrCreate(&menu).Error; err != nil {
+		// 演示任务改为根菜单：ParentID=0, Path=/worktasks，兼容旧数据迁移
+		var existing MenuPO
+		if err := tx.Where("id = ?", 25).First(&existing).Error; err == nil {
+			if existing.ParentID != 0 || existing.Path != "/worktasks" || existing.Sort != 3 {
+				if err := tx.Model(&MenuPO{}).Where("id = ?", 25).Updates(map[string]interface{}{"parent_id": 0, "path": "/worktasks", "sort": 3}).Error; err != nil {
+					return fmt.Errorf("migrate worktask menu: %w", err)
+				}
+			}
+		} else {
+			// 兼容旧 path 存量数据
+			if err := tx.Where("path = ?", "/system/worktasks").First(&existing).Error; err == nil {
+				if err := tx.Model(&MenuPO{}).Where("id = ?", existing.ID).Updates(map[string]interface{}{"parent_id": 0, "path": "/worktasks", "sort": 3}).Error; err != nil {
+					return fmt.Errorf("migrate worktask menu by path: %w", err)
+				}
+			}
+		}
+		menu := MenuPO{ID: 25, ParentID: 0, Name: "演示任务", Path: "/worktasks", Component: "pages/WorkTask/WorkTaskManage", Icon: "CheckSquareOutlined", Sort: 3, Permission: "worktask:list", Status: 1, Version: "1.0.0"}
+		if err := tx.Where("id = ?", menu.ID).FirstOrCreate(&menu).Error; err != nil {
 			return fmt.Errorf("ensure worktask menu: %w", err)
+		}
+		if menu.ParentID != 0 || menu.Path != "/worktasks" {
+			if err := tx.Model(&MenuPO{}).Where("id = ?", menu.ID).Updates(map[string]interface{}{"parent_id": 0, "path": "/worktasks", "sort": 3}).Error; err != nil {
+				return fmt.Errorf("ensure worktask menu fix: %w", err)
+			}
 		}
 		rolePerms := map[uint][]string{1: {"worktask:list", "worktask:create", "worktask:update", "worktask:delete"}, 3: {"worktask:list", "worktask:create", "worktask:update"}, 4: {"worktask:list"}}
 		for roleID, codes := range rolePerms {

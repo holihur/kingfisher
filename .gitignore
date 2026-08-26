@@ -41,7 +41,8 @@ tmp/
 kingfisher.db
 kingfisher.db*
 test-results
-server
+/server
+/bin/server
 uploads
 .omo
 playwright-report

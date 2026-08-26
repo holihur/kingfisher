@@ -30,6 +30,7 @@ WORKDIR /app
 # 后端二进制 + 前端构建产物（static_dir: "kingfisher-web/dist"）
 COPY --from=backend-builder /app/server .
 COPY --from=backend-builder /src/config ./config
+COPY --from=backend-builder /src/migrations ./migrations
 COPY --from=frontend-builder /app/dist ./kingfisher-web/dist
 EXPOSE 8080
 HEALTHCHECK --interval=15s --timeout=3s --retries=3 CMD curl -f http://localhost:8080/health || exit 1
