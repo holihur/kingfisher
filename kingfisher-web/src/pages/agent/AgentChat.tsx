@@ -1,14 +1,15 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { App, Avatar, Button, Flex, Input, Spin, Tooltip, theme } from 'antd';
+import { App, Avatar, Button, Collapse, Flex, Input, Popconfirm, Spin, Tooltip, theme } from 'antd';
 import {
-  DeleteOutlined, FileTextOutlined, FontSizeOutlined, MenuFoldOutlined,
-  MenuUnfoldOutlined, PlusOutlined, SendOutlined, StopOutlined, RobotOutlined, UserOutlined,
+  ArrowDownOutlined, DeleteOutlined, FileTextOutlined, FontSizeOutlined, MenuFoldOutlined,
+  MenuUnfoldOutlined, PlusOutlined, SearchOutlined, SendOutlined, StopOutlined, RobotOutlined, UserOutlined,
 } from '@ant-design/icons';
 import Split from 'split.js';
 import Markdown from '../../components/Markdown';
 import { agentApi, type AgentSSEEvent } from '../../api/agent';
 import { useAuthStore } from '../../stores/auth';
+import { formatRelativeTime } from '../../utils/format';
 
 interface Conversation {
   id: number;
@@ -24,10 +25,9 @@ interface ChatMessage {
   role: 'user' | 'assistant' | 'tool';
   content: string;
   created_at?: string;
-  /** 本地乐观消息（尚未落库） */
   local?: boolean;
-  /** 工具调用信息 */
   toolName?: string;
+  toolInput?: Record<string, unknown>;
 }
 
 const shorten = (s: string, n = 120): string => (s.length > n ? s.slice(0, n) + '…' : s);
@@ -49,8 +49,11 @@ export default function AgentChat() {
   const [streaming, setStreaming] = useState(false);
   const [loadingList, setLoadingList] = useState(true);
   const [loadingMsgs, setLoadingMsgs] = useState(false);
-  // 当前会话对象（标题等）
   const activeConversation = conversations.find((c) => c.id === activeId);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showJump, setShowJump] = useState(false);
+  const atBottomRef = useRef(true);
+  const [inputFocused, setInputFocused] = useState(false);
   // 消息渲染模式：markdown（默认）| plain（纯文本）；本地记忆
   const VIEW_KEY = 'agent:view-mode';
   const [viewMode, setViewMode] = useState<'markdown' | 'plain'>(() => {
@@ -121,9 +124,21 @@ export default function AgentChat() {
 
   const abortRef = useRef<{ abort: () => void } | null>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
-  // 标记最近一轮 assistant 文本已累积完成（收到 tool_result 后置 true），
-  // 下一轮 text_delta 到来时需新建 assistant 气泡，避免追加到工具提示行后面。
   const assistantDoneRef = useRef(false);
+
+  const handleScroll = useCallback(() => {
+    const el = bodyRef.current;
+    if (!el) return;
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    atBottomRef.current = atBottom;
+    setShowJump(!atBottom && messages.length > 0);
+  }, [messages.length]);
+
+  const scrollToBottom = useCallback((smooth = true) => {
+    bodyRef.current?.scrollTo({ top: bodyRef.current.scrollHeight, behavior: smooth ? 'smooth' : 'instant' });
+    atBottomRef.current = true;
+    setShowJump(false);
+  }, []);
 
   // 拉取会话列表；URL 指定会话优先，否则默认第一个/新建。
   const loadConversations = useCallback(async () => {
@@ -183,10 +198,23 @@ export default function AgentChat() {
       .finally(() => setLoadingMsgs(false));
   }, [activeId, msg]);
 
-  // 新消息时自动滚动到底部
   useEffect(() => {
-    bodyRef.current?.scrollTo({ top: bodyRef.current.scrollHeight, behavior: 'smooth' });
-  }, [messages]);
+    if (atBottomRef.current) scrollToBottom();
+    else if (messages.length > 0) setShowJump(true);
+  }, [messages, scrollToBottom]);
+
+  useEffect(() => {
+    if (!activeId) return;
+    try {
+      const d = localStorage.getItem(`agent:draft:${activeId}`);
+      setInput(d || '');
+    } catch { /* ignore */ }
+  }, [activeId]);
+
+  useEffect(() => {
+    if (!activeId) return;
+    try { localStorage.setItem(`agent:draft:${activeId}`, input); } catch { /* ignore */ }
+  }, [input, activeId]);
 
   const switchConversation = (id: number) => {
     if (id === activeId) return;
@@ -264,17 +292,16 @@ export default function AgentChat() {
         case 'tool_use': {
           setMessages((prev) => [
             ...prev,
-            { id: -Date.now() - 2, role: 'tool', content: '', local: true, toolName: evt.tool },
+            { id: -Date.now() - 2, role: 'tool', content: '', local: true, toolName: evt.tool, toolInput: evt.input },
           ]);
           break;
         }
         case 'tool_result': {
-          // 工具结果到达 → 当前这一轮 assistant 文本已结束，下一轮 delta 需新气泡。
           assistantDoneRef.current = true;
           setMessages((prev) => {
             const copy = [...prev];
             for (let i = copy.length - 1; i >= 0; i--) {
-              if (copy[i].role === 'tool') {
+              if (copy[i].role === 'tool' && !copy[i].content) {
                 copy[i] = { ...copy[i], content: shorten(evt.message || '') };
                 break;
               }
@@ -326,16 +353,41 @@ export default function AgentChat() {
 
   const renderBubble = (m: ChatMessage) => {
     if (m.role === 'tool') {
+      const hasDetail = m.toolInput || m.content;
+      const pill = `🔧 调用工具 ${m.toolName || 'call_api'}${m.content ? ` · ${m.content}` : '…'}`;
+      if (!hasDetail) {
+        return (
+          <Flex justify="center" style={{ margin: '4px 0' }}>
+            <div style={{ fontSize: 12, color: themeToken.colorTextTertiary, background: themeToken.colorFillTertiary, padding: '2px 10px', borderRadius: 999 }}>{pill}</div>
+          </Flex>
+        );
+      }
       return (
-        <Flex justify="center" style={{ margin: '4px 0' }}>
-          <div
-            style={{
-              fontSize: 12, color: themeToken.colorTextTertiary, background: themeToken.colorFillTertiary,
-              padding: '2px 10px', borderRadius: 999,
-            }}
-          >
-            🔧 调用工具 {m.toolName || 'call_api'}{m.content ? ` · ${m.content}` : '…'}
-          </div>
+        <Flex justify="center" style={{ margin: '6px 0' }}>
+          <Collapse
+            size="small"
+            style={{ maxWidth: '76%', width: '100%' }}
+            items={[{
+              key: '1',
+              label: <span style={{ fontSize: 12 }}>{pill}</span>,
+              children: (
+                <div style={{ fontSize: 12, lineHeight: 1.6 }}>
+                  {m.toolInput ? (
+                    <div style={{ marginBottom: 6 }}>
+                      <div style={{ color: themeToken.colorTextTertiary, marginBottom: 2 }}>参数</div>
+                      <pre style={{ margin: 0, background: themeToken.colorFillQuaternary, padding: 8, borderRadius: 6, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>{JSON.stringify(m.toolInput, null, 2)}</pre>
+                    </div>
+                  ) : null}
+                  {m.content ? (
+                    <div>
+                      <div style={{ color: themeToken.colorTextTertiary, marginBottom: 2 }}>结果</div>
+                      <div style={{ background: themeToken.colorFillQuaternary, padding: 8, borderRadius: 6, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>{m.content}</div>
+                    </div>
+                  ) : <span style={{ color: themeToken.colorTextTertiary }}>执行中…</span>}
+                </div>
+              ),
+            }]}
+          />
         </Flex>
       );
     }
@@ -389,54 +441,89 @@ export default function AgentChat() {
     );
   };
 
-  // 输入区：圆角容器内嵌无边框多行输入 + 圆形发送/停止按钮。
-  // centered（欢迎态）：输入框固定宽度、整行水平居中；底部固定态撑满外层。
-  const renderInputArea = (centered: boolean) => (
-    <Flex
-      align="flex-end"
-      gap={8}
-      justify={centered ? 'center' : 'flex-start'}
-      style={centered ? undefined : { padding: 12 }}
-    >
-      <div
-        style={{
-          // 欢迎态输入框固定宽度居中；底部态 flex:1 撑满
-          flex: centered ? '0 1 480px' : 1,
-          minWidth: 0,
-          background: themeToken.colorBgContainer,
-          border: `1px solid ${themeToken.colorBorder}`,
-          borderRadius: 12,
-          padding: '6px 8px',
-          display: 'flex',
-          alignItems: 'flex-end',
-          transition: 'border-color 0.2s',
-        }}
+  const renderInputArea = (centered: boolean) => {
+    const maxLen = 8000;
+    const overLimit = input.length > maxLen;
+    return (
+      <Flex
+        align="flex-end"
+        gap={8}
+        justify={centered ? 'center' : 'flex-start'}
+        style={centered ? undefined : { padding: 12 }}
       >
-        <Input.TextArea
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onPressEnter={(e) => {
-            if (!e.shiftKey && !streaming) { e.preventDefault(); send(); }
+        <div
+          style={{
+            flex: centered ? '0 1 480px' : 1,
+            minWidth: 0,
+            background: themeToken.colorBgContainer,
+            border: `1px solid ${overLimit ? themeToken.colorError : inputFocused ? themeToken.colorBorder : themeToken.colorBorder}`,
+            borderRadius: 12,
+            padding: '6px 8px',
+            display: 'flex',
+            flexDirection: 'column',
+            boxShadow: 'none',
+            outline: 'none',
           }}
-          placeholder="输入问题，Enter 发送，Shift+Enter 换行"
-          autoSize={{ minRows: 1, maxRows: 5 }}
-          variant="borderless"
-          disabled={streaming || !activeId}
-          style={{ padding: '4px 4px', fontSize: 14 }}
-        />
-      </div>
-      <Tooltip title={streaming ? '停止生成' : (input.trim() ? '发送 (Enter)' : '请输入内容')}>
-        <Button
-          type="primary"
-          shape="circle"
-          icon={streaming ? <StopOutlined /> : <SendOutlined />}
-          onClick={streaming ? stopStreaming : send}
-          disabled={(!activeId) || (!streaming && !input.trim())}
-          style={{ flexShrink: 0 }}
-        />
-      </Tooltip>
-    </Flex>
-  );
+        >
+          <Input.TextArea
+            value={input}
+            maxLength={maxLen + 500}
+            onChange={(e) => setInput(e.target.value)}
+            onFocus={() => setInputFocused(true)}
+            onBlur={() => setInputFocused(false)}
+            onPressEnter={(e) => {
+              if (!e.shiftKey && !streaming) { e.preventDefault(); send(); }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'ArrowUp' && !input && !streaming) {
+                const lastUser = [...messages].reverse().find((m) => m.role === 'user');
+                if (lastUser?.content) { e.preventDefault(); setInput(lastUser.content); }
+              }
+            }}
+            placeholder="输入问题，Enter 发送，Shift+Enter 换行，↑ 召回上一条"
+            autoSize={{ minRows: 1, maxRows: 5 }}
+            variant="borderless"
+            disabled={streaming || !activeId}
+            style={{ padding: '4px 4px', fontSize: 14, boxShadow: 'none' }}
+            styles={{ textarea: { boxShadow: 'none' } as any }}
+          />
+          <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: 11, color: overLimit ? themeToken.colorError : themeToken.colorTextTertiary, marginTop: 2 }}>
+            {input.length}/{maxLen}
+          </div>
+        </div>
+        <Tooltip title={streaming ? '停止生成' : (input.trim() ? '发送 (Enter)' : '请输入内容')}>
+          <Button
+            type="primary"
+            shape="circle"
+            icon={streaming ? <StopOutlined /> : <SendOutlined />}
+            onClick={streaming ? stopStreaming : send}
+            disabled={(!activeId) || (!streaming && !input.trim()) || overLimit}
+            style={{ flexShrink: 0 }}
+          />
+        </Tooltip>
+      </Flex>
+    );
+  };
+
+  const filteredConversations = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return conversations;
+    return conversations.filter((c) => (c.title || '新会话').toLowerCase().includes(q));
+  }, [conversations, searchQuery]);
+
+  const groupedConversations = useMemo(() => {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const sevenDaysAgo = startOfToday - 6 * 24 * 60 * 60 * 1000;
+    const groups: Record<string, Conversation[]> = { '今天': [], '近7天': [], '更早': [] };
+    filteredConversations.forEach((c) => {
+      const t = new Date(c.updated_at || c.created_at).getTime();
+      if (t >= startOfToday) groups['今天'].push(c);
+      else if (t >= sevenDaysAgo) groups['近7天'].push(c);
+      else groups['更早'].push(c);
+    });
+    return Object.entries(groups).filter(([, list]) => list.length > 0) as [string, Conversation[]][];
+  }, [filteredConversations]);
 
   return (
     // 左右两栏：左侧（工具栏 + 会话列表） | 右侧（聊天消息区 + 底部发送区），宽度由 split 拖拽控制。
@@ -454,68 +541,78 @@ export default function AgentChat() {
           flexDirection: 'column',
         }}
       >
-        {/* 工具栏：新建 / 会话列表展开收起 / 渲染切换 */}
         {!collapsed && (
-          <Flex align="center" gap={6} style={{ marginBottom: 8 }}>
-            <Tooltip title="新建会话">
-              <Button type="primary" icon={<PlusOutlined />} onClick={createConversation} />
-            </Tooltip>
-            <Flex align="center" gap={4} style={{ marginLeft: 'auto' }}>
-              <Tooltip title="收起会话列表">
-                <Button size="small" icon={<MenuFoldOutlined />} onClick={() => setCollapsed(true)} />
+          <>
+            <Flex align="center" gap={6} style={{ marginBottom: 8 }}>
+              <Tooltip title="新建会话">
+                <Button type="primary" icon={<PlusOutlined />} onClick={createConversation} />
               </Tooltip>
-              <Tooltip title={viewMode === 'markdown' ? '切换为纯文本' : '切换为 Markdown'}>
-                <Button
-                  size="small"
-                  icon={viewMode === 'markdown' ? <FontSizeOutlined /> : <FileTextOutlined />}
-                  onClick={() => setViewMode(viewMode === 'markdown' ? 'plain' : 'markdown')}
-                />
-              </Tooltip>
+              <Flex align="center" gap={4} style={{ marginLeft: 'auto' }}>
+                <Tooltip title="收起会话列表">
+                  <Button size="small" icon={<MenuFoldOutlined />} onClick={() => setCollapsed(true)} />
+                </Tooltip>
+                <Tooltip title={viewMode === 'markdown' ? '切换为纯文本' : '切换为 Markdown'}>
+                  <Button
+                    size="small"
+                    icon={viewMode === 'markdown' ? <FontSizeOutlined /> : <FileTextOutlined />}
+                    onClick={() => setViewMode(viewMode === 'markdown' ? 'plain' : 'markdown')}
+                  />
+                </Tooltip>
+              </Flex>
             </Flex>
-          </Flex>
+            <Input
+              placeholder="搜索会话"
+              prefix={<SearchOutlined style={{ color: themeToken.colorTextTertiary }} />}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              allowClear
+              size="small"
+              style={{ marginBottom: 8 }}
+            />
+          </>
         )}
-        {/* 会话列表（flex:1 撑满） */}
         <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
           {loadingList ? (
             <Flex justify="center" style={{ padding: 24 }}><Spin /></Flex>
+          ) : filteredConversations.length === 0 ? (
+            <Flex justify="center" style={{ padding: 24, color: themeToken.colorTextTertiary, fontSize: 12 }}>
+              {searchQuery ? '无匹配会话' : '暂无会话'}
+            </Flex>
           ) : (
-            /* 会话列表（antd List 已弃用，改纯 div 渲染避免弃用告警） */
-            <Flex vertical>
-              {conversations.map((c) => (
-                <Flex
-                  key={c.id}
-                  align="center"
-                  justify="center"
-                  gap={4}
-                  onClick={() => switchConversation(c.id)}
-                  style={{
-                    cursor: 'pointer',
-                    borderRadius: 8,
-                    // 左右留白：内容不贴边；标题居中显示
-                    padding: '10px 20px',
-                    background: c.id === activeId ? themeToken.colorPrimaryBg : 'transparent',
-                  }}
-                >
-                  <span
-                    style={{
-                      fontSize: 13,
-                      fontWeight: c.id === activeId ? 600 : 400,
-                      flex: 1,
-                      textAlign: 'center',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {c.title || '新会话'}
-                  </span>
-                  <Tooltip title="删除会话">
-                    <DeleteOutlined
-                      onClick={(e) => { e.stopPropagation(); removeConversation(c.id); }}
-                      style={{ color: themeToken.colorTextTertiary, flexShrink: 0 }}
-                    />
-                  </Tooltip>
-                </Flex>
+            <Flex vertical gap={8}>
+              {groupedConversations.map(([label, list]) => (
+                <div key={label}>
+                  <div style={{ fontSize: 11, color: themeToken.colorTextTertiary, padding: '4px 8px' }}>{label}</div>
+                  <Flex vertical>
+                    {list.map((c) => (
+                      <Flex
+                        key={c.id}
+                        align="center"
+                        justify="flex-start"
+                        gap={6}
+                        onClick={() => switchConversation(c.id)}
+                        style={{
+                          cursor: 'pointer',
+                          borderRadius: 8,
+                          padding: '8px 8px 8px 12px',
+                          background: c.id === activeId ? themeToken.colorPrimaryBg : 'transparent',
+                          borderLeft: c.id === activeId ? `3px solid ${themeToken.colorPrimary}` : '3px solid transparent',
+                        }}
+                      >
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: c.id === activeId ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'left' }}>{c.title || '新会话'}</div>
+                          <div style={{ fontSize: 11, color: themeToken.colorTextTertiary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{formatRelativeTime(c.updated_at || c.created_at)}</div>
+                        </div>
+                        <Popconfirm title="删除后不可恢复，确认删除？" okText="删除" cancelText="取消" onConfirm={() => removeConversation(c.id)} onCancel={(e) => e?.stopPropagation()}>
+                          <DeleteOutlined
+                            onClick={(e) => e.stopPropagation()}
+                            style={{ color: themeToken.colorTextTertiary, flexShrink: 0, padding: 4 }}
+                          />
+                        </Popconfirm>
+                      </Flex>
+                    ))}
+                  </Flex>
+                </div>
               ))}
             </Flex>
           )}
@@ -549,6 +646,7 @@ export default function AgentChat() {
         </div>
         <div
           ref={bodyRef}
+          onScroll={handleScroll}
           style={{
             flex: 1, overflowY: 'auto', padding: '8px 24px',
             background: themeToken.colorBgLayout, minHeight: 0,
@@ -557,19 +655,21 @@ export default function AgentChat() {
           {loadingMsgs ? (
             <Flex justify="center" style={{ padding: 40 }}><Spin /></Flex>
           ) : messages.length === 0 ? (
-            /* 无会话/空消息：提示语上下左右居中 */
             <Flex vertical align="center" justify="center" gap={12} style={{ height: '100%' }}>
               <div style={{ fontSize: 18, fontWeight: 600 }}>向 Agent 提问</div>
               <div style={{ color: themeToken.colorTextTertiary }}>了解或操作系统</div>
             </Flex>
           ) : (
-            /* 消息列居中收窄（仿 DeepSeek）：不撑满全宽，气泡在窄列内左右对齐 */
             <div style={{ maxWidth: 760, margin: '0 auto' }}>
               {messages.map((m) => <div key={m.id}>{renderBubble(m)}</div>)}
             </div>
           )}
         </div>
-        {/* 底部发送区（居中窄列，与消息列对齐） */}
+        {showJump && (
+          <Button size="small" icon={<ArrowDownOutlined />} onClick={() => scrollToBottom()} style={{ position: 'absolute', bottom: 72, left: '50%', transform: 'translateX(-50%)', zIndex: 5, boxShadow: themeToken.boxShadowSecondary }}>
+            回到底部
+          </Button>
+        )}
         <div style={{ maxWidth: 760, width: '100%', margin: '0 auto' }}>
           {renderInputArea(false)}
         </div>

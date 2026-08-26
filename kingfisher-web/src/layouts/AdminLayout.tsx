@@ -50,6 +50,13 @@ const icons: Record<string, React.ReactNode> = {
   CheckSquareOutlined: <CheckSquareOutlined />,
 };
 
+const SparkleIcon: React.FC<{ style?: React.CSSProperties; title?: string; onClick?: () => void }> = ({ style, title, onClick }) => (
+  <svg viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" style={style} aria-hidden onClick={onClick}>
+    {title ? <title>{title}</title> : null}
+    <path d="M12 2l1.4 4.6L18 8l-4.6 1.4L12 14l-1.4-4.6L6 8l4.6-1.4L12 2zM19 11l1 2.8L22.8 15l-2.8 1-1 2.8-1-2.8L15.2 15l2.8-1 1-2.8zM5 13l1 2 2 1-2 1-1 2-1-2-2-1 2-1 1-2z" />
+  </svg>
+);
+
 const MOBILE_BREAKPOINT = 768;
 
 // 侧边栏开合状态本地记忆（桌面折叠偏好 + 子菜单展开项）
@@ -93,7 +100,8 @@ const AdminLayout: React.FC = () => {
   const { theme, toggle: toggleTheme } = useTheme();
   const { token: themeToken } = antdTheme.useToken();
   const { menuTree, loading } = useMenuStore();
-  const { userInfo } = useAuthStore();
+  const { userInfo, permissions } = useAuthStore();
+  const canUseAgent = permissions.includes('agent:list');
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -166,7 +174,7 @@ const AdminLayout: React.FC = () => {
 
   const buildItems = (items: Record<string, unknown>[]): Record<string, unknown>[] =>
     (items || [])
-      .filter((m: Record<string, unknown>) => (m.status as number) === 1)
+      .filter((m: Record<string, unknown>) => (m.status as number) === 1 && (m.path as string) !== '/agent')
       .sort((a: Record<string, unknown>, b: Record<string, unknown>) => (a.sort as number) - (b.sort as number))
       .map((item: Record<string, unknown>) => {
         const ch = buildItems((item.children as Record<string, unknown>[]) || []);
@@ -319,6 +327,9 @@ const AdminLayout: React.FC = () => {
               })
             )}
             <Breadcrumb items={(() => {
+              if (location.pathname.startsWith('/agent')) {
+                return [{ title: '首页' }, { title: 'Agent 助手' }];
+              }
               const bc = findBreadcrumb(menuTree as any, location.pathname);
               if (bc.length) {
                 return [{ title: '首页' }, ...bc.map(m => ({ title: m.name }))];
@@ -327,6 +338,19 @@ const AdminLayout: React.FC = () => {
             })()} />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            {canUseAgent && (
+              <SparkleIcon
+                title="Agent 助手"
+                onClick={() => navigate('/agent')}
+                style={{
+                  fontSize: 17,
+                  cursor: 'pointer',
+                  color: location.pathname.startsWith('/agent') ? themeToken.colorPrimary : themeToken.colorTextTertiary,
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+              />
+            )}
             <a href="/swagger/index.html" target="_blank" rel="noopener noreferrer" title="API 文档" style={{ color: themeToken.colorTextTertiary, fontSize: 17, display: 'flex', alignItems: 'center' }}>
               <FileTextOutlined />
             </a>

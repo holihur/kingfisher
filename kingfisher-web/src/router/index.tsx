@@ -119,10 +119,9 @@ function AppRoutes() {
     }
   }, [token, menuTree.length, menuLoaded, fetchMenus]);
 
-  // 菜单动态路由（过滤 /dashboard：首页由下方静态路由统一提供，不依赖菜单树加载，
-  // 后端 502/宕机导致菜单拉取失败时 /dashboard 仍可达，错误页"返回首页"可用）
+  // 菜单动态路由（过滤 /dashboard 和 /agent：首页固定路由，Agent 改为右上角入口）
   const menuRoutes = useMemo(
-    () => buildMenuRoutes(menuTree as MenuNode[]).filter((r) => r.path !== '/dashboard'),
+    () => buildMenuRoutes(menuTree as MenuNode[]).filter((r) => r.path !== '/dashboard' && r.path !== '/agent'),
     [menuTree]
   );
 
@@ -202,8 +201,16 @@ function AppRoutes() {
             </Lazy>
           ),
         },
-        // Agent 会话级子路由：/agent/:conversationId 直接打开指定会话。
-        // 菜单动态路由已生成 /agent，此路由补充带参数的深层链接。
+        {
+          path: 'agent',
+          element: (
+            <PermGuard perm="agent:list">
+              <Lazy>
+                <AgentChat />
+              </Lazy>
+            </PermGuard>
+          ),
+        },
         {
           path: 'agent/:conversationId',
           element: (
