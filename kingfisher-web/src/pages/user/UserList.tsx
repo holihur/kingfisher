@@ -19,9 +19,9 @@ interface UserRow {
   email: string;
   role_ids?: number[];
   roles?: { id: number; name: string }[];
-  /** 直接分配的角色（user_roles），编辑回填用 */
   direct_role_ids?: number[];
   dept_ids?: number[];
+  parent_id?: number | null;
   status: number;
   created_at: string;
   updated_at: string;
@@ -103,6 +103,15 @@ const UserList: React.FC = () => {
         { label: '禁用', value: 0 },
       ],
     },
+    {
+      name: 'is_sub_account',
+      label: '类型',
+      type: 'select',
+      options: [
+        { label: '主账户', value: 0 },
+        { label: '子账户', value: 1 },
+      ],
+    },
   ];
 
   const columns = [
@@ -117,10 +126,17 @@ const UserList: React.FC = () => {
             {r.username}
             {r.nickname ? <span style={{ color: token.colorTextTertiary, marginLeft: 6, fontSize: 12 }}>({r.nickname})</span> : null}
           </span>
+          {r.parent_id ? <Tag color="purple">子账户</Tag> : null}
         </Space>
       ),
     },
     { title: '邮箱', dataIndex: 'email', ellipsis: true },
+    {
+      title: '类型',
+      width: 90,
+      render: (_: unknown, r: UserRow) =>
+        r.parent_id ? <Tag color="purple">子账户</Tag> : <Tag color="blue">主账户</Tag>,
+    },
     {
       title: '角色',
       dataIndex: 'role_ids',

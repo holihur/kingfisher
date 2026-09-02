@@ -21,6 +21,7 @@ import (
 type UserModule struct {
 	authHandler    *AuthHandler
 	userHandler    *UserHandler
+	userSvc        *app.UserService
 	cache          cache.Cache
 	authSvc        *app.AuthService
 	loginPerMinute int
@@ -38,9 +39,16 @@ func NewUserModule(db *gorm.DB, c cache.Cache, jwtMgr *jwt.JWTManager, getUserPe
 	return &UserModule{
 		authHandler:    NewAuthHandler(authSvc),
 		userHandler:    uh,
+		userSvc:        userSvc,
 		cache:          c,
 		authSvc:        authSvc,
 		loginPerMinute: loginPerMinute,
+	}
+}
+
+func (m *UserModule) InjectPermProvider(fn func(ctx context.Context, userID uint) ([]string, error)) {
+	if m.userSvc != nil {
+		m.userSvc.SetPermProvider(fn)
 	}
 }
 
@@ -95,6 +103,11 @@ func (m *UserModule) RegisterProtected(r *gin.RouterGroup) {
 	users.GET("/me/login-logs", m.userHandler.GetMyLoginLogs)
 	users.POST("/me/avatar", m.userHandler.UploadAvatar)
 	users.PUT("/me/password", m.userHandler.ChangePassword)
+	users.POST("/me/sub-accounts", m.userHandler.CreateSubAccount)
+	users.GET("/me/sub-accounts", m.userHandler.ListSubAccounts)
+	users.PUT("/me/sub-accounts/:id", m.userHandler.UpdateSubAccount)
+	users.DELETE("/me/sub-accounts/:id", m.userHandler.DeleteSubAccount)
+	users.GET("/sub-accounts", rbacTransport.RequirePerm("user:list"), m.userHandler.AdminListSubAccounts)
 	users.GET("/:id", rbacTransport.RequirePerm("user:list"), m.userHandler.GetByID)
 	users.PUT("/:id", rbacTransport.RequirePerm("user:update"), m.userHandler.Update)
 	users.GET("", rbacTransport.RequirePerm("user:list"), m.userHandler.List)

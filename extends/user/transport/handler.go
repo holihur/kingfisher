@@ -97,6 +97,17 @@ type CreateUserReq struct {
 	DeptIDs  []uint `json:"dept_ids"`
 }
 
+type CreateSubAccountReq struct {
+	Username string `json:"username" binding:"required,min=3,max=32" example:"subuser"`
+	Password string `json:"password" binding:"required,min=8,max=64,password" example:"Abcd1234"`
+	Email    string `json:"email" example:"sub@example.com"`
+	RoleIDs  []uint `json:"role_ids" binding:"required" example:"3"`
+}
+
+type UpdateSubAccountReq struct {
+	RoleIDs []uint `json:"role_ids" binding:"required" example:"3"`
+}
+
 type ChangePwdReq struct {
 	OldPassword string `json:"old_password" binding:"required" example:"Abcd1234"`
 	NewPassword string `json:"new_password" binding:"required,min=8,max=64,password" example:"NewPass123"`
@@ -736,16 +747,101 @@ func (h *UserHandler) RevokeSessions(c *gin.Context) {
 	response.OKJSON(c, nil)
 }
 
+func (h *UserHandler) CreateSubAccount(c *gin.Context) {
+	parentID := c.GetUint("user_id")
+	var req CreateSubAccountReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	user, err := h.svc.CreateSubAccount(c.Request.Context(), parentID, req.Username, req.Password, req.Email, req.RoleIDs)
+	if err != nil {
+		switch err.Error() {
+		case "sub account cannot create sub account":
+			response.ErrorJSON(c, errcode.ErrSubAccountIsSub)
+		case "sub account limit reached":
+			response.ErrorJSON(c, errcode.ErrSubAccountLimit)
+		case "user exists":
+			response.ErrorJSON(c, errcode.ErrUserExists)
+		default:
+			if strings.Contains(err.Error(), "not in parent permissions") {
+				response.ErrorJSON(c, errcode.ErrSubAccountNoPerm)
+			} else {
+				response.BadRequest(c, err.Error())
+			}
+		}
+		return
+	}
+	response.OKJSON(c, user)
+}
+
+func (h *UserHandler) ListSubAccounts(c *gin.Context) {
+	parentID := c.GetUint("user_id")
+	users, err := h.svc.ListSubAccounts(c.Request.Context(), parentID)
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	response.OKJSON(c, users)
+}
+
+func (h *UserHandler) UpdateSubAccount(c *gin.Context) {
+	parentID := c.GetUint("user_id")
+	subID, _ := strconv.ParseUint(c.Param("id"), 10, 64)
+	var req UpdateSubAccountReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	if err := h.svc.UpdateSubAccount(c.Request.Context(), parentID, uint(subID), req.RoleIDs); err != nil {
+		if strings.Contains(err.Error(), "not in parent permissions") {
+			response.ErrorJSON(c, errcode.ErrSubAccountNoPerm)
+		} else if strings.Contains(err.Error(), "not your sub account") {
+			response.ErrorJSON(c, errcode.ErrSubAccountNotFound)
+		} else {
+			response.BadRequest(c, err.Error())
+		}
+		return
+	}
+	response.OKJSON(c, nil)
+}
+
+func (h *UserHandler) DeleteSubAccount(c *gin.Context) {
+	parentID := c.GetUint("user_id")
+	subID, _ := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err := h.svc.DeleteSubAccount(c.Request.Context(), parentID, uint(subID)); err != nil {
+		response.ErrorJSON(c, errcode.ErrSubAccountNotFound)
+		return
+	}
+	response.OKJSON(c, nil)
+}
+
+func (h *UserHandler) AdminListSubAccounts(c *gin.Context) {
+	pq, err := query.Parse(c, userQueryDefs)
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	users, total, err := h.svc.AdminListSubAccounts(c.Request.Context(), pq)
+	if err != nil {
+		response.InternalError(c)
+		return
+	}
+	response.PageJSON(c, users, total, pq.Page, pq.PageSize)
+}
+
 // ---------- helpers ----------
 
 var userQueryDefs = query.Defs{
-	"username":      {Name: "username", Type: query.TypeString, Searchable: true, Filterable: true},
-	"email":         {Name: "email", Type: query.TypeString, Searchable: true, Filterable: true},
-	"status":        {Name: "status", Type: query.TypeInt, Filterable: true},
-	"role_id":       {Name: "role_id", Type: query.TypeUint, Filterable: true},
-	"department_id": {Name: "department_id", Type: query.TypeUint, Filterable: true},
-	"created_at":    {Name: "created_at", Type: query.TypeTime, Filterable: true},
-	"updated_at":    {Name: "updated_at", Type: query.TypeTime, Filterable: true},
+	"username":       {Name: "username", Type: query.TypeString, Searchable: true, Filterable: true},
+	"email":          {Name: "email", Type: query.TypeString, Searchable: true, Filterable: true},
+	"status":         {Name: "status", Type: query.TypeInt, Filterable: true},
+	"role_id":        {Name: "role_id", Type: query.TypeUint, Filterable: true},
+	"department_id":  {Name: "department_id", Type: query.TypeUint, Filterable: true},
+	"parent_id":      {Name: "parent_id", Type: query.TypeUint, Filterable: true},
+	"is_sub_account": {Name: "is_sub_account", Type: query.TypeBool, Filterable: true},
+	"created_at":     {Name: "created_at", Type: query.TypeTime, Filterable: true},
+	"updated_at":     {Name: "updated_at", Type: query.TypeTime, Filterable: true},
 }
 
 var auditLogQueryDefs = query.Defs{

@@ -251,14 +251,55 @@ func (s *AuthService) RefreshToken(ctx context.Context, refreshToken string) (st
 	return s.jwtMgr.RefreshToken(ctx, refreshToken)
 }
 
-// User CRUD
 type UserService struct {
-	repo  port.UserRepository
-	cache cache.Cache
+	repo         port.UserRepository
+	cache        cache.Cache
+	getUserPerms func(ctx context.Context, userID uint) ([]string, error)
 }
 
 func NewUserService(repo port.UserRepository, c cache.Cache) *UserService {
 	return &UserService{repo: repo, cache: c}
+}
+
+func (s *UserService) SetPermProvider(fn func(ctx context.Context, userID uint) ([]string, error)) {
+	s.getUserPerms = fn
+}
+
+func (s *UserService) isPermSubset(ctx context.Context, parentID uint, roleIDs []uint) (bool, error) {
+	if s.getUserPerms == nil {
+		parent, err := s.repo.FindByID(ctx, parentID)
+		if err != nil {
+			return false, err
+		}
+		allowed := make(map[uint]bool, len(parent.RoleIDs))
+		for _, rid := range parent.RoleIDs {
+			allowed[rid] = true
+		}
+		for _, rid := range roleIDs {
+			if !allowed[rid] {
+				return false, nil
+			}
+		}
+		return true, nil
+	}
+	parentPerms, err := s.getUserPerms(ctx, parentID)
+	if err != nil {
+		return false, err
+	}
+	allowed := make(map[string]bool, len(parentPerms))
+	for _, p := range parentPerms {
+		allowed[p] = true
+	}
+	reqPerms, err := s.repo.GetPermCodesByRoleIDs(ctx, roleIDs)
+	if err != nil {
+		return false, err
+	}
+	for _, p := range reqPerms {
+		if !allowed[p] {
+			return false, nil
+		}
+	}
+	return true, nil
 }
 
 func (s *UserService) GetByID(ctx context.Context, id uint) (*domain.User, error) {
@@ -266,29 +307,162 @@ func (s *UserService) GetByID(ctx context.Context, id uint) (*domain.User, error
 }
 
 func (s *UserService) Update(ctx context.Context, id uint, updates map[string]any) error {
+	_, hasRole := updates["role_ids"]
+	_, hasDept := updates["dept_ids"]
+	if hasRole {
+		if target, err := s.repo.FindByID(ctx, id); err == nil && target.ParentID != nil {
+			if reqRoles, ok := updates["role_ids"].([]uint); ok {
+				if ok2, err := s.isPermSubset(ctx, *target.ParentID, reqRoles); err != nil {
+					return err
+				} else if !ok2 {
+					return fmt.Errorf("role %d not in parent permissions", reqRoles[0])
+				}
+			}
+		}
+	}
 	if err := s.repo.Update(ctx, id, updates); err != nil {
 		return err
 	}
-	// 角色/部门变更都影响有效权限：失效该用户权限缓存，RBAC 中间件下次请求读取新权限。
-	if _, ok := updates["role_ids"]; ok && s.cache != nil {
+	if hasRole && s.cache != nil {
 		_ = s.cache.Delete(ctx, "user:perms:"+strconv.FormatUint(uint64(id), 10))
 	}
-	if _, ok := updates["dept_ids"]; ok && s.cache != nil {
+	if hasDept && s.cache != nil {
 		_ = s.cache.Delete(ctx, "user:perms:"+strconv.FormatUint(uint64(id), 10))
+	}
+	if hasRole || hasDept {
+		_ = s.pruneSubAccounts(ctx, id)
+	}
+	return nil
+}
+
+func (s *UserService) pruneSubAccounts(ctx context.Context, parentID uint) error {
+	parent, err := s.repo.FindByID(ctx, parentID)
+	if err != nil {
+		return nil
+	}
+	if parent.ParentID != nil {
+		return nil
+	}
+	subs, err := s.repo.FindSubAccounts(ctx, parentID)
+	if err != nil || len(subs) == 0 {
+		return nil
+	}
+	var parentPerms map[string]bool
+	if s.getUserPerms != nil {
+		perms, _ := s.getUserPerms(ctx, parentID)
+		parentPerms = make(map[string]bool, len(perms))
+		for _, p := range perms {
+			parentPerms[p] = true
+		}
+	} else {
+		allowed := make(map[uint]bool, len(parent.RoleIDs))
+		for _, rid := range parent.RoleIDs {
+			allowed[rid] = true
+		}
+		parentPerms = nil
+		for _, sub := range subs {
+			directIDs, err := s.repo.FindDirectRoleIDs(ctx, sub.ID)
+			if err != nil {
+				continue
+			}
+			kept := make([]uint, 0, len(directIDs))
+			changed := false
+			for _, rid := range directIDs {
+				if allowed[rid] {
+					kept = append(kept, rid)
+				} else {
+					changed = true
+				}
+			}
+			if !changed {
+				continue
+			}
+			_ = s.repo.Update(ctx, sub.ID, map[string]any{"role_ids": kept})
+			if s.cache != nil {
+				_ = s.cache.Delete(ctx, "user:perms:"+strconv.FormatUint(uint64(sub.ID), 10))
+			}
+		}
+		return nil
+	}
+	for _, sub := range subs {
+		directIDs, err := s.repo.FindDirectRoleIDs(ctx, sub.ID)
+		if err != nil {
+			continue
+		}
+		kept := make([]uint, 0, len(directIDs))
+		changed := false
+		for _, rid := range directIDs {
+			perms, _ := s.repo.GetPermCodesByRoleIDs(ctx, []uint{rid})
+			subset := true
+			for _, p := range perms {
+				if !parentPerms[p] {
+					subset = false
+					break
+				}
+			}
+			if subset {
+				kept = append(kept, rid)
+			} else {
+				changed = true
+			}
+		}
+		if !changed {
+			continue
+		}
+		_ = s.repo.Update(ctx, sub.ID, map[string]any{"role_ids": kept})
+		if s.cache != nil {
+			_ = s.cache.Delete(ctx, "user:perms:"+strconv.FormatUint(uint64(sub.ID), 10))
+		}
 	}
 	return nil
 }
 
 func (s *UserService) Delete(ctx context.Context, id uint) error {
-	return s.repo.Delete(ctx, id)
+	if err := s.repo.Delete(ctx, id); err != nil {
+		return err
+	}
+	subs, _ := s.repo.FindSubAccounts(ctx, id)
+	for _, sub := range subs {
+		_ = s.repo.Delete(ctx, sub.ID)
+		if s.cache != nil {
+			_ = s.cache.Delete(ctx, "user:perms:"+strconv.FormatUint(uint64(sub.ID), 10))
+		}
+	}
+	return nil
 }
 
 func (s *UserService) BatchDelete(ctx context.Context, ids []uint) error {
-	return s.repo.DeleteBatch(ctx, ids)
+	if err := s.repo.DeleteBatch(ctx, ids); err != nil {
+		return err
+	}
+	for _, pid := range ids {
+		subs, _ := s.repo.FindSubAccounts(ctx, pid)
+		for _, sub := range subs {
+			_ = s.repo.Delete(ctx, sub.ID)
+			if s.cache != nil {
+				_ = s.cache.Delete(ctx, "user:perms:"+strconv.FormatUint(uint64(sub.ID), 10))
+			}
+		}
+	}
+	return nil
 }
 
 func (s *UserService) BatchUpdateStatus(ctx context.Context, ids []uint, status int) error {
-	return s.repo.UpdateStatusBatch(ctx, ids, status)
+	if err := s.repo.UpdateStatusBatch(ctx, ids, status); err != nil {
+		return err
+	}
+	if status != 1 {
+		for _, pid := range ids {
+			subs, _ := s.repo.FindSubAccounts(ctx, pid)
+			for _, sub := range subs {
+				_ = s.repo.Update(ctx, sub.ID, map[string]any{"status": status})
+				if s.cache != nil {
+					_ = s.cache.Delete(ctx, "user:perms:"+strconv.FormatUint(uint64(sub.ID), 10))
+				}
+			}
+		}
+	}
+	return nil
 }
 
 func (s *UserService) CreateUser(ctx context.Context, username, password, email string, roleIDs, deptIDs []uint) (*domain.User, error) {
@@ -300,7 +474,6 @@ func (s *UserService) CreateUser(ctx context.Context, username, password, email 
 	if err != nil {
 		return nil, fmt.Errorf("hash: %w", err)
 	}
-	// 未指定角色且未指定部门时默认访客(4)；指定了部门则依赖部门角色，无需默认角色
 	if len(roleIDs) == 0 && len(deptIDs) == 0 {
 		roleIDs = []uint{4}
 	}
@@ -310,6 +483,96 @@ func (s *UserService) CreateUser(ctx context.Context, username, password, email 
 	}
 	user.Password = ""
 	return user, nil
+}
+
+func (s *UserService) CreateSubAccount(ctx context.Context, parentID uint, username, password, email string, roleIDs []uint) (*domain.User, error) {
+	parent, err := s.repo.FindByID(ctx, parentID)
+	if err != nil {
+		return nil, fmt.Errorf("parent not found")
+	}
+	if parent.ParentID != nil {
+		return nil, fmt.Errorf("sub account cannot create sub account")
+	}
+	if _, err := s.repo.FindByUsername(ctx, username); err == nil {
+		return nil, fmt.Errorf("user exists")
+	}
+	if len(roleIDs) == 0 {
+		return nil, fmt.Errorf("sub account must have at least one role")
+	}
+	if ok, err := s.isPermSubset(ctx, parentID, roleIDs); err != nil {
+		return nil, err
+	} else if !ok {
+		return nil, fmt.Errorf("role %d not in parent permissions", roleIDs[0])
+	}
+	if cnt, _ := s.repo.CountSubAccounts(ctx, parentID); cnt >= 20 {
+		return nil, fmt.Errorf("sub account limit reached")
+	}
+	hashed, err := bcrypt.GenerateFromPassword([]byte(password), 12)
+	if err != nil {
+		return nil, fmt.Errorf("hash: %w", err)
+	}
+	pid := parentID
+	user := &domain.User{Username: username, Password: string(hashed), Email: email, Status: 1, RoleIDs: roleIDs, ParentID: &pid}
+	if err := s.repo.Create(ctx, user); err != nil {
+		return nil, err
+	}
+	user.Password = ""
+	return user, nil
+}
+
+func (s *UserService) ListSubAccounts(ctx context.Context, parentID uint) ([]domain.User, error) {
+	parent, err := s.repo.FindByID(ctx, parentID)
+	if err != nil {
+		return nil, err
+	}
+	if parent.ParentID != nil {
+		return nil, fmt.Errorf("sub account has no sub accounts")
+	}
+	return s.repo.FindSubAccounts(ctx, parentID)
+}
+
+func (s *UserService) UpdateSubAccount(ctx context.Context, parentID, subID uint, roleIDs []uint) error {
+	sub, err := s.repo.FindByID(ctx, subID)
+	if err != nil {
+		return err
+	}
+	if sub.ParentID == nil || *sub.ParentID != parentID {
+		return fmt.Errorf("not your sub account")
+	}
+	if _, err := s.repo.FindByID(ctx, parentID); err != nil {
+		return fmt.Errorf("parent not found")
+	}
+	if len(roleIDs) == 0 {
+		return fmt.Errorf("sub account must have at least one role")
+	}
+	if ok, err := s.isPermSubset(ctx, parentID, roleIDs); err != nil {
+		return err
+	} else if !ok {
+		return fmt.Errorf("role %d not in parent permissions", roleIDs[0])
+	}
+	if err := s.repo.Update(ctx, subID, map[string]any{"role_ids": roleIDs}); err != nil {
+		return err
+	}
+	if s.cache != nil {
+		_ = s.cache.Delete(ctx, "user:perms:"+strconv.FormatUint(uint64(subID), 10))
+	}
+	return nil
+}
+
+func (s *UserService) DeleteSubAccount(ctx context.Context, parentID, subID uint) error {
+	sub, err := s.repo.FindByID(ctx, subID)
+	if err != nil {
+		return err
+	}
+	if sub.ParentID == nil || *sub.ParentID != parentID {
+		return fmt.Errorf("not your sub account")
+	}
+	return s.repo.Delete(ctx, subID)
+}
+
+func (s *UserService) AdminListSubAccounts(ctx context.Context, q *query.Query) ([]domain.User, int64, error) {
+	q.Filters = append(q.Filters, query.Condition{Field: "is_sub_account", Op: "eq", Value: true})
+	return s.repo.FindAll(ctx, q)
 }
 
 func (s *UserService) List(ctx context.Context, q *query.Query) ([]domain.User, int64, error) {

@@ -86,8 +86,6 @@ func (r *RoleRepo) AssignMenus(ctx context.Context, roleID uint, menuIDs []uint)
 	})
 }
 
-// GetUserPermissions 返回用户的全部权限码（有效角色 = 直接角色 ∪ 部门继承角色，取并集去重）。
-// 直接角色来自 user_roles；部门继承角色来自 user_departments ⋈ department_roles。
 func (r *RoleRepo) GetUserPermissions(ctx context.Context, userID uint) ([]string, error) {
 	var codes []string
 	err := r.db.WithContext(ctx).Raw(`
@@ -100,7 +98,36 @@ JOIN (
     JOIN user_departments ud ON ud.department_id = dr.department_id
     WHERE ud.user_id = ?
 ) r ON r.role_id = rp.role_id`, userID, userID).Scan(&codes).Error
-	return codes, err
+	if err != nil {
+		return nil, err
+	}
+	var parentID *uint
+	if err := r.db.WithContext(ctx).Table("users").Select("parent_id").Where("id = ?", userID).Scan(&parentID).Error; err == nil && parentID != nil {
+		var parentCodes []string
+		if err := r.db.WithContext(ctx).Raw(`
+SELECT DISTINCT p.code FROM permissions p
+JOIN role_permissions rp ON p.id = rp.permission_id
+JOIN (
+    SELECT ur.role_id FROM user_roles ur WHERE ur.user_id = ?
+    UNION
+    SELECT dr.role_id FROM department_roles dr
+    JOIN user_departments ud ON ud.department_id = dr.department_id
+    WHERE ud.user_id = ?
+) r ON r.role_id = rp.role_id`, *parentID, *parentID).Scan(&parentCodes).Error; err == nil {
+			allowed := make(map[string]bool, len(parentCodes))
+			for _, c := range parentCodes {
+				allowed[c] = true
+			}
+			filtered := make([]string, 0, len(codes))
+			for _, c := range codes {
+				if allowed[c] {
+					filtered = append(filtered, c)
+				}
+			}
+			return filtered, nil
+		}
+	}
+	return codes, nil
 }
 
 type PermRepo struct{ db *gorm.DB }

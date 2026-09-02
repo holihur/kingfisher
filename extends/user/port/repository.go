@@ -19,4 +19,8 @@ type UserRepository interface {
 	UpdateStatusBatch(ctx context.Context, ids []uint, status int) error
 	IncrementSessionVersion(ctx context.Context, id uint) error
 	GetSessionVersion(ctx context.Context, id uint) (int, error)
+	FindSubAccounts(ctx context.Context, parentID uint) ([]domain.User, error)
+	FindDirectRoleIDs(ctx context.Context, userID uint) ([]uint, error)
+	CountSubAccounts(ctx context.Context, parentID uint) (int64, error)
+	GetPermCodesByRoleIDs(ctx context.Context, roleIDs []uint) ([]string, error)
 }

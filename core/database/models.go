@@ -20,6 +20,7 @@ type UserPO struct {
 	Avatar         string `gorm:"size:255"`
 	Status         int    `gorm:"default:1"`
 	SessionVersion int    `gorm:"default:1"`
+	ParentID       *uint  `gorm:"index"` // 子账户的父账户 ID，NULL 表示主账户
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
 	DeletedAt      gorm.DeletedAt `gorm:"index"`

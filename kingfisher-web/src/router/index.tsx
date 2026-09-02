@@ -18,6 +18,7 @@ const ForgotPassword = lazy(() => import('../pages/forgot'));
 const ResetPassword = lazy(() => import('../pages/reset'));
 const PublicDocView = lazy(() => import('../pages/public/DocView'));
 const AgentChat = lazy(() => import('../pages/agent/AgentChat'));
+const SubAccountList = lazy(() => import('../pages/user/SubAccountList'));
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const userLoaded = useAuthStore((s) => s.userLoaded);
@@ -189,6 +190,14 @@ function AppRoutes() {
           element: (
             <Lazy>
               <Profile />
+            </Lazy>
+          ),
+        },
+        {
+          path: 'sub-accounts',
+          element: (
+            <Lazy>
+              <SubAccountList />
             </Lazy>
           ),
         },

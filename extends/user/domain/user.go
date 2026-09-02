@@ -10,6 +10,8 @@ type User struct {
 	Email    string `json:"email"`
 	Avatar   string `json:"avatar"`
 	Status   int    `json:"status"` // 1=启用 0=禁用
+	// ParentID 子账户的父账户 ID，nil 表示主账户（一级父子，子不能再建子）
+	ParentID *uint `json:"parent_id,omitempty"`
 	// RoleIDs/Roles 为「有效角色」= 直接分配 ∪ 部门继承（查询时合并，去重）
 	RoleIDs []uint  `json:"role_ids"`
 	Roles   []*Role `json:"roles,omitempty"`

@@ -191,20 +191,22 @@ const AdminLayout: React.FC = () => {
     window.location.href = '/login';
   };
 
+  const subAccountItem = {
+    key: '/sub-accounts',
+    icon: <UserOutlined />,
+    label: '子账户管理',
+  };
   const menuProps = {
     theme: (theme === 'dark' ? 'dark' : 'light') as 'dark' | 'light',
     mode: 'inline' as const,
-    // 会话级子路由（如 /agent/123）高亮父菜单：前缀匹配
     selectedKeys: [matchMenuPath(menuTree as MenuItem[], location.pathname) || location.pathname],
-    // 折叠时 openKeys 传 undefined 交给 rc-menu 内部悬停弹层接管：
-    // 受控 openKeys=[] 会压制 hover 展开，导致折叠后悬停看不到子菜单
     openKeys: collapsed ? undefined : openKeys,
     onOpenChange: (keys: string[]) => setOpenKeys(keys),
     onClick: ({ key }: { key: string }) => {
       navigate(key);
       setMobileDrawer(false);
     },
-    items: buildItems(menuTree as unknown as Record<string, unknown>[]) as any,
+    items: [...(buildItems(menuTree as unknown as Record<string, unknown>[]) as any), subAccountItem] as any,
   };
 
   const isSidebarDark = theme === 'dark';

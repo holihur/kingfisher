@@ -114,6 +114,27 @@ func (m *mockUserRepo) GetSessionVersion(ctx context.Context, id uint) (int, err
 	return 0, fmt.Errorf("not found")
 }
 
+func (m *mockUserRepo) FindSubAccounts(ctx context.Context, parentID uint) ([]domain.User, error) {
+	return nil, nil
+}
+
+func (m *mockUserRepo) FindDirectRoleIDs(ctx context.Context, userID uint) ([]uint, error) {
+	for _, d := range m.users {
+		if d.id == userID {
+			return d.roleIDs, nil
+		}
+	}
+	return nil, nil
+}
+
+func (m *mockUserRepo) CountSubAccounts(ctx context.Context, parentID uint) (int64, error) {
+	return 0, nil
+}
+
+func (m *mockUserRepo) GetPermCodesByRoleIDs(ctx context.Context, roleIDs []uint) ([]string, error) {
+	return nil, nil
+}
+
 func TestRegisterAndLogin(t *testing.T) {
 	repo := &mockUserRepo{users: map[string]*mockUserData{}}
 	mgr := jwt.NewJWTManager(config.JWTConfig{Secret: "test", AccessTTL: 1e12, RefreshTTL: 2e12, Issuer: "test"}, nil) // nanoseconds ≈ 16min/33min

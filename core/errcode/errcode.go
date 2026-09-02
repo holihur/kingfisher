@@ -77,6 +77,13 @@ const (
 	ErrAgentLLMError       = 11003
 	ErrAgentToolForbidden  = 11004
 	ErrAgentNoAPIKey       = 11005
+
+	// SubAccount 11100-11199
+	ErrSubAccountNotFound    = 11101
+	ErrSubAccountLimit       = 11102
+	ErrSubAccountNoPerm      = 11103
+	ErrSubAccountIsSub       = 11104
+	ErrSubAccountParentNotFound = 11105
 )
 
 //nolint:gosec // false positive — Chinese error messages
@@ -133,6 +140,11 @@ var errMsg = map[int]string{
 	ErrAgentLLMError:        "LLM 调用失败",
 	ErrAgentToolForbidden:   "无权调用该接口",
 	ErrAgentNoAPIKey:        "未配置 LLM API Key",
+	ErrSubAccountNotFound:       "子账户不存在",
+	ErrSubAccountLimit:          "子账户数量已达上限",
+	ErrSubAccountNoPerm:         "子账户权限超出父账户范围",
+	ErrSubAccountIsSub:          "子账户不能再创建子账户",
+	ErrSubAccountParentNotFound: "父账户不存在",
 }
 
 func Msg(code int) string {

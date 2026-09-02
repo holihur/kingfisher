@@ -63,10 +63,10 @@ func (r *UserRepo) FindAll(ctx context.Context, q *query.Query) ([]domain.User, 
 	var pos []userPO
 	base := r.db.WithContext(ctx).Model(&userPO{}).Preload("Roles").Preload("Departments")
 
-	// role_id 筛选 = 用户「拥有该角色」（有效角色 = 直接 ∪ 部门继承）。eq/in → 拥有任一；ne → 不拥有。
-	// department_id 筛选 = 用户「属于该部门」（user_departments 成员过滤）。
 	var roleVals, notRoleVals []any
 	var deptVals, notDeptVals []any
+	var parentIDVals []any
+	var parentIsNull, parentIsNotNull bool
 	rest := make([]query.Condition, 0, len(q.Filters))
 	for _, f := range q.Filters {
 		switch {
@@ -86,6 +86,22 @@ func (r *UserRepo) FindAll(ctx context.Context, q *query.Query) ([]domain.User, 
 			deptVals = append(deptVals, f.Value)
 		case f.Field == "department_id" && f.Op == query.OpNe:
 			notDeptVals = append(notDeptVals, f.Value)
+		case f.Field == "parent_id" && (f.Op == query.OpEq || f.Op == query.OpIn):
+			if arr, ok := f.Value.([]any); ok {
+				parentIDVals = append(parentIDVals, arr...)
+			} else {
+				parentIDVals = append(parentIDVals, f.Value)
+			}
+		case f.Field == "parent_id" && f.Op == query.OpNe:
+			parentIsNotNull = true
+		case f.Field == "is_sub_account" && f.Op == query.OpEq:
+			if v, ok := f.Value.(bool); ok && v {
+				parentIsNotNull = true
+			} else if v, ok := f.Value.(int); ok && v == 1 {
+				parentIsNotNull = true
+			} else {
+				parentIsNull = true
+			}
 		default:
 			rest = append(rest, f)
 		}
@@ -104,7 +120,15 @@ func (r *UserRepo) FindAll(ctx context.Context, q *query.Query) ([]domain.User, 
 	if len(notDeptVals) > 0 {
 		base = base.Where("NOT EXISTS (SELECT 1 FROM user_departments ud WHERE ud.user_id = users.id AND ud.department_id IN ?)", notDeptVals)
 	}
-	// 拷贝 Query，避免污染调用方；role_id/department_id 条件已由上方 EXISTS 处理，不再交给 q.Find
+	if len(parentIDVals) > 0 {
+		base = base.Where("parent_id IN ?", parentIDVals)
+	}
+	if parentIsNotNull {
+		base = base.Where("parent_id IS NOT NULL")
+	}
+	if parentIsNull {
+		base = base.Where("parent_id IS NULL")
+	}
 	q2 := *q
 	q2.Filters = rest
 
@@ -195,7 +219,7 @@ func (r *UserRepo) mergeDeptRoles(ctx context.Context, u *domain.User) error {
 }
 
 func (r *UserRepo) Create(ctx context.Context, u *domain.User) error {
-	po := userPO{Username: u.Username, Nickname: u.Nickname, Password: u.Password, Email: u.Email, Status: u.Status}
+	po := userPO{Username: u.Username, Nickname: u.Nickname, Password: u.Password, Email: u.Email, Status: u.Status, ParentID: u.ParentID}
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(&po).Error; err != nil {
 			return err
@@ -203,11 +227,9 @@ func (r *UserRepo) Create(ctx context.Context, u *domain.User) error {
 		u.ID = po.ID
 		u.CreatedAt = po.CreatedAt
 		u.UpdatedAt = po.UpdatedAt
-		// 写入 user_roles 关联
 		if err := r.setUserRoles(tx, po.ID, u.RoleIDs); err != nil {
 			return err
 		}
-		// 写入 user_departments 关联
 		return r.setUserDepartments(tx, po.ID, u.DeptIDs)
 	})
 	return err
@@ -307,4 +329,46 @@ func (r *UserRepo) GetSessionVersion(ctx context.Context, id uint) (int, error) 
 	var sv int
 	err := r.db.WithContext(ctx).Model(&userPO{}).Select("session_version").Where("id = ?", id).Scan(&sv).Error
 	return sv, err
+}
+
+func (r *UserRepo) FindSubAccounts(ctx context.Context, parentID uint) ([]domain.User, error) {
+	var pos []userPO
+	if err := r.db.WithContext(ctx).Where("parent_id = ?", parentID).Preload("Roles").Preload("Departments").Find(&pos).Error; err != nil {
+		return nil, err
+	}
+	users := make([]domain.User, len(pos))
+	for i, p := range pos {
+		users[i] = *p.toDomain()
+	}
+	if err := r.attachDeptRoles(ctx, users); err != nil {
+		return nil, err
+	}
+	return users, nil
+}
+
+func (r *UserRepo) FindDirectRoleIDs(ctx context.Context, userID uint) ([]uint, error) {
+	var ids []uint
+	if err := r.db.WithContext(ctx).Table("user_roles").Where("user_id = ?", userID).Pluck("role_id", &ids).Error; err != nil {
+		return nil, err
+	}
+	return ids, nil
+}
+
+func (r *UserRepo) CountSubAccounts(ctx context.Context, parentID uint) (int64, error) {
+	var c int64
+	if err := r.db.WithContext(ctx).Model(&userPO{}).Where("parent_id = ?", parentID).Count(&c).Error; err != nil {
+		return 0, err
+	}
+	return c, nil
+}
+
+func (r *UserRepo) GetPermCodesByRoleIDs(ctx context.Context, roleIDs []uint) ([]string, error) {
+	if len(roleIDs) == 0 {
+		return nil, nil
+	}
+	var codes []string
+	err := r.db.WithContext(ctx).Table("permissions p").
+		Joins("JOIN role_permissions rp ON p.id = rp.permission_id").
+		Where("rp.role_id IN ?", roleIDs).Distinct("p.code").Pluck("p.code", &codes).Error
+	return codes, err
 }

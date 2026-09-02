@@ -9,13 +9,14 @@ import (
 )
 
 type userPO struct {
-	ID             uint `gorm:"primaryKey"`
+	ID             uint  `gorm:"primaryKey"`
 	Username       string
 	Nickname       string
 	Password       string
 	Email          string
 	Avatar         string
 	Status         int
+	ParentID       *uint `gorm:"index"`
 	Roles          []rolePO       `gorm:"many2many:user_roles;joinForeignKey:UserID;joinReferences:RoleID"`
 	Departments    []departmentPO `gorm:"many2many:user_departments;joinForeignKey:UserID;joinReferences:DepartmentID"`
 	SessionVersion int
@@ -38,8 +39,8 @@ func (p userPO) toDomain() *domain.User {
 	u := &domain.User{
 		ID: p.ID, Username: p.Username, Nickname: p.Nickname, Password: p.Password,
 		Email: p.Email, Avatar: p.Avatar, Status: p.Status,
-		SessionVersion: p.SessionVersion,
-		CreatedAt:      p.CreatedAt, UpdatedAt: p.UpdatedAt,
+		ParentID: p.ParentID, SessionVersion: p.SessionVersion,
+		CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt,
 	}
 	for _, r := range p.Roles {
 		u.RoleIDs = append(u.RoleIDs, r.ID)

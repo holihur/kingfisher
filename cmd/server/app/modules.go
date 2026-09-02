@@ -48,6 +48,7 @@ func buildModules(db *gorm.DB, rdb *redis.Client, redisCache cache.Cache, jwtMgr
 	auditMod := auditTransport.NewAuditModule(db)
 	rbacSvc := rbacTransport.NewRoleService(db, redisCache)
 	userMod := userTransport.NewUserModule(db, redisCache, jwtMgr, rbacSvc.GetUserPermissions, cfg.RateLimit.LoginPerMinute)
+	userMod.InjectPermProvider(rbacSvc.GetUserPermissions)
 	userMod.InjectAuditLogger(userTransport.AuditLogger(auditMod.AuditLogCallback()))
 	userMod.InjectAuditService(auditMod.Service())
 	userMod.InjectLandingPageProvider(rbacSvc.GetRoleLandingPage)
