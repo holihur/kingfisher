@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Form, Input, Button, App, AutoComplete, Checkbox, Avatar } from 'antd';
-import { UserOutlined, LockOutlined, CloseOutlined } from '@ant-design/icons';
+import { Form, Input, Button, App, AutoComplete, Checkbox, Avatar, Select, Space } from 'antd';
+import { UserOutlined, LockOutlined, CloseOutlined, SafetyOutlined } from '@ant-design/icons';
 import { useAuthStore } from '../../stores/auth';
 import { useThemeToken } from '../../hooks/useThemeToken';
 import { loadAccounts, saveAccount, removeAccount, purgeStoredPasswords } from '../../utils/remember';
@@ -35,19 +35,68 @@ const LoginPage: React.FC = () => {
   }, []);
 
   const redirectTo = searchParams.get('redirect');
+  const [mfaToken, setMfaToken] = useState<string | null>(null);
+  const [mfaMethods, setMfaMethods] = useState<string[]>([]);
+  const [mfaMethod, setMfaMethod] = useState<string>('totp');
+  const [mfaCode, setMfaCode] = useState('');
+  const [mfaLoading, setMfaLoading] = useState(false);
+  const [sending, setSending] = useState(false);
 
   const onFinish = async (values: { username: string; password: string }) => {
     setLoading(true);
     try {
       await login(values.username, values.password);
       message.success('登录成功');
-      // 仅记住用户名，不保存密码（安全）；清理历史残留密码数据
       if (rememberAccount) saveAccount(values.username);
       purgeStoredPasswords();
       navigate(redirectTo || useAuthStore.getState().landingPage || '/dashboard');
-    } catch {
+    } catch (e: unknown) {
+      const err = e as { mfa_token?: string; methods?: string[]; message?: string; code?: number };
+      if (err?.mfa_token) {
+        setMfaToken(err.mfa_token);
+        const methods = err.methods && err.methods.length ? err.methods : ['totp', 'sms', 'email', 'backup'];
+        setMfaMethods(methods);
+        setMfaMethod(methods[0] || 'totp');
+        message.info('请输入二次验证码');
+      } else if (err?.code === 11206 || err?.message === 'mfa_setup_required') {
+        message.warning('账户要求启用二次验证，请联系管理员或先完成绑定');
+      }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleMFAVerify = async () => {
+    if (!mfaToken || !mfaCode) {
+      message.error('请输入验证码');
+      return;
+    }
+    setMfaLoading(true);
+    try {
+      await useAuthStore.getState().mfaVerify(mfaToken, mfaMethod, mfaCode);
+      message.success('登录成功');
+      const savedUser = form.getFieldValue('username') as string;
+      if (rememberAccount && savedUser) saveAccount(savedUser);
+      purgeStoredPasswords();
+      navigate(redirectTo || useAuthStore.getState().landingPage || '/dashboard');
+    } catch {
+      message.error('验证码错误');
+    } finally {
+      setMfaLoading(false);
+    }
+  };
+
+  const handleSendCode = async () => {
+    if (!mfaToken) return;
+    setSending(true);
+    try {
+      const { authApi } = await import('../../api/auth');
+      await authApi.mfaSend({ mfa_token: mfaToken, method: mfaMethod });
+      message.success('验证码已发送');
+    } catch {
+      message.error('发送失败');
+    } finally {
+      setSending(false);
     }
   };
 
@@ -147,23 +196,40 @@ const LoginPage: React.FC = () => {
             </>
           ) : (
             <>
-              <h2 style={{ fontSize: 18, fontWeight: 500, marginBottom: 28 }}>登录</h2>
-              <Form form={form} onFinish={onFinish} size="large">
-                <Form.Item name="username" rules={[{ required: true, message: '请输入用户名' }]}>
-                  <AutoComplete options={accountOptions} style={{ width: '100%' }}>
-                    <Input prefix={<UserOutlined />} placeholder="用户名" />
-                  </AutoComplete>
-                </Form.Item>
-                <Form.Item name="password" rules={[{ required: true, message: '请输入密码' }]}>
-                  <Input.Password prefix={<LockOutlined />} placeholder="密码" />
-                </Form.Item>
-                <Form.Item style={{ marginBottom: 24 }}>
-                  <Checkbox checked={rememberAccount} onChange={e => setRememberAccount(e.target.checked)}>记住账户</Checkbox>
-                </Form.Item>
-                <Form.Item style={{ marginBottom: 0 }}>
-                  <Button type="primary" htmlType="submit" loading={loading} block>登录</Button>
-                </Form.Item>
-              </Form>
+              <h2 style={{ fontSize: 18, fontWeight: 500, marginBottom: 28 }}>{mfaToken ? '二次验证' : '登录'}</h2>
+              {mfaToken ? (
+                <div>
+                  <div style={{ marginBottom: 16, color: token.colorTextTertiary, fontSize: 13 }}>账户已启用二次验证，请输入验证码</div>
+                  <Space.Compact style={{ width: '100%', marginBottom: 16 }}>
+                    <Select value={mfaMethod} onChange={setMfaMethod} style={{ width: 120 }} options={mfaMethods.map(m => ({ label: m === 'totp' ? 'TOTP' : m === 'sms' ? '短信' : m === 'email' ? '邮箱' : m === 'backup' ? '备用码' : m, value: m }))} />
+                    <Input prefix={<SafetyOutlined />} placeholder="6 位验证码或备用码" value={mfaCode} onChange={e => setMfaCode(e.target.value)} onPressEnter={handleMFAVerify} style={{ flex: 1 }} />
+                  </Space.Compact>
+                  {(mfaMethod === 'sms' || mfaMethod === 'email') && (
+                    <Button onClick={handleSendCode} loading={sending} block style={{ marginBottom: 12 }}>发送验证码</Button>
+                  )}
+                  <Space style={{ width: '100%' }}>
+                    <Button onClick={() => { setMfaToken(null); setMfaCode(''); }} block>返回</Button>
+                    <Button type="primary" onClick={handleMFAVerify} loading={mfaLoading} block>验证并登录</Button>
+                  </Space>
+                </div>
+              ) : (
+                <Form form={form} onFinish={onFinish} size="large">
+                  <Form.Item name="username" rules={[{ required: true, message: '请输入用户名' }]}>
+                    <AutoComplete options={accountOptions} style={{ width: '100%' }}>
+                      <Input prefix={<UserOutlined />} placeholder="用户名" />
+                    </AutoComplete>
+                  </Form.Item>
+                  <Form.Item name="password" rules={[{ required: true, message: '请输入密码' }]}>
+                    <Input.Password prefix={<LockOutlined />} placeholder="密码" />
+                  </Form.Item>
+                  <Form.Item style={{ marginBottom: 24 }}>
+                    <Checkbox checked={rememberAccount} onChange={e => setRememberAccount(e.target.checked)}>记住账户</Checkbox>
+                  </Form.Item>
+                  <Form.Item style={{ marginBottom: 0 }}>
+                    <Button type="primary" htmlType="submit" loading={loading} block>登录</Button>
+                  </Form.Item>
+                </Form>
+              )}
 
               <div style={{ marginTop: 24, textAlign: 'center', fontSize: 13, color: token.colorTextTertiary }}>
                 {accounts.length > 0 && (

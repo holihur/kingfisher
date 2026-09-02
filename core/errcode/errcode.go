@@ -84,6 +84,16 @@ const (
 	ErrSubAccountNoPerm      = 11103
 	ErrSubAccountIsSub       = 11104
 	ErrSubAccountParentNotFound = 11105
+
+	// MFA 11200-11299
+	ErrMFARequired      = 11201
+	ErrMFACodeInvalid   = 11202
+	ErrMFACodeExpired   = 11203
+	ErrMFANotEnabled    = 11204
+	ErrMFAAlreadyEnabled = 11205
+	ErrMFASetupRequired = 11206
+	ErrMFABackupInvalid = 11207
+	ErrMFASendTooFrequent = 11208
 )
 
 //nolint:gosec // false positive — Chinese error messages
@@ -145,6 +155,14 @@ var errMsg = map[int]string{
 	ErrSubAccountNoPerm:         "子账户权限超出父账户范围",
 	ErrSubAccountIsSub:          "子账户不能再创建子账户",
 	ErrSubAccountParentNotFound: "父账户不存在",
+	ErrMFARequired:           "需要二次验证",
+	ErrMFACodeInvalid:        "验证码错误",
+	ErrMFACodeExpired:        "验证码已过期",
+	ErrMFANotEnabled:         "未启用二次验证",
+	ErrMFAAlreadyEnabled:     "已启用二次验证",
+	ErrMFASetupRequired:      "请先完成二次验证绑定",
+	ErrMFABackupInvalid:      "备用码无效",
+	ErrMFASendTooFrequent:    "发送过于频繁，请稍后重试",
 }
 
 func Msg(code int) string {
@@ -170,7 +188,7 @@ func HTTPStatus(code int) int {
 		return 404
 	case code == 10008:
 		return 405
-	case code == 10001 || (code >= 10100 && code < 11100):
+	case code == 10001 || (code >= 10100 && code < 11300):
 		return 400
 	default:
 		return 500

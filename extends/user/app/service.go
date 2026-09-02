@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -18,20 +19,32 @@ import (
 	"kingfisher/extends/user/port"
 )
 
+var ErrMFARequired = errors.New("mfa_required")
+var ErrMFASetupRequired = errors.New("mfa_setup_required")
+
 type AuthService struct {
 	repo   port.UserRepository
 	cache  cache.Cache
 	jwtMgr *jwt.JWTManager
-	// getLandingPage 返回角色落地页（登录后跳转的页面），由 cmd 注入
 	getLandingPage func(ctx context.Context, roleID uint) (string, error)
-	// getConfig 读取系统配置值，由 cmd 注入（注册开关、默认注册角色）
 	getConfig func(ctx context.Context, key string) (string, error)
-	// sendEmail 发送邮件（异步入队），由 cmd 注入 email producer
 	sendEmail func(ctx context.Context, to, subject, body string) error
-	// renderTemplate 按模板 code 渲染主题与正文（含 {{var}} 替换），由 cmd 注入
 	renderTemplate func(ctx context.Context, code string, vars map[string]string) (subject, body string, err error)
-	// resetTokenTTL 密码重置 token 有效期（30 分钟）
 	resetTokenTTL time.Duration
+	mfaSvc *MFAService
+}
+
+type MFARequiredError struct {
+	Token         string
+	Methods       []string
+	SetupRequired bool
+}
+
+func (e *MFARequiredError) Error() string {
+	if e.SetupRequired {
+		return "mfa_setup_required"
+	}
+	return "mfa_required"
 }
 
 func NewAuthService(repo port.UserRepository, c cache.Cache, j *jwt.JWTManager) *AuthService {
@@ -145,9 +158,16 @@ func (s *AuthService) SetLandingPageProvider(fn func(ctx context.Context, roleID
 	s.getLandingPage = fn
 }
 
-// SetConfigProvider 注入系统配置查询函数。
 func (s *AuthService) SetConfigProvider(fn func(ctx context.Context, key string) (string, error)) {
 	s.getConfig = fn
+}
+
+func (s *AuthService) SetMFAService(m *MFAService) {
+	s.mfaSvc = m
+	if m != nil {
+		m.SetConfigProvider(s.getConfig)
+		m.SetEmailSender(s.sendEmail)
+	}
 }
 
 func (s *AuthService) Register(ctx context.Context, username, password, email string) (*domain.User, error) {
@@ -212,12 +232,24 @@ func (s *AuthService) Login(ctx context.Context, username, password string) (str
 		return "", "", nil, "", fmt.Errorf("user disabled")
 	}
 
-	// Clear fail count
 	if s.cache != nil {
 		_ = s.cache.Delete(ctx, "login_fail:"+username)
 	}
-
-	// 收集所有角色的 ID 与 code（多角色权限/菜单取并集）
+	if s.mfaSvc != nil && s.mfaSvc.IsMFARequired(ctx, user) {
+		status, _ := s.repo.GetMFAStatus(ctx, user.ID)
+		var methods []string
+		if status != nil {
+			methods = status.Methods
+		}
+		if len(methods) == 0 {
+			return "", "", nil, "", &MFARequiredError{Token: "", Methods: nil, SetupRequired: true}
+		}
+		token, err := s.mfaSvc.GenerateMFAToken(ctx, user.ID)
+		if err != nil {
+			return "", "", nil, "", err
+		}
+		return "", "", nil, "", &MFARequiredError{Token: token, Methods: methods}
+	}
 	var roleIDs []uint
 	var roleCodes []string
 	for _, r := range user.Roles {
@@ -225,14 +257,12 @@ func (s *AuthService) Login(ctx context.Context, username, password string) (str
 		roleCodes = append(roleCodes, r.Code)
 	}
 	if len(roleIDs) == 0 {
-		// 兜底：不应发生（用户至少一个角色），避免生成空角色 token
 		return "", "", nil, "", fmt.Errorf("user has no roles")
 	}
 	access, refresh, err := s.jwtMgr.GenerateToken(ctx, user.ID, roleIDs, roleCodes, user.Username, user.SessionVersion)
 	if err != nil {
 		return "", "", nil, "", err
 	}
-	// 查询角色落地页（登录后跳转页面），取第一个角色的
 	landing := ""
 	if s.getLandingPage != nil {
 		if lp, e := s.getLandingPage(ctx, roleIDs[0]); e == nil {
@@ -241,6 +271,69 @@ func (s *AuthService) Login(ctx context.Context, username, password string) (str
 	}
 	user.Password = ""
 	return access, refresh, user, landing, nil
+}
+
+func (s *AuthService) VerifyMFA(ctx context.Context, mfaToken, method, code string) (string, string, *domain.User, string, error) {
+	if s.mfaSvc == nil {
+		return "", "", nil, "", fmt.Errorf("mfa not enabled")
+	}
+	uid, err := s.mfaSvc.ResolveMFAToken(ctx, mfaToken)
+	if err != nil {
+		return "", "", nil, "", fmt.Errorf("invalid mfa token")
+	}
+	user, err := s.repo.FindByID(ctx, uid)
+	if err != nil {
+		return "", "", nil, "", err
+	}
+	if user.Status != 1 {
+		return "", "", nil, "", fmt.Errorf("user disabled")
+	}
+	if !s.mfaSvc.VerifyLogin(ctx, uid, method, code) {
+		return "", "", nil, "", fmt.Errorf("invalid mfa code")
+	}
+	s.mfaSvc.ConsumeMFAToken(ctx, mfaToken)
+	var roleIDs []uint
+	var roleCodes []string
+	for _, r := range user.Roles {
+		roleIDs = append(roleIDs, r.ID)
+		roleCodes = append(roleCodes, r.Code)
+	}
+	if len(roleIDs) == 0 {
+		return "", "", nil, "", fmt.Errorf("user has no roles")
+	}
+	access, refresh, err := s.jwtMgr.GenerateToken(ctx, user.ID, roleIDs, roleCodes, user.Username, user.SessionVersion)
+	if err != nil {
+		return "", "", nil, "", err
+	}
+	landing := ""
+	if s.getLandingPage != nil {
+		if lp, e := s.getLandingPage(ctx, roleIDs[0]); e == nil {
+			landing = lp
+		}
+	}
+	user.Password = ""
+	if s.cache != nil {
+		_ = s.cache.Delete(ctx, "login_fail:"+user.Username)
+	}
+	return access, refresh, user, landing, nil
+}
+
+func (s *AuthService) SendMFACode(ctx context.Context, mfaToken, method string) error {
+	if s.mfaSvc == nil {
+		return fmt.Errorf("mfa not enabled")
+	}
+	uid, err := s.mfaSvc.ResolveMFAToken(ctx, mfaToken)
+	if err != nil {
+		return err
+	}
+	switch method {
+	case "sms":
+		return s.mfaSvc.SendSMSCode(ctx, uid)
+	case "email":
+		return s.mfaSvc.SendEmailCode(ctx, uid)
+	default:
+		return fmt.Errorf("unsupported method")
+	}
 }
 
 func (s *AuthService) RevokeToken(ctx context.Context, tokenStr string) error {

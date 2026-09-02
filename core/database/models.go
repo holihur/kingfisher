@@ -17,10 +17,16 @@ type UserPO struct {
 	Nickname       string `gorm:"size:64"`
 	Password       string `gorm:"size:128;not null"`
 	Email          string `gorm:"size:128"`
+	Phone          string `gorm:"size:32"`
 	Avatar         string `gorm:"size:255"`
 	Status         int    `gorm:"default:1"`
 	SessionVersion int    `gorm:"default:1"`
-	ParentID       *uint  `gorm:"index"` // 子账户的父账户 ID，NULL 表示主账户
+	ParentID       *uint  `gorm:"index"`
+	MFATOTPSecret  string `gorm:"size:64"`
+	MFATOTPEnabled bool   `gorm:"default:false"`
+	MFASMSEnabled  bool   `gorm:"default:false"`
+	MFAEmailEnabled bool  `gorm:"default:false"`
+	MFABackupCodes string `gorm:"type:text"`
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
 	DeletedAt      gorm.DeletedAt `gorm:"index"`

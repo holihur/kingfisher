@@ -135,6 +135,26 @@ func (m *mockUserRepo) GetPermCodesByRoleIDs(ctx context.Context, roleIDs []uint
 	return nil, nil
 }
 
+func (m *mockUserRepo) GetMFAStatus(ctx context.Context, userID uint) (*domain.MFAStatus, error) {
+	return &domain.MFAStatus{}, nil
+}
+
+func (m *mockUserRepo) GetMFASecret(ctx context.Context, userID uint) (string, error) {
+	return "", nil
+}
+
+func (m *mockUserRepo) SetMFASecret(ctx context.Context, userID uint, secret string) error {
+	return nil
+}
+
+func (m *mockUserRepo) GetBackupCodes(ctx context.Context, userID uint) (string, error) {
+	return "", nil
+}
+
+func (m *mockUserRepo) SetBackupCodes(ctx context.Context, userID uint, codes string) error {
+	return nil
+}
+
 func TestRegisterAndLogin(t *testing.T) {
 	repo := &mockUserRepo{users: map[string]*mockUserData{}}
 	mgr := jwt.NewJWTManager(config.JWTConfig{Secret: "test", AccessTTL: 1e12, RefreshTTL: 2e12, Issuer: "test"}, nil) // nanoseconds ≈ 16min/33min

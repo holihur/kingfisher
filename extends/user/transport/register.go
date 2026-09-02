@@ -22,6 +22,7 @@ type UserModule struct {
 	authHandler    *AuthHandler
 	userHandler    *UserHandler
 	userSvc        *app.UserService
+	mfaSvc         *app.MFAService
 	cache          cache.Cache
 	authSvc        *app.AuthService
 	loginPerMinute int
@@ -31,15 +32,22 @@ func NewUserModule(db *gorm.DB, c cache.Cache, jwtMgr *jwt.JWTManager, getUserPe
 	repo := adapter.NewUserRepo(db)
 	authSvc := app.NewAuthService(repo, c, jwtMgr)
 	userSvc := app.NewUserService(repo, c)
+	mfaSvc := app.NewMFAService(repo, c)
+	authSvc.SetMFAService(mfaSvc)
+	userSvc.SetPermProvider(getUserPerms)
 	uh := NewUserHandler(userSvc)
 	uh.getUserPerms = getUserPerms
+	uh.SetMFAService(mfaSvc)
+	ah := NewAuthHandler(authSvc)
+	ah.SetMFAService(mfaSvc)
 	if loginPerMinute <= 0 {
-		loginPerMinute = 5 // 默认与旧行为一致
+		loginPerMinute = 5
 	}
 	return &UserModule{
-		authHandler:    NewAuthHandler(authSvc),
+		authHandler:    ah,
 		userHandler:    uh,
 		userSvc:        userSvc,
+		mfaSvc:         mfaSvc,
 		cache:          c,
 		authSvc:        authSvc,
 		loginPerMinute: loginPerMinute,
@@ -57,14 +65,18 @@ func (m *UserModule) InjectLandingPageProvider(fn func(ctx context.Context, role
 	m.authSvc.SetLandingPageProvider(fn)
 }
 
-// InjectConfigProvider 注入系统配置查询函数（注册开关、默认注册角色）。
 func (m *UserModule) InjectConfigProvider(fn func(ctx context.Context, key string) (string, error)) {
 	m.authSvc.SetConfigProvider(fn)
+	if m.mfaSvc != nil {
+		m.mfaSvc.SetConfigProvider(fn)
+	}
 }
 
-// InjectEmailSender 注入邮件发送函数（找回密码等异步入队）。
 func (m *UserModule) InjectEmailSender(fn func(ctx context.Context, to, subject, body string) error) {
 	m.authSvc.SetEmailSender(fn)
+	if m.mfaSvc != nil {
+		m.mfaSvc.SetEmailSender(fn)
+	}
 }
 
 // InjectTemplateRenderer 注入模板渲染函数（找回密码邮件按模板渲染）。
@@ -88,6 +100,8 @@ func (m *UserModule) RegisterPublic(r *gin.RouterGroup) {
 	auth := r.Group("/auth")
 	auth.POST("/register", m.authHandler.Register)
 	auth.POST("/login", middleware.RateLimit(m.cache, m.loginPerMinute, time.Minute), m.authHandler.Login)
+	auth.POST("/mfa/verify", m.authHandler.MFAVerify)
+	auth.POST("/mfa/send", m.authHandler.MFASend)
 	auth.POST("/refresh", m.authHandler.Refresh)
 	auth.POST("/logout", m.authHandler.Logout)
 	auth.POST("/forgot-password", middleware.RateLimit(m.cache, 5, time.Minute), m.authHandler.ForgotPassword)
@@ -103,11 +117,23 @@ func (m *UserModule) RegisterProtected(r *gin.RouterGroup) {
 	users.GET("/me/login-logs", m.userHandler.GetMyLoginLogs)
 	users.POST("/me/avatar", m.userHandler.UploadAvatar)
 	users.PUT("/me/password", m.userHandler.ChangePassword)
+	users.GET("/me/mfa/status", m.userHandler.GetMFAStatus)
+	users.POST("/me/mfa/totp/setup", m.userHandler.SetupTOTP)
+	users.POST("/me/mfa/totp/verify", m.userHandler.VerifyTOTP)
+	users.DELETE("/me/mfa/totp", m.userHandler.DisableTOTP)
+	users.POST("/me/mfa/sms/send", m.userHandler.SendSMSForMFA)
+	users.POST("/me/mfa/sms/verify", m.userHandler.VerifySMS)
+	users.DELETE("/me/mfa/sms", m.userHandler.DisableSMS)
+	users.POST("/me/mfa/email/send", m.userHandler.SendEmailForMFA)
+	users.POST("/me/mfa/email/verify", m.userHandler.VerifyEmail)
+	users.DELETE("/me/mfa/email", m.userHandler.DisableEmail)
 	users.POST("/me/sub-accounts", m.userHandler.CreateSubAccount)
 	users.GET("/me/sub-accounts", m.userHandler.ListSubAccounts)
 	users.PUT("/me/sub-accounts/:id", m.userHandler.UpdateSubAccount)
 	users.DELETE("/me/sub-accounts/:id", m.userHandler.DeleteSubAccount)
 	users.GET("/sub-accounts", rbacTransport.RequirePerm("user:list"), m.userHandler.AdminListSubAccounts)
+	users.GET("/:id/mfa/status", rbacTransport.RequirePerm("user:list"), m.userHandler.AdminGetMFAStatus)
+	users.DELETE("/:id/mfa/reset", rbacTransport.RequirePerm("user:update"), m.userHandler.AdminResetMFA)
 	users.GET("/:id", rbacTransport.RequirePerm("user:list"), m.userHandler.GetByID)
 	users.PUT("/:id", rbacTransport.RequirePerm("user:update"), m.userHandler.Update)
 	users.GET("", rbacTransport.RequirePerm("user:list"), m.userHandler.List)

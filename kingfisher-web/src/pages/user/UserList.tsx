@@ -17,11 +17,16 @@ interface UserRow {
   nickname?: string;
   avatar?: string;
   email: string;
+  phone?: string;
   role_ids?: number[];
   roles?: { id: number; name: string }[];
   direct_role_ids?: number[];
   dept_ids?: number[];
   parent_id?: number | null;
+  mfa_enabled?: boolean;
+  mfa_totp_enabled?: boolean;
+  mfa_sms_enabled?: boolean;
+  mfa_email_enabled?: boolean;
   status: number;
   created_at: string;
   updated_at: string;
@@ -138,6 +143,12 @@ const UserList: React.FC = () => {
         r.parent_id ? <Tag color="purple">子账户</Tag> : <Tag color="blue">主账户</Tag>,
     },
     {
+      title: 'MFA',
+      width: 90,
+      render: (_: unknown, r: UserRow) =>
+        r.mfa_enabled ? <Tag color="green">已启用</Tag> : <Tag>未启用</Tag>,
+    },
+    {
       title: '角色',
       dataIndex: 'role_ids',
       width: 200,
@@ -189,6 +200,20 @@ const UserList: React.FC = () => {
           >
             <EditOutlined /> 编辑
           </a>
+        ) : null,
+        hasPerm('user:update') && r.mfa_enabled ? (
+          <Popconfirm
+            key="resetMFA"
+            title="重置二次验证"
+            description={`确定重置用户「${r.username}」的二次验证吗？`}
+            onConfirm={async () => {
+              await userApi.adminResetMFA(r.id);
+              message.success('已重置 MFA');
+              setRefreshKey((k) => k + 1);
+            }}
+          >
+            <a style={{ color: '#faad14' }}>重置MFA</a>
+          </Popconfirm>
         ) : null,
         hasPerm('user:delete') ? (
           <Popconfirm

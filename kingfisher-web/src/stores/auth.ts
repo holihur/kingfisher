@@ -9,11 +9,10 @@ interface AuthState {
   userInfo: Record<string, unknown> | null;
   permissions: string[];
   isLoggedIn: boolean;
-  /** 用户信息/权限是否已加载（刷新后先拉取再渲染路由，避免权限误判） */
   userLoaded: boolean;
-  /** 角色落地页（登录后跳转的页面） */
   landingPage: string;
   login: (u: string, p: string) => Promise<void>;
+  mfaVerify: (mfa_token: string, method: string, code: string) => Promise<void>;
   logout: () => void;
   fetchUserInfo: () => Promise<void>;
 }
@@ -27,7 +26,37 @@ export const useAuthStore = create<AuthState>((set) => ({
   userLoaded: false,
   landingPage: '',
   login: async (username, password) => {
-    const resp = await authApi.login({ username, password });
+    const resp: Record<string, unknown> = await authApi.login({ username, password }) as unknown as Record<string, unknown>;
+    if ((resp as { code?: number }).code === 11201 || (resp as { code?: number }).code === 11206) {
+      const data = (resp as { data?: Record<string, unknown> }).data || {};
+      const err = new Error((resp as { code?: number }).code === 11206 ? 'mfa_setup_required' : 'mfa_required') as Error & { mfa_token?: string; methods?: string[]; code?: number };
+      err.mfa_token = data.mfa_token as string;
+      err.methods = (data.methods as string[]) || [];
+      err.code = (resp as { code?: number }).code;
+      throw err;
+    }
+    const { access_token, refresh_token, user, landing_page } = (resp.data as Record<string, unknown>) || (resp as Record<string, unknown>);
+    if (!access_token) {
+      const d = resp.data as Record<string, unknown> | undefined;
+      if (d && (d as { mfa_token?: string }).mfa_token) {
+        const err = new Error('mfa_required') as Error & { mfa_token?: string; methods?: string[] };
+        err.mfa_token = (d as { mfa_token?: string }).mfa_token;
+        err.methods = (d as { methods?: string[] }).methods;
+        throw err;
+      }
+      throw new Error('登录失败');
+    }
+    setTokens(access_token as string, refresh_token as string);
+    set({
+      token: access_token as string,
+      refreshToken: refresh_token as string,
+      userInfo: user as Record<string, unknown>,
+      isLoggedIn: true,
+      landingPage: (landing_page as string) || '',
+    });
+  },
+  mfaVerify: async (mfa_token: string, method: string, code: string) => {
+    const resp = await authApi.mfaVerify({ mfa_token, method, code });
     const { access_token, refresh_token, user, landing_page } = resp.data as Record<string, unknown>;
     setTokens(access_token as string, refresh_token as string);
     set({
@@ -36,8 +65,6 @@ export const useAuthStore = create<AuthState>((set) => ({
       userInfo: user as Record<string, unknown>,
       isLoggedIn: true,
       landingPage: (landing_page as string) || '',
-      // 注意：不设 userLoaded=true。权限需由 AuthGuard 的 fetchUserInfo 拉取完成后
-      // 才放行渲染子路由，避免 PermGuard 在空权限下误判 403。
     });
   },
   logout: () => {

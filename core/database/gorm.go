@@ -319,6 +319,10 @@ func SeedData(db *gorm.DB) error {
 			{Key: "watermark_extra", Value: "{username} {date}", Remark: "水印补充内容（支持 {username}/{date} 占位符，留空则仅水印文字）", IsPublic: true, Version: "1.0.0", Render: "text", GroupID: 2},
 			{Key: "agent_system_prompt", Value: "", Remark: "Agent 系统提示词（留空用默认；可覆盖以定制 agent 行为）", IsPublic: true, Version: "1.0.0", Render: "textarea", GroupID: 3},
 			{Key: "agent_allowed_methods", Value: "GET,POST,PUT,PATCH,DELETE", Remark: "Agent call_api 允许的 HTTP 方法白名单（多选；重启后生效）", IsPublic: true, Version: "1.0.0", Render: "select", RenderOptions: `{"multiple":true,"options":[{"label":"GET","value":"GET"},{"label":"POST","value":"POST"},{"label":"PUT","value":"PUT"},{"label":"PATCH","value":"PATCH"},{"label":"DELETE","value":"DELETE"}]}`, GroupID: 3},
+			{Key: "mfa_enforce", Value: "optional", Remark: "MFA 强制策略（optional=自选开启, all=全员强制, admin=仅管理员强制）", Version: "1.0.0", Render: "select", RenderOptions: `[{"label":"自选开启","value":"optional"},{"label":"全员强制","value":"all"},{"label":"仅管理员强制","value":"admin"}]`, GroupID: 2},
+			{Key: "mfa_allow_totp", Value: "true", Remark: "允许 TOTP 二次验证", Version: "1.0.0", Render: "switch", GroupID: 2},
+			{Key: "mfa_allow_sms", Value: "true", Remark: "允许短信二次验证", Version: "1.0.0", Render: "switch", GroupID: 2},
+			{Key: "mfa_allow_email", Value: "true", Remark: "允许邮箱二次验证", Version: "1.0.0", Render: "switch", GroupID: 2},
 		}
 		if err := tx.Create(&configs).Error; err != nil {
 			return fmt.Errorf("seed configs: %w", err)
@@ -507,6 +511,17 @@ func ensureWorkTaskSeed(db *gorm.DB) error {
 		for _, roleID := range []uint{1, 3, 4} {
 			if err := tx.FirstOrCreate(&RoleMenuPO{RoleID: roleID, MenuID: menu.ID}).Error; err != nil {
 				return fmt.Errorf("ensure worktask role menu: %w", err)
+			}
+		}
+		mfaConfigs := []SystemConfigPO{
+			{Key: "mfa_enforce", Value: "optional", Remark: "MFA 强制策略（optional=自选开启, all=全员强制, admin=仅管理员强制）", Version: "1.0.0", Render: "select", RenderOptions: `[{"label":"自选开启","value":"optional"},{"label":"全员强制","value":"all"},{"label":"仅管理员强制","value":"admin"}]`, GroupID: 2},
+			{Key: "mfa_allow_totp", Value: "true", Remark: "允许 TOTP 二次验证", Version: "1.0.0", Render: "switch", GroupID: 2},
+			{Key: "mfa_allow_sms", Value: "true", Remark: "允许短信二次验证", Version: "1.0.0", Render: "switch", GroupID: 2},
+			{Key: "mfa_allow_email", Value: "true", Remark: "允许邮箱二次验证", Version: "1.0.0", Render: "switch", GroupID: 2},
+		}
+		for _, cfg := range mfaConfigs {
+			if err := tx.Where("key = ?", cfg.Key).FirstOrCreate(&cfg).Error; err != nil {
+				return fmt.Errorf("ensure mfa config %s: %w", cfg.Key, err)
 			}
 		}
 		return nil

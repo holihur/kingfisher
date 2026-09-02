@@ -3,6 +3,7 @@ package transport
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -28,6 +29,7 @@ type AuditLogger func(ctx context.Context, userID uint, username, action, resour
 
 type AuthHandler struct {
 	svc      *app.AuthService
+	mfaSvc   *app.MFAService
 	auditLog AuditLogger
 }
 
@@ -36,17 +38,22 @@ type PermProvider func(ctx context.Context, userID uint) ([]string, error)
 
 type UserHandler struct {
 	svc          *app.UserService
-	getUserPerms PermProvider           // optional; when nil, falls back to svc.GetUserPermissions
-	auditSvc     *auditApp.AuditService // optional; for GetMyLoginLogs
+	mfaSvc       *app.MFAService
+	getUserPerms PermProvider
+	auditSvc     *auditApp.AuditService
 }
 
 func NewAuthHandler(svc *app.AuthService) *AuthHandler { return &AuthHandler{svc: svc} }
 
 func (h *AuthHandler) SetAuditLogger(fn AuditLogger) { h.auditLog = fn }
 
+func (h *AuthHandler) SetMFAService(m *app.MFAService) { h.mfaSvc = m }
+
 func NewUserHandler(svc *app.UserService) *UserHandler { return &UserHandler{svc: svc} }
 
 func (h *UserHandler) SetAuditService(auditSvc *auditApp.AuditService) { h.auditSvc = auditSvc }
+
+func (h *UserHandler) SetMFAService(m *app.MFAService) { h.mfaSvc = m }
 
 // ---------- request / response types ----------
 
@@ -117,6 +124,35 @@ type UpdateMeReq struct {
 	Email    string `json:"email" example:"admin@example.com"`
 	Nickname string `json:"nickname" example:"管理员"`
 	Avatar   string `json:"avatar"`
+	Phone    string `json:"phone" example:"13800138000"`
+}
+
+type MFAVerifyReq struct {
+	MFAToken string `json:"mfa_token" binding:"required"`
+	Method   string `json:"method" binding:"required" example:"totp"`
+	Code     string `json:"code" binding:"required" example:"123456"`
+}
+
+type MFASendReq struct {
+	MFAToken string `json:"mfa_token" binding:"required"`
+	Method   string `json:"method" binding:"required" example:"sms"`
+}
+
+type TOTPVerifyReq struct {
+	Code string `json:"code" binding:"required" example:"123456"`
+}
+
+type SMSSetupReq struct {
+	Phone string `json:"phone" binding:"required" example:"13800138000"`
+}
+
+type SMSVerifyReq struct {
+	Phone string `json:"phone" binding:"required"`
+	Code  string `json:"code" binding:"required"`
+}
+
+type EmailVerifyReq struct {
+	Code string `json:"code" binding:"required"`
 }
 
 // BatchUserOp is the request body for batch-delete and batch-status endpoints.
@@ -162,17 +198,6 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	response.OKJSON(c, user)
 }
 
-// Login 用户登录
-// @Summary 用户登录
-// @Description 使用用户名和密码登录，成功后返回 access/refresh token
-// @Tags Auth
-// @Accept json
-// @Produce json
-// @Param body body LoginReq true "登录请求"
-// @Success 200 {object} response.Response{data=LoginResp} "登录成功"
-// @Failure 400 {object} response.Response "参数错误"
-// @Failure 10103 {object} response.Response "用户名或密码错误"
-// @Router /auth/login [post]
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req LoginReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -181,12 +206,53 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 	access, refresh, user, landing, err := h.svc.Login(c.Request.Context(), req.Username, req.Password)
 	if err != nil {
+		var mfaErr *app.MFARequiredError
+		if errors.As(err, &mfaErr) {
+			if mfaErr.SetupRequired {
+				response.ErrorJSON(c, errcode.ErrMFASetupRequired)
+				return
+			}
+			response.JSON(c, &response.Response{Code: errcode.ErrMFARequired, Message: errcode.Msg(errcode.ErrMFARequired), Data: gin.H{"mfa_token": mfaErr.Token, "methods": mfaErr.Methods}})
+			return
+		}
 		h.auditLogin(c, 0, req.Username, "failure", "")
 		response.ErrorJSON(c, errcode.ErrPasswordWrong)
 		return
 	}
 	h.auditLogin(c, user.ID, req.Username, "success", "")
 	response.OKJSON(c, LoginResp{AccessToken: access, RefreshToken: refresh, User: *user, LandingPage: landing})
+}
+
+func (h *AuthHandler) MFAVerify(c *gin.Context) {
+	var req MFAVerifyReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	access, refresh, user, landing, err := h.svc.VerifyMFA(c.Request.Context(), req.MFAToken, req.Method, req.Code)
+	if err != nil {
+		response.ErrorJSON(c, errcode.ErrMFACodeInvalid)
+		return
+	}
+	h.auditLogin(c, user.ID, user.Username, "success", "mfa")
+	response.OKJSON(c, LoginResp{AccessToken: access, RefreshToken: refresh, User: *user, LandingPage: landing})
+}
+
+func (h *AuthHandler) MFASend(c *gin.Context) {
+	var req MFASendReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	if err := h.svc.SendMFACode(c.Request.Context(), req.MFAToken, req.Method); err != nil {
+		if err.Error() == "too frequent" {
+			response.ErrorJSON(c, errcode.ErrMFASendTooFrequent)
+			return
+		}
+		response.BadRequest(c, err.Error())
+		return
+	}
+	response.OKJSON(c, nil)
 }
 
 // Logout 退出登录
@@ -353,17 +419,6 @@ func (h *UserHandler) GetMe(c *gin.Context) {
 	response.OKJSON(c, user)
 }
 
-// UpdateMe 更新个人资料
-// @Summary 更新个人资料
-// @Description 当前用户更新自己的邮箱、昵称、头像
-// @Tags User
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param body body UpdateMeReq true "资料更新请求"
-// @Success 200 {object} response.Response{data=domain.User} "更新后的用户信息"
-// @Failure 400 {object} response.Response "参数错误"
-// @Router /users/me [put]
 func (h *UserHandler) UpdateMe(c *gin.Context) {
 	userID := c.GetUint("user_id")
 	var req UpdateMeReq
@@ -375,12 +430,223 @@ func (h *UserHandler) UpdateMe(c *gin.Context) {
 		response.InternalError(c)
 		return
 	}
+	if req.Phone != "" {
+		_ = h.svc.Update(c.Request.Context(), userID, map[string]any{"phone": req.Phone})
+	}
 	user, err := h.svc.GetByID(c.Request.Context(), userID)
 	if err != nil {
 		response.InternalError(c)
 		return
 	}
 	response.OKJSON(c, user)
+}
+
+func (h *UserHandler) GetMFAStatus(c *gin.Context) {
+	userID := c.GetUint("user_id")
+	if h.mfaSvc == nil {
+		response.OKJSON(c, gin.H{"enabled": false})
+		return
+	}
+	st, err := h.mfaSvc.GetStatus(c.Request.Context(), userID)
+	if err != nil {
+		response.InternalError(c)
+		return
+	}
+	response.OKJSON(c, st)
+}
+
+func (h *UserHandler) SetupTOTP(c *gin.Context) {
+	userID := c.GetUint("user_id")
+	if h.mfaSvc == nil {
+		response.InternalError(c)
+		return
+	}
+	info, err := h.mfaSvc.SetupTOTP(c.Request.Context(), userID)
+	if err != nil {
+		response.InternalError(c)
+		return
+	}
+	response.OKJSON(c, info)
+}
+
+func (h *UserHandler) VerifyTOTP(c *gin.Context) {
+	userID := c.GetUint("user_id")
+	var req TOTPVerifyReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	if h.mfaSvc == nil {
+		response.InternalError(c)
+		return
+	}
+	codes, err := h.mfaSvc.VerifyTOTPSetup(c.Request.Context(), userID, req.Code)
+	if err != nil {
+		response.ErrorJSON(c, errcode.ErrMFACodeInvalid)
+		return
+	}
+	response.OKJSON(c, gin.H{"backup_codes": codes})
+}
+
+func (h *UserHandler) DisableTOTP(c *gin.Context) {
+	userID := c.GetUint("user_id")
+	var req TOTPVerifyReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	if h.mfaSvc == nil {
+		response.InternalError(c)
+		return
+	}
+	if err := h.mfaSvc.DisableTOTP(c.Request.Context(), userID, req.Code); err != nil {
+		response.ErrorJSON(c, errcode.ErrMFACodeInvalid)
+		return
+	}
+	response.OKJSON(c, nil)
+}
+
+func (h *UserHandler) SendSMSForMFA(c *gin.Context) {
+	userID := c.GetUint("user_id")
+	var req SMSSetupReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		req.Phone = c.Query("phone")
+		if req.Phone == "" {
+			response.BadRequest(c, err.Error())
+			return
+		}
+	}
+	phone := req.Phone
+	if phone == "" {
+		u, _ := h.svc.GetByID(c.Request.Context(), userID)
+		if u != nil {
+			phone = u.Phone
+		}
+	}
+	if phone == "" {
+		response.BadRequest(c, "phone required")
+		return
+	}
+	_ = h.svc.Update(c.Request.Context(), userID, map[string]any{"phone": phone})
+	if h.mfaSvc == nil {
+		response.InternalError(c)
+		return
+	}
+	if err := h.mfaSvc.SendSMSCode(c.Request.Context(), userID); err != nil {
+		if err.Error() == "too frequent" {
+			response.ErrorJSON(c, errcode.ErrMFASendTooFrequent)
+			return
+		}
+		response.BadRequest(c, err.Error())
+		return
+	}
+	response.OKJSON(c, nil)
+}
+
+func (h *UserHandler) VerifySMS(c *gin.Context) {
+	userID := c.GetUint("user_id")
+	var req SMSVerifyReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	if h.mfaSvc == nil {
+		response.InternalError(c)
+		return
+	}
+	if err := h.mfaSvc.EnableSMS(c.Request.Context(), userID, req.Phone, req.Code); err != nil {
+		response.ErrorJSON(c, errcode.ErrMFACodeInvalid)
+		return
+	}
+	response.OKJSON(c, nil)
+}
+
+func (h *UserHandler) DisableSMS(c *gin.Context) {
+	userID := c.GetUint("user_id")
+	if h.mfaSvc == nil {
+		response.InternalError(c)
+		return
+	}
+	if err := h.mfaSvc.DisableSMS(c.Request.Context(), userID); err != nil {
+		response.InternalError(c)
+		return
+	}
+	response.OKJSON(c, nil)
+}
+
+func (h *UserHandler) SendEmailForMFA(c *gin.Context) {
+	userID := c.GetUint("user_id")
+	if h.mfaSvc == nil {
+		response.InternalError(c)
+		return
+	}
+	if err := h.mfaSvc.SendEmailCode(c.Request.Context(), userID); err != nil {
+		if err.Error() == "too frequent" {
+			response.ErrorJSON(c, errcode.ErrMFASendTooFrequent)
+			return
+		}
+		response.BadRequest(c, err.Error())
+		return
+	}
+	response.OKJSON(c, nil)
+}
+
+func (h *UserHandler) VerifyEmail(c *gin.Context) {
+	userID := c.GetUint("user_id")
+	var req EmailVerifyReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	if h.mfaSvc == nil {
+		response.InternalError(c)
+		return
+	}
+	if err := h.mfaSvc.EnableEmail(c.Request.Context(), userID, req.Code); err != nil {
+		response.ErrorJSON(c, errcode.ErrMFACodeInvalid)
+		return
+	}
+	response.OKJSON(c, nil)
+}
+
+func (h *UserHandler) DisableEmail(c *gin.Context) {
+	userID := c.GetUint("user_id")
+	if h.mfaSvc == nil {
+		response.InternalError(c)
+		return
+	}
+	if err := h.mfaSvc.DisableEmail(c.Request.Context(), userID); err != nil {
+		response.InternalError(c)
+		return
+	}
+	response.OKJSON(c, nil)
+}
+
+func (h *UserHandler) AdminGetMFAStatus(c *gin.Context) {
+	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
+	if h.mfaSvc == nil {
+		response.OKJSON(c, gin.H{"enabled": false})
+		return
+	}
+	st, err := h.mfaSvc.GetStatus(c.Request.Context(), uint(id))
+	if err != nil {
+		response.NotFound(c)
+		return
+	}
+	response.OKJSON(c, st)
+}
+
+func (h *UserHandler) AdminResetMFA(c *gin.Context) {
+	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
+	if h.mfaSvc == nil {
+		response.InternalError(c)
+		return
+	}
+	if err := h.mfaSvc.ResetMFA(c.Request.Context(), uint(id)); err != nil {
+		response.InternalError(c)
+		return
+	}
+	response.OKJSON(c, nil)
 }
 
 // GetMyPermissions 获取当前用户权限

@@ -9,20 +9,26 @@ import (
 )
 
 type userPO struct {
-	ID             uint  `gorm:"primaryKey"`
-	Username       string
-	Nickname       string
-	Password       string
-	Email          string
-	Avatar         string
-	Status         int
-	ParentID       *uint `gorm:"index"`
-	Roles          []rolePO       `gorm:"many2many:user_roles;joinForeignKey:UserID;joinReferences:RoleID"`
-	Departments    []departmentPO `gorm:"many2many:user_departments;joinForeignKey:UserID;joinReferences:DepartmentID"`
-	SessionVersion int
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
-	DeletedAt      gorm.DeletedAt `gorm:"index"`
+	ID              uint  `gorm:"primaryKey"`
+	Username        string
+	Nickname        string
+	Password        string
+	Email           string
+	Phone           string
+	Avatar          string
+	Status          int
+	ParentID        *uint `gorm:"index"`
+	MFATOTPSecret   string
+	MFATOTPEnabled  bool
+	MFASMSEnabled   bool
+	MFAEmailEnabled bool
+	MFABackupCodes  string `gorm:"type:text"`
+	Roles           []rolePO       `gorm:"many2many:user_roles;joinForeignKey:UserID;joinReferences:RoleID"`
+	Departments     []departmentPO `gorm:"many2many:user_departments;joinForeignKey:UserID;joinReferences:DepartmentID"`
+	SessionVersion  int
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+	DeletedAt       gorm.DeletedAt `gorm:"index"`
 }
 
 func (userPO) TableName() string { return "users" }
@@ -38,8 +44,10 @@ func (rolePO) TableName() string { return "roles" }
 func (p userPO) toDomain() *domain.User {
 	u := &domain.User{
 		ID: p.ID, Username: p.Username, Nickname: p.Nickname, Password: p.Password,
-		Email: p.Email, Avatar: p.Avatar, Status: p.Status,
+		Email: p.Email, Phone: p.Phone, Avatar: p.Avatar, Status: p.Status,
 		ParentID: p.ParentID, SessionVersion: p.SessionVersion,
+		MFATOTPEnabled: p.MFATOTPEnabled, MFASMSEnabled: p.MFASMSEnabled, MFAEmailEnabled: p.MFAEmailEnabled,
+		MFAEnabled: p.MFATOTPEnabled || p.MFASMSEnabled || p.MFAEmailEnabled,
 		CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt,
 	}
 	for _, r := range p.Roles {

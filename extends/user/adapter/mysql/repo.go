@@ -219,7 +219,7 @@ func (r *UserRepo) mergeDeptRoles(ctx context.Context, u *domain.User) error {
 }
 
 func (r *UserRepo) Create(ctx context.Context, u *domain.User) error {
-	po := userPO{Username: u.Username, Nickname: u.Nickname, Password: u.Password, Email: u.Email, Status: u.Status, ParentID: u.ParentID}
+	po := userPO{Username: u.Username, Nickname: u.Nickname, Password: u.Password, Email: u.Email, Phone: u.Phone, Status: u.Status, ParentID: u.ParentID}
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(&po).Error; err != nil {
 			return err
@@ -371,4 +371,85 @@ func (r *UserRepo) GetPermCodesByRoleIDs(ctx context.Context, roleIDs []uint) ([
 		Joins("JOIN role_permissions rp ON p.id = rp.permission_id").
 		Where("rp.role_id IN ?", roleIDs).Distinct("p.code").Pluck("p.code", &codes).Error
 	return codes, err
+}
+
+func (r *UserRepo) GetMFAStatus(ctx context.Context, userID uint) (*domain.MFAStatus, error) {
+	var po userPO
+	if err := r.db.WithContext(ctx).First(&po, userID).Error; err != nil {
+		return nil, err
+	}
+	s := &domain.MFAStatus{
+		TOTPEnabled:  po.MFATOTPEnabled,
+		SMSEnabled:   po.MFASMSEnabled,
+		EmailEnabled: po.MFAEmailEnabled,
+		Enabled:      po.MFATOTPEnabled || po.MFASMSEnabled || po.MFAEmailEnabled,
+		Phone:        po.Phone,
+		HasSecret:    po.MFATOTPSecret != "",
+	}
+	if po.MFABackupCodes != "" {
+		s.BackupCount = len(splitBackupCodes(po.MFABackupCodes))
+	}
+	var methods []string
+	if s.TOTPEnabled {
+		methods = append(methods, "totp")
+	}
+	if s.SMSEnabled {
+		methods = append(methods, "sms")
+	}
+	if s.EmailEnabled {
+		methods = append(methods, "email")
+	}
+	if len(methods) == 0 && s.HasSecret {
+		methods = append(methods, "totp_pending")
+	}
+	s.Methods = methods
+	return s, nil
+}
+
+func (r *UserRepo) GetMFASecret(ctx context.Context, userID uint) (string, error) {
+	var s string
+	err := r.db.WithContext(ctx).Model(&userPO{}).Select("mfa_totp_secret").Where("id = ?", userID).Scan(&s).Error
+	return s, err
+}
+
+func (r *UserRepo) SetMFASecret(ctx context.Context, userID uint, secret string) error {
+	return r.db.WithContext(ctx).Model(&userPO{}).Where("id = ?", userID).Update("mfa_totp_secret", secret).Error
+}
+
+func (r *UserRepo) GetBackupCodes(ctx context.Context, userID uint) (string, error) {
+	var s string
+	err := r.db.WithContext(ctx).Model(&userPO{}).Select("mfa_backup_codes").Where("id = ?", userID).Scan(&s).Error
+	return s, err
+}
+
+func (r *UserRepo) SetBackupCodes(ctx context.Context, userID uint, codes string) error {
+	return r.db.WithContext(ctx).Model(&userPO{}).Where("id = ?", userID).Update("mfa_backup_codes", codes).Error
+}
+
+func splitBackupCodes(s string) []string {
+	if s == "" {
+		return nil
+	}
+	var out []string
+	for _, p := range splitComma(s) {
+		if p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+func splitComma(s string) []string {
+	var res []string
+	cur := ""
+	for _, ch := range s {
+		if ch == ',' {
+			res = append(res, cur)
+			cur = ""
+		} else {
+			cur += string(ch)
+		}
+	}
+	res = append(res, cur)
+	return res
 }

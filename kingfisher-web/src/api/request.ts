@@ -49,6 +49,9 @@ request.interceptors.response.use(
   (response) => {
     const { code, message: msg } = response.data;
     if (code === 0) return response.data;
+    if (code === 11201 || code === 11206) {
+      return response.data;
+    }
     switch (code) {
       case 10104:
         return handleTokenRefresh(response.config);

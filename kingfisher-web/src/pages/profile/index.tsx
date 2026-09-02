@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Form, Input, Button, App, Descriptions, Tag, Menu, Upload, Table, Popconfirm, Dropdown, Spin, Empty, Space } from 'antd';
+import { Form, Input, Button, App, Descriptions, Tag, Menu, Upload, Table, Popconfirm, Dropdown, Spin, Empty, Space, Card, QRCode, Alert, InputNumber } from 'antd';
 import type { TableProps, UploadProps } from 'antd';
-import { UserOutlined, MailOutlined, LockOutlined, UploadOutlined, SolutionOutlined, KeyOutlined, FileTextOutlined, DownOutlined } from '@ant-design/icons';
+import { UserOutlined, MailOutlined, LockOutlined, UploadOutlined, SolutionOutlined, KeyOutlined, FileTextOutlined, DownOutlined, SafetyOutlined, MobileOutlined } from '@ant-design/icons';
 import PageCard from '../../components/PageCard';
 import { useThemeToken } from '../../hooks/useThemeToken';
 import { userApi } from '../../api/user';
@@ -251,6 +251,115 @@ const Profile: React.FC = () => {
     { title: 'UserAgent', dataIndex: 'user_agent', ellipsis: true },
   ];
 
+  const MFASection: React.FC = () => {
+    const { message: msg } = App.useApp();
+    const [status, setStatus] = useState<Record<string, unknown> | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [totpInfo, setTotpInfo] = useState<{ secret: string; otpauth_url: string } | null>(null);
+    const [totpCode, setTotpCode] = useState('');
+    const [backupCodes, setBackupCodes] = useState<string[]>([]);
+    const [phone, setPhone] = useState('');
+    const [smsCode, setSmsCode] = useState('');
+    const [emailCode, setEmailCode] = useState('');
+    const loadStatus = useCallback(async () => {
+      try {
+        const r = await userApi.getMFAStatus();
+        setStatus(r.data as Record<string, unknown>);
+      } catch { /* ignore */ }
+    }, []);
+    useEffect(() => { loadStatus(); }, [loadStatus]);
+    const handleSetupTOTP = async () => {
+      setLoading(true);
+      try {
+        const r = await userApi.setupTOTP();
+        setTotpInfo(r.data as { secret: string; otpauth_url: string });
+      } catch { msg.error('获取二维码失败'); } finally { setLoading(false); }
+    };
+    const handleVerifyTOTP = async () => {
+      try {
+        const r = await userApi.verifyTOTP(totpCode);
+        const data = r.data as { backup_codes?: string[] };
+        if (data?.backup_codes) setBackupCodes(data.backup_codes);
+        msg.success('TOTP 已启用');
+        setTotpInfo(null); setTotpCode('');
+        loadStatus();
+      } catch { msg.error('验证码错误'); }
+    };
+    const handleDisableTOTP = async () => {
+      if (!totpCode) { msg.error('请输入验证码'); return; }
+      try { await userApi.disableTOTP(totpCode); msg.success('已关闭 TOTP'); loadStatus(); } catch { msg.error('验证码错误'); }
+    };
+    const handleSendSMS = async () => {
+      try { await userApi.sendSMS(phone || undefined); msg.success('短信验证码已发送（控制台查看）'); } catch { msg.error('发送失败'); }
+    };
+    const handleVerifySMS = async () => {
+      try { await userApi.verifySMS(phone, smsCode); msg.success('短信验证已启用'); loadStatus(); } catch { msg.error('验证码错误'); }
+    };
+    const handleSendEmail = async () => {
+      try { await userApi.sendEmailCode(); msg.success('邮箱验证码已发送'); } catch { msg.error('发送失败'); }
+    };
+    const handleVerifyEmail = async () => {
+      try { await userApi.verifyEmail(emailCode); msg.success('邮箱验证已启用'); loadStatus(); } catch { msg.error('验证码错误'); }
+    };
+    if (!status) return <Spin />;
+    const totpEnabled = status.totp_enabled as boolean;
+    const smsEnabled = status.sms_enabled as boolean;
+    const emailEnabled = status.email_enabled as boolean;
+    return (
+      <Space direction="vertical" style={{ width: '100%' }} size={16}>
+        <Alert type="info" showIcon message="可同时启用多种二次验证方式，登录时任选其一；支持 TOTP 动态码、短信、邮箱验证码及备用码。强制策略由管理员在系统配置中设置。" />
+        <Card title="TOTP 动态码（推荐）" extra={<Tag color={totpEnabled ? 'green' : 'default'}>{totpEnabled ? '已启用' : '未启用'}</Tag>}>
+          {!totpEnabled ? (
+            <>
+              {!totpInfo ? <Button loading={loading} onClick={handleSetupTOTP} icon={<SafetyOutlined />}>生成二维码</Button> :
+                <div>
+                  <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                    <QRCode value={totpInfo.otpauth_url} />
+                    <div style={{ flex: 1, minWidth: 260 }}>
+                      <div style={{ fontSize: 12, color: '#999', wordBreak: 'break-all', marginBottom: 8 }}>Secret: {totpInfo.secret}</div>
+                      <div style={{ fontSize: 12, color: '#999', wordBreak: 'break-all' }}>{totpInfo.otpauth_url}</div>
+                      <Space.Compact style={{ width: '100%', marginTop: 12 }}>
+                        <Input placeholder="输入 6 位验证码" value={totpCode} onChange={e => setTotpCode(e.target.value)} />
+                        <Button type="primary" onClick={handleVerifyTOTP}>验证并启用</Button>
+                      </Space.Compact>
+                    </div>
+                  </div>
+                  {backupCodes.length > 0 && <Alert type="warning" style={{ marginTop: 12 }} message="备用码（请妥善保存，仅显示一次）" description={backupCodes.join('  ')} />}
+                </div>}
+            </>
+          ) : (
+            <Space>
+              <Input placeholder="输入验证码以关闭" value={totpCode} onChange={e => setTotpCode(e.target.value)} style={{ width: 200 }} />
+              <Button danger onClick={handleDisableTOTP}>关闭 TOTP</Button>
+            </Space>
+          )}
+        </Card>
+        <Card title="短信验证" extra={<Tag color={smsEnabled ? 'green' : 'default'}>{smsEnabled ? '已启用' : '未启用'}</Tag>}>
+          {!smsEnabled ? (
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <Input placeholder="手机号" value={phone} onChange={e => setPhone(e.target.value)} prefix={<MobileOutlined />} />
+              <Space>
+                <Button onClick={handleSendSMS}>发送验证码</Button>
+                <Input placeholder="短信验证码" value={smsCode} onChange={e => setSmsCode(e.target.value)} style={{ width: 160 }} />
+                <Button type="primary" onClick={handleVerifySMS}>验证并启用</Button>
+              </Space>
+            </Space>
+          ) : <Button danger onClick={async () => { try { await userApi.disableSMS(); msg.success('已关闭'); loadStatus(); } catch { msg.error('失败'); } }}>关闭短信验证</Button>}
+        </Card>
+        <Card title="邮箱验证" extra={<Tag color={emailEnabled ? 'green' : 'default'}>{emailEnabled ? '已启用' : '未启用'}</Tag>}>
+          {!emailEnabled ? (
+            <Space>
+              <Button onClick={handleSendEmail}>发送验证码到邮箱</Button>
+              <Input placeholder="邮箱验证码" value={emailCode} onChange={e => setEmailCode(e.target.value)} style={{ width: 160 }} />
+              <Button type="primary" onClick={handleVerifyEmail}>验证并启用</Button>
+            </Space>
+          ) : <Button danger onClick={async () => { try { await userApi.disableEmail(); msg.success('已关闭'); loadStatus(); } catch { msg.error('失败'); } }}>关闭邮箱验证</Button>}
+        </Card>
+        {status.backup_count ? <Alert type="success" message={`备用码剩余 ${status.backup_count as number} 个`} /> : null}
+      </Space>
+    );
+  };
+
   // 加载登录日志（Tab 内）
   useEffect(() => {
     let cancelled = false;
@@ -288,6 +397,7 @@ const Profile: React.FC = () => {
           items={[
             { key: 'profile', icon: <SolutionOutlined />, label: '用户资料' },
             { key: 'password', icon: <KeyOutlined />, label: '修改密码' },
+            { key: 'mfa', icon: <SafetyOutlined />, label: '二次验证' },
             { key: 'inbox', icon: <MailOutlined />, label: '收件箱' },
             { key: 'logs', icon: <FileTextOutlined />, label: '登录日志' },
           ]}
@@ -373,6 +483,12 @@ const Profile: React.FC = () => {
                 <Button type="primary" danger onClick={handlePasswordChange}>修改密码</Button>
               </Form.Item>
             </Form>
+          </PageCard>
+        )}
+
+        {activeKey === 'mfa' && (
+          <PageCard title="二次验证 (MFA)">
+            <MFASection />
           </PageCard>
         )}
 

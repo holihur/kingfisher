@@ -23,4 +23,9 @@ type UserRepository interface {
 	FindDirectRoleIDs(ctx context.Context, userID uint) ([]uint, error)
 	CountSubAccounts(ctx context.Context, parentID uint) (int64, error)
 	GetPermCodesByRoleIDs(ctx context.Context, roleIDs []uint) ([]string, error)
+	GetMFAStatus(ctx context.Context, userID uint) (*domain.MFAStatus, error)
+	GetMFASecret(ctx context.Context, userID uint) (string, error)
+	SetMFASecret(ctx context.Context, userID uint, secret string) error
+	GetBackupCodes(ctx context.Context, userID uint) (string, error)
+	SetBackupCodes(ctx context.Context, userID uint, codes string) error
 }
