@@ -43,7 +43,7 @@ func Apply(db *gorm.DB, scope Scope) *gorm.DB {
 		return db
 	}
 	if !validColumn(scope.field) {
-		db.AddError(fmt.Errorf("data access: invalid column %q", scope.field))
+		_ = db.AddError(fmt.Errorf("data access: invalid column %q", scope.field))
 		return db
 	}
 	switch scope.kind {
@@ -55,7 +55,7 @@ func Apply(db *gorm.DB, scope Scope) *gorm.DB {
 		}
 		return db.Where(scope.field+" IN ?", scope.ids)
 	default:
-		db.AddError(fmt.Errorf("data access: unsupported scope %q", scope.kind))
+		_ = db.AddError(fmt.Errorf("data access: unsupported scope %q", scope.kind))
 		return db
 	}
 }

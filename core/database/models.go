@@ -12,24 +12,24 @@ import (
 // Production MySQL/PG uses migrations/*.sql instead.
 
 type UserPO struct {
-	ID             uint   `gorm:"primaryKey"`
-	Username       string `gorm:"size:32;uniqueIndex;not null"`
-	Nickname       string `gorm:"size:64"`
-	Password       string `gorm:"size:128;not null"`
-	Email          string `gorm:"size:128"`
-	Phone          string `gorm:"size:32"`
-	Avatar         string `gorm:"size:255"`
-	Status         int    `gorm:"default:1"`
-	SessionVersion int    `gorm:"default:1"`
-	ParentID       *uint  `gorm:"index"`
-	MFATOTPSecret  string `gorm:"size:64"`
-	MFATOTPEnabled bool   `gorm:"default:false"`
-	MFASMSEnabled  bool   `gorm:"default:false"`
-	MFAEmailEnabled bool  `gorm:"default:false"`
-	MFABackupCodes string `gorm:"type:text"`
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
-	DeletedAt      gorm.DeletedAt `gorm:"index"`
+	ID              uint   `gorm:"primaryKey"`
+	Username        string `gorm:"size:32;uniqueIndex;not null"`
+	Nickname        string `gorm:"size:64"`
+	Password        string `gorm:"size:128;not null"`
+	Email           string `gorm:"size:128"`
+	Phone           string `gorm:"size:32"`
+	Avatar          string `gorm:"size:255"`
+	Status          int    `gorm:"default:1"`
+	SessionVersion  int    `gorm:"default:1"`
+	ParentID        *uint  `gorm:"index"`
+	MFATOTPSecret   string `gorm:"size:64"`
+	MFATOTPEnabled  bool   `gorm:"default:false"`
+	MFASMSEnabled   bool   `gorm:"default:false"`
+	MFAEmailEnabled bool   `gorm:"default:false"`
+	MFABackupCodes  string `gorm:"type:text"`
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+	DeletedAt       gorm.DeletedAt `gorm:"index"`
 }
 
 func (UserPO) TableName() string { return "users" }

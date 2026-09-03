@@ -145,10 +145,7 @@ func (s *MFAService) IsMFARequired(ctx context.Context, user *domain.User) bool 
 	for _, r := range user.Roles {
 		codes = append(codes, r.Code)
 	}
-	if s.isEnforceAdmin(ctx, codes) {
-		return true
-	}
-	return false
+	return s.isEnforceAdmin(ctx, codes)
 }
 
 func (s *MFAService) SetupTOTP(ctx context.Context, userID uint) (*domain.MFASecretInfo, error) {

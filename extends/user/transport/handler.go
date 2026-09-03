@@ -1060,11 +1060,12 @@ func (h *UserHandler) UpdateSubAccount(c *gin.Context) {
 		return
 	}
 	if err := h.svc.UpdateSubAccount(c.Request.Context(), parentID, uint(subID), req.RoleIDs); err != nil {
-		if strings.Contains(err.Error(), "not in parent permissions") {
+		switch {
+		case strings.Contains(err.Error(), "not in parent permissions"):
 			response.ErrorJSON(c, errcode.ErrSubAccountNoPerm)
-		} else if strings.Contains(err.Error(), "not your sub account") {
+		case strings.Contains(err.Error(), "not your sub account"):
 			response.ErrorJSON(c, errcode.ErrSubAccountNotFound)
-		} else {
+		default:
 			response.BadRequest(c, err.Error())
 		}
 		return

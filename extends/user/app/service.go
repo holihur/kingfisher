@@ -23,15 +23,15 @@ var ErrMFARequired = errors.New("mfa_required")
 var ErrMFASetupRequired = errors.New("mfa_setup_required")
 
 type AuthService struct {
-	repo   port.UserRepository
-	cache  cache.Cache
-	jwtMgr *jwt.JWTManager
+	repo           port.UserRepository
+	cache          cache.Cache
+	jwtMgr         *jwt.JWTManager
 	getLandingPage func(ctx context.Context, roleID uint) (string, error)
-	getConfig func(ctx context.Context, key string) (string, error)
-	sendEmail func(ctx context.Context, to, subject, body string) error
+	getConfig      func(ctx context.Context, key string) (string, error)
+	sendEmail      func(ctx context.Context, to, subject, body string) error
 	renderTemplate func(ctx context.Context, code string, vars map[string]string) (subject, body string, err error)
-	resetTokenTTL time.Duration
-	mfaSvc *MFAService
+	resetTokenTTL  time.Duration
+	mfaSvc         *MFAService
 }
 
 type MFARequiredError struct {
@@ -431,13 +431,16 @@ func (s *UserService) Update(ctx context.Context, id uint, updates map[string]an
 func (s *UserService) pruneSubAccounts(ctx context.Context, parentID uint) error {
 	parent, err := s.repo.FindByID(ctx, parentID)
 	if err != nil {
-		return nil
+		return err
 	}
 	if parent.ParentID != nil {
 		return nil
 	}
 	subs, err := s.repo.FindSubAccounts(ctx, parentID)
-	if err != nil || len(subs) == 0 {
+	if err != nil {
+		return err
+	}
+	if len(subs) == 0 {
 		return nil
 	}
 	var parentPerms map[string]bool

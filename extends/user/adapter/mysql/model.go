@@ -9,7 +9,7 @@ import (
 )
 
 type userPO struct {
-	ID              uint  `gorm:"primaryKey"`
+	ID              uint `gorm:"primaryKey"`
 	Username        string
 	Nickname        string
 	Password        string
@@ -22,7 +22,7 @@ type userPO struct {
 	MFATOTPEnabled  bool
 	MFASMSEnabled   bool
 	MFAEmailEnabled bool
-	MFABackupCodes  string `gorm:"type:text"`
+	MFABackupCodes  string         `gorm:"type:text"`
 	Roles           []rolePO       `gorm:"many2many:user_roles;joinForeignKey:UserID;joinReferences:RoleID"`
 	Departments     []departmentPO `gorm:"many2many:user_departments;joinForeignKey:UserID;joinReferences:DepartmentID"`
 	SessionVersion  int
@@ -48,7 +48,7 @@ func (p userPO) toDomain() *domain.User {
 		ParentID: p.ParentID, SessionVersion: p.SessionVersion,
 		MFATOTPEnabled: p.MFATOTPEnabled, MFASMSEnabled: p.MFASMSEnabled, MFAEmailEnabled: p.MFAEmailEnabled,
 		MFAEnabled: p.MFATOTPEnabled || p.MFASMSEnabled || p.MFAEmailEnabled,
-		CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt,
+		CreatedAt:  p.CreatedAt, UpdatedAt: p.UpdatedAt,
 	}
 	for _, r := range p.Roles {
 		u.RoleIDs = append(u.RoleIDs, r.ID)

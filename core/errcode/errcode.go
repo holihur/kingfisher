@@ -79,90 +79,90 @@ const (
 	ErrAgentNoAPIKey       = 11005
 
 	// SubAccount 11100-11199
-	ErrSubAccountNotFound    = 11101
-	ErrSubAccountLimit       = 11102
-	ErrSubAccountNoPerm      = 11103
-	ErrSubAccountIsSub       = 11104
+	ErrSubAccountNotFound       = 11101
+	ErrSubAccountLimit          = 11102
+	ErrSubAccountNoPerm         = 11103
+	ErrSubAccountIsSub          = 11104
 	ErrSubAccountParentNotFound = 11105
 
 	// MFA 11200-11299
-	ErrMFARequired      = 11201
-	ErrMFACodeInvalid   = 11202
-	ErrMFACodeExpired   = 11203
-	ErrMFANotEnabled    = 11204
-	ErrMFAAlreadyEnabled = 11205
-	ErrMFASetupRequired = 11206
-	ErrMFABackupInvalid = 11207
+	ErrMFARequired        = 11201
+	ErrMFACodeInvalid     = 11202
+	ErrMFACodeExpired     = 11203
+	ErrMFANotEnabled      = 11204
+	ErrMFAAlreadyEnabled  = 11205
+	ErrMFASetupRequired   = 11206
+	ErrMFABackupInvalid   = 11207
 	ErrMFASendTooFrequent = 11208
 )
 
 //nolint:gosec // false positive — Chinese error messages
 var errMsg = map[int]string{
-	CodeSuccess:             "success",
-	ErrInvalidParam:         "参数错误",
-	ErrUnauthorized:         "未认证",
-	ErrForbidden:            "无权限",
-	ErrNotFound:             "资源不存在",
-	ErrInternal:             "服务器内部错误",
-	ErrTooManyRequest:       "请求过于频繁",
-	ErrMethodNotAllowed:     "方法不允许",
-	ErrServiceUnavailable:   "服务暂时不可用",
-	ErrUserExists:           "用户已存在",
-	ErrUserNotFound:         "用户不存在",
-	ErrPasswordWrong:        "密码错误",
-	ErrTokenExpired:         "Token 过期",
-	ErrTokenInvalid:         "Token 无效",
-	ErrUserDisabled:         "用户已禁用",
-	ErrLoginFailed:          "登录失败次数过多",
-	ErrPasswordTooShort:     "密码过短",
-	ErrPasswordTooLong:      "密码过长",
-	ErrPasswordWeak:         "密码强度不足",
-	ErrRegistrationDisabled: "注册未开放",
-	ErrMenuExists:           "菜单已存在",
-	ErrMenuNotFound:         "菜单不存在",
-	ErrMenuHasChildren:      "菜单有子节点，不可删除",
-	ErrRoleExists:           "角色已存在",
-	ErrRoleNotFound:         "角色不存在",
-	ErrRoleInUse:            "角色被用户使用中",
-	ErrConfigNotFound:       "配置不存在",
-	ErrConfigKeyExists:      "配置键已存在",
-	ErrDictTypeNotFound:     "字典类型不存在",
-	ErrDictTypeCodeExists:   "字典类型编码已存在",
-	ErrDictEntryNotFound:    "字典条目不存在",
-	ErrDictTypeHasEntries:   "字典类型下存在条目，不可删除",
-	ErrDictTypeNotPublic:    "字典类型未公开",
-	ErrTemplateNotFound:     "模版不存在",
-	ErrTemplateCodeExists:   "模版编码已存在",
-	ErrTaskNotFound:         "周期任务不存在",
-	ErrDocDirNotFound:       "文档目录不存在",
-	ErrDocDirHasChildren:    "目录下有子目录，不可删除",
-	ErrDocDirHasDocuments:   "目录下存在文档，不可删除",
-	ErrDocDirNotVisible:     "目录不可见或无权访问",
-	ErrDocNotFound:          "文档不存在",
-	ErrDocForbidden:         "无权操作该文档",
-	ErrDocVersionNotFound:   "文档版本不存在",
-	ErrDeptNotFound:         "部门不存在",
-	ErrDeptHasChildren:      "部门下有子部门，不可删除",
-	ErrDocVersionConflict:   "文档已被他人修改，请刷新后重试",
-	ErrDocContentInvalid:    "文档内容格式不合法",
-	ErrAgentDisabled:        "Agent 聊天未启用",
-	ErrAgentConversationNF:  "会话不存在",
-	ErrAgentLLMError:        "LLM 调用失败",
-	ErrAgentToolForbidden:   "无权调用该接口",
-	ErrAgentNoAPIKey:        "未配置 LLM API Key",
+	CodeSuccess:                 "success",
+	ErrInvalidParam:             "参数错误",
+	ErrUnauthorized:             "未认证",
+	ErrForbidden:                "无权限",
+	ErrNotFound:                 "资源不存在",
+	ErrInternal:                 "服务器内部错误",
+	ErrTooManyRequest:           "请求过于频繁",
+	ErrMethodNotAllowed:         "方法不允许",
+	ErrServiceUnavailable:       "服务暂时不可用",
+	ErrUserExists:               "用户已存在",
+	ErrUserNotFound:             "用户不存在",
+	ErrPasswordWrong:            "密码错误",
+	ErrTokenExpired:             "Token 过期",
+	ErrTokenInvalid:             "Token 无效",
+	ErrUserDisabled:             "用户已禁用",
+	ErrLoginFailed:              "登录失败次数过多",
+	ErrPasswordTooShort:         "密码过短",
+	ErrPasswordTooLong:          "密码过长",
+	ErrPasswordWeak:             "密码强度不足",
+	ErrRegistrationDisabled:     "注册未开放",
+	ErrMenuExists:               "菜单已存在",
+	ErrMenuNotFound:             "菜单不存在",
+	ErrMenuHasChildren:          "菜单有子节点，不可删除",
+	ErrRoleExists:               "角色已存在",
+	ErrRoleNotFound:             "角色不存在",
+	ErrRoleInUse:                "角色被用户使用中",
+	ErrConfigNotFound:           "配置不存在",
+	ErrConfigKeyExists:          "配置键已存在",
+	ErrDictTypeNotFound:         "字典类型不存在",
+	ErrDictTypeCodeExists:       "字典类型编码已存在",
+	ErrDictEntryNotFound:        "字典条目不存在",
+	ErrDictTypeHasEntries:       "字典类型下存在条目，不可删除",
+	ErrDictTypeNotPublic:        "字典类型未公开",
+	ErrTemplateNotFound:         "模版不存在",
+	ErrTemplateCodeExists:       "模版编码已存在",
+	ErrTaskNotFound:             "周期任务不存在",
+	ErrDocDirNotFound:           "文档目录不存在",
+	ErrDocDirHasChildren:        "目录下有子目录，不可删除",
+	ErrDocDirHasDocuments:       "目录下存在文档，不可删除",
+	ErrDocDirNotVisible:         "目录不可见或无权访问",
+	ErrDocNotFound:              "文档不存在",
+	ErrDocForbidden:             "无权操作该文档",
+	ErrDocVersionNotFound:       "文档版本不存在",
+	ErrDeptNotFound:             "部门不存在",
+	ErrDeptHasChildren:          "部门下有子部门，不可删除",
+	ErrDocVersionConflict:       "文档已被他人修改，请刷新后重试",
+	ErrDocContentInvalid:        "文档内容格式不合法",
+	ErrAgentDisabled:            "Agent 聊天未启用",
+	ErrAgentConversationNF:      "会话不存在",
+	ErrAgentLLMError:            "LLM 调用失败",
+	ErrAgentToolForbidden:       "无权调用该接口",
+	ErrAgentNoAPIKey:            "未配置 LLM API Key",
 	ErrSubAccountNotFound:       "子账户不存在",
 	ErrSubAccountLimit:          "子账户数量已达上限",
 	ErrSubAccountNoPerm:         "子账户权限超出父账户范围",
 	ErrSubAccountIsSub:          "子账户不能再创建子账户",
 	ErrSubAccountParentNotFound: "父账户不存在",
-	ErrMFARequired:           "需要二次验证",
-	ErrMFACodeInvalid:        "验证码错误",
-	ErrMFACodeExpired:        "验证码已过期",
-	ErrMFANotEnabled:         "未启用二次验证",
-	ErrMFAAlreadyEnabled:     "已启用二次验证",
-	ErrMFASetupRequired:      "请先完成二次验证绑定",
-	ErrMFABackupInvalid:      "备用码无效",
-	ErrMFASendTooFrequent:    "发送过于频繁，请稍后重试",
+	ErrMFARequired:              "需要二次验证",
+	ErrMFACodeInvalid:           "验证码错误",
+	ErrMFACodeExpired:           "验证码已过期",
+	ErrMFANotEnabled:            "未启用二次验证",
+	ErrMFAAlreadyEnabled:        "已启用二次验证",
+	ErrMFASetupRequired:         "请先完成二次验证绑定",
+	ErrMFABackupInvalid:         "备用码无效",
+	ErrMFASendTooFrequent:       "发送过于频繁，请稍后重试",
 }
 
 func Msg(code int) string {
